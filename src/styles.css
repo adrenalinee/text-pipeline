@@ -1,0 +1,14 @@
+/* mantine + tailwindcss 4.0: https://github.com/orgs/mantinedev/discussions/7459 */
+@layer theme, base, mantine, components, utilities;
+
+@import 'tailwindcss';
+
+@import '@mantine/core/styles.layer.css';
+@import '@mantine/notifications/styles.css';
+@import 'mantine-datatable/styles.css';
+
+/* 스크롤바가 생겼다 사라질 때마다 레이아웃이 흔들리는 현상(CLS) 방지.
+   스크롤바 영역을 항상 예약해두어 콘텐츠 영역 너비가 일정하게 유지됨. */
+html {
+  scrollbar-gutter: stable;
+}
