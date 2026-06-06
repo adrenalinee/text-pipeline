@@ -7,8 +7,106 @@
 @import '@mantine/notifications/styles.css';
 @import 'mantine-datatable/styles.css';
 
-/* 스크롤바가 생겼다 사라질 때마다 레이아웃이 흔들리는 현상(CLS) 방지.
-   스크롤바 영역을 항상 예약해두어 콘텐츠 영역 너비가 일정하게 유지됨. */
+/* Keep content width stable when scrollbars appear. */
 html {
   scrollbar-gutter: stable;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  min-width: 320px;
+  background: var(--mantine-color-body);
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+.workbenchShell {
+  min-height: 100vh;
+  background: var(--mantine-color-body);
+}
+
+.workbenchHeader {
+  background: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8));
+}
+
+.workbenchSidebar {
+  background: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8));
+}
+
+.workbenchMain {
+  min-width: 0;
+  background: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-9));
+}
+
+.editorPanel {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 44px);
+  min-width: 0;
+}
+
+.editorToolbar {
+  min-height: 38px;
+  padding: 0 12px;
+  border-bottom: 1px solid
+    light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+  background: light-dark(var(--mantine-color-white), var(--mantine-color-dark-7));
+}
+
+.textEditor {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  padding: 16px;
+  resize: none;
+  border: 0;
+  outline: 0;
+  color: light-dark(var(--mantine-color-gray-9), var(--mantine-color-gray-1));
+  background: light-dark(var(--mantine-color-white), var(--mantine-color-dark-8));
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.55;
+  tab-size: 2;
+}
+
+.flowItem,
+.sideAction {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.flowItem {
+  padding: 8px;
+}
+
+.flowItem[data-active] {
+  border-color: light-dark(var(--mantine-color-blue-3), var(--mantine-color-blue-8));
+  background: light-dark(var(--mantine-color-blue-0), rgba(34, 139, 230, 0.12));
+}
+
+.sideAction {
+  min-height: 32px;
+  padding: 0 8px;
+  color: var(--mantine-color-text);
+}
+
+.sideAction:hover {
+  background: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-6));
+}
+
+@media (max-width: 360px) {
+  .workbenchBadge {
+    display: none;
+  }
 }
