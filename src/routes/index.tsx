@@ -21,11 +21,14 @@ import { EditorView } from '@codemirror/view'
 import { oneDark } from '@codemirror/theme-one-dark'
 import CodeMirror from '@uiw/react-codemirror'
 import {
+  Binary,
   Braces,
   Check,
   Code2,
+  FileJson,
   FileText,
   ListTree,
+  Link,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
@@ -43,7 +46,13 @@ import type {
   SyntaxMode,
   TextCommit,
   TransformAction,
+  TransformActionSection,
+  TransformDefinition,
+  TransformRunner,
 } from '#/features/workbench/types'
+import { TRANSFORM_DEFINITIONS } from '#/features/workbench/transforms/definitions'
+import { getTransformSections } from '#/features/workbench/transforms/filterTransforms'
+import { TRANSFORM_RUNNERS } from '#/features/workbench/transforms/runners'
 import { validateFormat } from '#/features/workbench/utils/formatValidation'
 import { getChangeStats } from '#/features/workbench/utils/textMetrics'
 
@@ -110,37 +119,23 @@ function Workbench() {
     [editorValue, syntaxMode, validationEnabled],
   )
 
-  function formatJson() {
+  function runTransform(
+    definition: TransformDefinition,
+    runner: TransformRunner,
+  ) {
     try {
-      const formatted = JSON.stringify(JSON.parse(editorValue), null, 2)
-      setSyntaxMode('json')
-      commitTransform({
-        afterText: formatted,
-        beforeText: editorValue,
-        description: 'Pretty printed current JSON',
-        title: 'JSON format',
-      })
-    } catch (error) {
-      notifications.show({
-        color: 'red',
-        message:
-          error instanceof Error
-            ? error.message
-            : 'The editor content is not valid JSON.',
-        title: 'JSON format failed',
-      })
-    }
-  }
+      const result = runner(editorValue)
+      const outputFormat = result.outputFormat ?? definition.outputFormat
 
-  function minifyJson() {
-    try {
-      const minified = JSON.stringify(JSON.parse(editorValue))
-      setSyntaxMode('json')
+      if (outputFormat) {
+        setSyntaxMode(outputFormat)
+      }
+
       commitTransform({
-        afterText: minified,
+        afterText: result.output,
         beforeText: editorValue,
-        description: 'Minified current JSON',
-        title: 'JSON minify',
+        description: definition.description,
+        title: definition.label,
       })
     } catch (error) {
       notifications.show({
@@ -148,8 +143,8 @@ function Workbench() {
         message:
           error instanceof Error
             ? error.message
-            : 'The editor content is not valid JSON.',
-        title: 'JSON minify failed',
+            : 'The transform could not be applied.',
+        title: `${definition.label} failed`,
       })
     }
   }
@@ -255,22 +250,36 @@ function Workbench() {
     }
   }, [isCompact])
 
-  const transformActions: Array<TransformAction> = [
-    {
-      description: 'Pretty print the current editor JSON',
-      icon: <ListTree size={16} />,
-      id: 'json-format',
-      label: 'JSON format',
-      onClick: formatJson,
-    },
-    {
-      description: 'Remove whitespace from current JSON',
-      icon: <Braces size={16} />,
-      id: 'json-minify',
-      label: 'JSON minify',
-      onClick: minifyJson,
-    },
-  ]
+  const transformSections: Array<TransformActionSection> = getTransformSections(
+    TRANSFORM_DEFINITIONS,
+    syntaxMode,
+  )
+    .map((section) => {
+      const actions = section.transforms.flatMap((definition) => {
+        const runner = TRANSFORM_RUNNERS[definition.id]
+
+        if (!runner) {
+          return []
+        }
+
+        return [
+          {
+            description: definition.description,
+            icon: getTransformIcon(definition.id),
+            id: definition.id,
+            label: definition.label,
+            onClick: () => runTransform(definition, runner),
+          } satisfies TransformAction,
+        ]
+      })
+
+      return {
+        actions,
+        id: section.id,
+        title: section.title,
+      }
+    })
+    .filter((section) => section.actions.length > 0)
 
   return (
     <AppShell
@@ -400,10 +409,34 @@ function Workbench() {
       </AppShell.Main>
 
       <AppShell.Aside className="workbenchSidebar">
-        <TransformsSidebar actions={transformActions} />
+        <TransformsSidebar sections={transformSections} />
       </AppShell.Aside>
     </AppShell>
   )
+}
+
+function getTransformIcon(id: TransformDefinition['id']) {
+  if (id === 'json-format') {
+    return <ListTree size={16} />
+  }
+
+  if (id === 'json-minify') {
+    return <Braces size={16} />
+  }
+
+  if (id === 'yaml-to-json') {
+    return <FileJson size={16} />
+  }
+
+  if (id === 'url-encode' || id === 'url-decode') {
+    return <Link size={16} />
+  }
+
+  if (id === 'base64-encode' || id === 'base64-decode') {
+    return <Binary size={16} />
+  }
+
+  return <Code2 size={16} />
 }
 
 function SyntaxOptionButton({

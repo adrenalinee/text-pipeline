@@ -2,6 +2,20 @@ import type { ReactNode } from 'react'
 
 export type SyntaxMode = 'plain' | 'json' | 'yaml'
 
+export type TransformGroup = 'format' | 'general'
+
+export type TransformId =
+  | 'base64-decode'
+  | 'base64-encode'
+  | 'json-format'
+  | 'json-minify'
+  | 'json-to-yaml'
+  | 'json-validate'
+  | 'jsonpath-query'
+  | 'url-decode'
+  | 'url-encode'
+  | 'yaml-to-json'
+
 export type TextCommit = {
   afterText: string
   beforeText: string
@@ -21,3 +35,27 @@ export type TransformAction = {
   label: string
   onClick: () => void
 }
+
+export type TransformActionSection = {
+  actions: Array<TransformAction>
+  id: TransformGroup
+  title: string
+}
+
+export type TransformDefinition = {
+  description: string
+  group: TransformGroup
+  id: TransformId
+  inputFormats: ReadonlyArray<SyntaxMode> | '*'
+  label: string
+  outputFormat?: SyntaxMode
+}
+
+export type TransformResult = {
+  output: string
+  outputFormat?: SyntaxMode
+}
+
+export type TransformRunner = (input: string) => TransformResult
+
+export type TransformRunnerMap = Partial<Record<TransformId, TransformRunner>>

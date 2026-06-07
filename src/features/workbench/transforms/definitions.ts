@@ -1,0 +1,60 @@
+import type { TransformDefinition } from '../types'
+
+export const TRANSFORM_DEFINITIONS = [
+  {
+    description: 'Pretty print the current editor JSON',
+    group: 'format',
+    id: 'json-format',
+    inputFormats: ['json'],
+    label: 'JSON format',
+    outputFormat: 'json',
+  },
+  {
+    description: 'Remove whitespace from current JSON',
+    group: 'format',
+    id: 'json-minify',
+    inputFormats: ['json'],
+    label: 'JSON minify',
+    outputFormat: 'json',
+  },
+  {
+    description: 'Convert YAML into pretty printed JSON',
+    group: 'format',
+    id: 'yaml-to-json',
+    inputFormats: ['yaml'],
+    label: 'YAML to JSON',
+    outputFormat: 'json',
+  },
+  {
+    description: 'Encode text for use in URLs',
+    group: 'general',
+    id: 'url-encode',
+    inputFormats: '*',
+    label: 'URL encode',
+    outputFormat: 'plain',
+  },
+  {
+    description: 'Decode percent-encoded URL text',
+    group: 'general',
+    id: 'url-decode',
+    inputFormats: '*',
+    label: 'URL decode',
+    outputFormat: 'plain',
+  },
+  {
+    description: 'Encode text as UTF-8 Base64',
+    group: 'general',
+    id: 'base64-encode',
+    inputFormats: '*',
+    label: 'Base64 encode',
+    outputFormat: 'plain',
+  },
+  {
+    description: 'Decode UTF-8 Base64 text',
+    group: 'general',
+    id: 'base64-decode',
+    inputFormats: '*',
+    label: 'Base64 decode',
+    outputFormat: 'plain',
+  },
+] satisfies Array<TransformDefinition>

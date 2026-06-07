@@ -348,6 +348,10 @@ button {
   min-width: 0;
 }
 
+.emptyTransforms {
+  padding: 4px 8px;
+}
+
 @media (max-width: 360px) {
   .workbenchBadge {
     display: none;
