@@ -23,8 +23,7 @@ body {
   background: var(--mantine-color-body);
 }
 
-button,
-textarea {
+button {
   font: inherit;
 }
 
@@ -61,22 +60,43 @@ textarea {
   background: light-dark(var(--mantine-color-white), var(--mantine-color-dark-7));
 }
 
-.textEditor {
+.codeEditor {
   flex: 1;
   width: 100%;
   min-height: 0;
-  padding: 16px;
-  resize: none;
-  border: 0;
-  outline: 0;
+  overflow: hidden;
+}
+
+.codeEditor .cm-editor {
+  height: 100%;
   color: light-dark(var(--mantine-color-gray-9), var(--mantine-color-gray-1));
   background: light-dark(var(--mantine-color-white), var(--mantine-color-dark-8));
+  font-size: 14px;
+}
+
+.codeEditor .cm-scroller {
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
     'Courier New', monospace;
-  font-size: 14px;
   line-height: 1.55;
-  tab-size: 2;
+}
+
+.codeEditor .cm-content {
+  padding: 16px 0;
+}
+
+.codeEditor .cm-line {
+  padding: 0 16px 0 8px;
+}
+
+.codeEditor .cm-gutters {
+  border-right: 1px solid
+    light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+  background: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8));
+}
+
+.codeEditor .cm-focused {
+  outline: 0;
 }
 
 .flowItem,

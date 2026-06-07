@@ -16,6 +16,10 @@ import {
   useMantineColorScheme,
 } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
+import { json } from '@codemirror/lang-json'
+import { EditorView } from '@codemirror/view'
+import { oneDark } from '@codemirror/theme-one-dark'
+import CodeMirror from '@uiw/react-codemirror'
 import {
   Braces,
   CircleDot,
@@ -28,7 +32,7 @@ import {
   Sun,
   Workflow,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 export const Route = createFileRoute('/')({ component: Home })
 
@@ -52,6 +56,7 @@ function Workbench() {
     getInitialValueInEffect: true,
   })
   const isDark = computedColorScheme === 'dark'
+  const editorExtensions = useMemo(() => [json(), EditorView.lineWrapping], [])
 
   useEffect(() => {
     if (isCompact) {
@@ -145,14 +150,24 @@ function Workbench() {
                 Text Editor
               </Text>
             </Group>
-            <Code fz="xs">plain text</Code>
+            <Code fz="xs">json</Code>
           </Group>
-          <textarea
+          <CodeMirror
             aria-label="Text editor"
-            className="textEditor"
-            spellCheck={false}
+            className="codeEditor"
+            basicSetup={{
+              bracketMatching: true,
+              closeBrackets: true,
+              foldGutter: true,
+              highlightActiveLine: true,
+              highlightActiveLineGutter: true,
+              lineNumbers: true,
+            }}
+            extensions={editorExtensions}
+            height="100%"
+            theme={isDark ? oneDark : 'light'}
             value={editorValue}
-            onChange={(event) => setEditorValue(event.currentTarget.value)}
+            onChange={(value) => setEditorValue(value)}
           />
         </Box>
       </AppShell.Main>
