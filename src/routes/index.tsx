@@ -43,6 +43,18 @@ export const Route = createFileRoute('/')({ component: Home })
 
 type SyntaxMode = 'plain' | 'json' | 'yaml'
 
+type TextCommit = {
+  afterText: string
+  beforeText: string
+  charDelta: number
+  description: string
+  id: string
+  lineDelta: number
+  parentId: string
+  title: string
+  timestamp: string
+}
+
 const SYNTAX_OPTIONS: Array<{
   description: string
   label: string
@@ -71,6 +83,9 @@ const SYNTAX_LABELS: Record<SyntaxMode, string> = {
   yaml: 'YAML',
 }
 
+const INITIAL_EDITOR_VALUE =
+  '{\n  "service": "text-pipeline",\n  "status": "draft"\n}'
+
 function Home() {
   return (
     <MantineProvider defaultColorScheme="dark">
@@ -83,9 +98,9 @@ function Home() {
 function Workbench() {
   const [leftOpened, setLeftOpened] = useState(true)
   const [rightOpened, setRightOpened] = useState(true)
-  const [editorValue, setEditorValue] = useState(
-    '{\n  "service": "text-pipeline",\n  "status": "draft"\n}',
-  )
+  const [editorValue, setEditorValue] = useState(INITIAL_EDITOR_VALUE)
+  const [commits, setCommits] = useState<Array<TextCommit>>([])
+  const [selectedRevisionId, setSelectedRevisionId] = useState('working')
   const [syntaxMode, setSyntaxMode] = useState<SyntaxMode>('json')
   const [syntaxModalOpened, setSyntaxModalOpened] = useState(false)
   const { setColorScheme } = useMantineColorScheme()
@@ -94,6 +109,7 @@ function Workbench() {
     getInitialValueInEffect: true,
   })
   const isDark = computedColorScheme === 'dark'
+  const rootText = commits.at(-1)?.beforeText ?? INITIAL_EDITOR_VALUE
   const editorExtensions = useMemo(() => {
     const syntaxExtensions =
       syntaxMode === 'json' ? [json()] : syntaxMode === 'yaml' ? [yaml()] : []
@@ -104,12 +120,12 @@ function Workbench() {
   function formatJson() {
     try {
       const formatted = JSON.stringify(JSON.parse(editorValue), null, 2)
-      setEditorValue(formatted)
       setSyntaxMode('json')
-      notifications.show({
-        color: 'green',
-        message: 'JSON was formatted.',
-        title: 'Transform complete',
+      commitTransform({
+        afterText: formatted,
+        beforeText: editorValue,
+        description: 'Pretty printed current JSON',
+        title: 'JSON format',
       })
     } catch (error) {
       notifications.show({
@@ -121,6 +137,122 @@ function Workbench() {
         title: 'JSON format failed',
       })
     }
+  }
+
+  function minifyJson() {
+    try {
+      const minified = JSON.stringify(JSON.parse(editorValue))
+      setSyntaxMode('json')
+      commitTransform({
+        afterText: minified,
+        beforeText: editorValue,
+        description: 'Minified current JSON',
+        title: 'JSON minify',
+      })
+    } catch (error) {
+      notifications.show({
+        color: 'red',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'The editor content is not valid JSON.',
+        title: 'JSON minify failed',
+      })
+    }
+  }
+
+  function commitTransform({
+    afterText,
+    beforeText,
+    description,
+    title,
+  }: {
+    afterText: string
+    beforeText: string
+    description: string
+    title: string
+  }) {
+    if (afterText === beforeText) {
+      notifications.show({
+        color: 'blue',
+        message: 'The transform did not change the text.',
+        title: 'No commit created',
+      })
+      return
+    }
+
+    const changeStats = getChangeStats(beforeText, afterText)
+    const index = commits.length + 1
+    const id = `c${String(index).padStart(3, '0')}`
+
+    setEditorValue(afterText)
+    setSelectedRevisionId(id)
+    setCommits((currentCommits) => [
+      {
+        afterText,
+        beforeText,
+        charDelta: changeStats.charDelta,
+        description,
+        id,
+        lineDelta: changeStats.lineDelta,
+        parentId: currentCommits[0]?.id ?? 'root',
+        title,
+        timestamp: formatCommitTimestamp(new Date()),
+      },
+      ...currentCommits,
+    ])
+
+    notifications.show({
+      color: 'green',
+      message: `${title} was committed as a text change.`,
+      title: 'Commit created',
+    })
+  }
+
+  function restoreCommit(commit: TextCommit) {
+    setEditorValue(commit.afterText)
+    setSelectedRevisionId(commit.id)
+    setSyntaxMode('json')
+    notifications.show({
+      color: 'blue',
+      message: `${commit.id} is now loaded in the editor.`,
+      title: 'Commit checked out',
+    })
+  }
+
+  function restoreRootText() {
+    setEditorValue(rootText)
+    setSelectedRevisionId('root')
+    setSyntaxMode('json')
+    notifications.show({
+      color: 'blue',
+      message: 'Root input is now loaded in the editor.',
+      title: 'Root checked out',
+    })
+  }
+
+  function restoreCommitParent(commit: TextCommit) {
+    if (commit.parentId === 'root') {
+      restoreRootText()
+      return
+    }
+
+    const parentCommit = commits.find(({ id }) => id === commit.parentId)
+
+    if (parentCommit) {
+      restoreCommit(parentCommit)
+    } else {
+      notifications.show({
+        color: 'red',
+        message: `Parent commit ${commit.parentId} could not be found.`,
+        title: 'Checkout failed',
+      })
+    }
+  }
+
+  function updateEditorValue(value: string) {
+    setEditorValue(value)
+    setSelectedRevisionId('working')
   }
 
   useEffect(() => {
@@ -216,10 +348,35 @@ function Workbench() {
       </AppShell.Header>
 
       <AppShell.Navbar className="workbenchSidebar">
-        <SidebarSection title="Flow">
+        <SidebarSection title="History">
           <Stack gap={6}>
-            <FlowItem active label="Input" meta="root" />
-            <FlowItem label="Draft result" meta="current" />
+            <WorkingTreeItem
+              active={selectedRevisionId === 'working'}
+              charCount={editorValue.length}
+              lineCount={countLines(editorValue)}
+            />
+            <Box className="historyDivider" />
+            {commits.length > 0 ? (
+              commits.map((commit) => (
+                <CommitItem
+                  active={selectedRevisionId === commit.id}
+                  commit={commit}
+                  key={commit.id}
+                  onClick={() => restoreCommit(commit)}
+                  onParentClick={() => restoreCommitParent(commit)}
+                />
+              ))
+            ) : (
+              <Text className="emptyHistory" c="dimmed" size="xs">
+                No transform commits yet.
+              </Text>
+            )}
+            <Box className="historyRootBlock">
+              <CommitRootItem
+                active={selectedRevisionId === 'root'}
+                onClick={restoreRootText}
+              />
+            </Box>
           </Stack>
         </SidebarSection>
       </AppShell.Navbar>
@@ -268,7 +425,7 @@ function Workbench() {
             height="100%"
             theme={isDark ? oneDark : 'light'}
             value={editorValue}
-            onChange={(value) => setEditorValue(value)}
+            onChange={updateEditorValue}
           />
         </Box>
       </AppShell.Main>
@@ -281,6 +438,12 @@ function Workbench() {
               icon={<ListTree size={16} />}
               label="JSON format"
               onClick={formatJson}
+            />
+            <TransformButton
+              description="Remove whitespace from current JSON"
+              icon={<Braces size={16} />}
+              label="JSON minify"
+              onClick={minifyJson}
             />
           </Stack>
         </SidebarSection>
@@ -381,23 +544,104 @@ function SidebarSection({
   )
 }
 
-function FlowItem({
+function WorkingTreeItem({
   active,
-  label,
-  meta,
+  charCount,
+  lineCount,
 }: {
-  active?: boolean
-  label: string
-  meta: string
+  active: boolean
+  charCount: number
+  lineCount: number
 }) {
   return (
-    <Box className="flowItem" data-active={active || undefined}>
-      <Text size="sm" fw={600}>
-        {label}
-      </Text>
+    <Box className="historyItem" data-active={active || undefined}>
+      <Group gap="xs" wrap="nowrap">
+        <CircleDot size={14} />
+        <Text size="sm" fw={650}>
+          Working text
+        </Text>
+      </Group>
       <Text size="xs" c="dimmed">
-        {meta}
+        {lineCount} lines | {charCount} chars
       </Text>
+    </Box>
+  )
+}
+
+function CommitRootItem({
+  active,
+  onClick,
+}: {
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      className="historyItem historyItemButton"
+      data-active={active || undefined}
+      type="button"
+      onClick={onClick}
+    >
+      <Group justify="space-between" gap="xs" wrap="nowrap">
+        <Group gap="xs" wrap="nowrap">
+          <CircleDot size={14} />
+          <Text size="sm" fw={650}>
+            Root input
+          </Text>
+        </Group>
+        <Text className="commitHash" size="xs">
+          root
+        </Text>
+      </Group>
+      <Text size="xs" c="dimmed">
+        Baseline text
+      </Text>
+    </button>
+  )
+}
+
+function CommitItem({
+  active,
+  commit,
+  onClick,
+  onParentClick,
+}: {
+  active: boolean
+  commit: TextCommit
+  onClick: () => void
+  onParentClick: () => void
+}) {
+  return (
+    <Box className="commitItemWrap">
+      <button
+        className="historyItem historyItemButton"
+        data-active={active || undefined}
+        type="button"
+        onClick={onClick}
+      >
+        <Group justify="space-between" gap="xs" wrap="nowrap">
+          <Group gap="xs" wrap="nowrap">
+            <CircleDot size={14} />
+            <Text size="sm" fw={650}>
+              {commit.title}
+            </Text>
+          </Group>
+          <Text className="commitHash" size="xs">
+            {commit.id}
+          </Text>
+        </Group>
+        <Text size="xs" c="dimmed">
+          {commit.description}
+        </Text>
+        <Group className="commitStats" gap={4} wrap="wrap">
+          <Text size="xs">{formatSignedValue(commit.lineDelta)} lines</Text>
+          <Text size="xs">{formatSignedValue(commit.charDelta)} chars</Text>
+          <Text size="xs">{commit.timestamp}</Text>
+        </Group>
+      </button>
+      <button className="parentRef" type="button" onClick={onParentClick}>
+        parent {commit.parentId}
+      </button>
     </Box>
   )
 }
@@ -428,4 +672,27 @@ function TransformButton({
       </Group>
     </button>
   )
+}
+
+function countLines(value: string) {
+  if (value.length === 0) {
+    return 0
+  }
+
+  return value.split(/\r\n|\r|\n/).length
+}
+
+function getChangeStats(beforeText: string, afterText: string) {
+  return {
+    charDelta: afterText.length - beforeText.length,
+    lineDelta: countLines(afterText) - countLines(beforeText),
+  }
+}
+
+function formatSignedValue(value: number) {
+  return value > 0 ? `+${value}` : String(value)
+}
+
+function formatCommitTimestamp(date: Date) {
+  return date.toTimeString().slice(0, 8)
 }

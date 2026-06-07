@@ -169,23 +169,112 @@ button {
   outline: 0;
 }
 
-.flowItem,
+.historyItem,
 .transformButton {
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
 }
 
-.flowItem {
+.historyItem {
+  display: block;
+  width: 100%;
   padding: 8px;
+  color: var(--mantine-color-text);
+  text-align: left;
 }
 
-.flowItem[data-active] {
+.historyItem[data-active] {
   border-color: light-dark(
     var(--mantine-color-blue-3),
     var(--mantine-color-blue-8)
   );
   background: light-dark(var(--mantine-color-blue-0), rgba(34, 139, 230, 0.12));
+}
+
+.historyDivider {
+  height: 1px;
+  margin: 2px 0 4px;
+  background: light-dark(
+    var(--mantine-color-gray-3),
+    var(--mantine-color-dark-5)
+  );
+}
+
+.historyItemButton {
+  cursor: pointer;
+}
+
+.historyItemButton:hover {
+  background: light-dark(
+    var(--mantine-color-gray-1),
+    var(--mantine-color-dark-6)
+  );
+}
+
+.historyItemButton:focus-visible,
+.parentRef:focus-visible {
+  outline: 2px solid
+    light-dark(var(--mantine-color-blue-5), var(--mantine-color-blue-4));
+  outline-offset: 2px;
+}
+
+.commitItemWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.commitHash,
+.parentRef {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+}
+
+.commitHash {
+  flex-shrink: 0;
+  color: light-dark(var(--mantine-color-gray-6), var(--mantine-color-dark-2));
+}
+
+.commitStats {
+  margin-top: 6px;
+}
+
+.commitStats .mantine-Text-root {
+  padding: 1px 5px;
+  border: 1px solid
+    light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+  border-radius: 999px;
+  color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-gray-3));
+  background: light-dark(
+    var(--mantine-color-white),
+    var(--mantine-color-dark-7)
+  );
+}
+
+.parentRef {
+  width: fit-content;
+  margin-left: 24px;
+  padding: 0 4px;
+  border: 0;
+  color: light-dark(var(--mantine-color-gray-6), var(--mantine-color-dark-2));
+  background: transparent;
+  cursor: pointer;
+  font-size: 11px;
+  text-align: left;
+}
+
+.parentRef:hover {
+  color: var(--mantine-color-text);
+}
+
+.emptyHistory {
+  padding: 4px 8px;
+}
+
+.historyRootBlock {
+  padding-top: 6px;
 }
 
 .transformButton {
