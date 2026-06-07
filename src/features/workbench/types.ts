@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 
+export type SyntaxMode = 'plain' | 'json' | 'yaml'
+
 export type TextCommit = {
   afterText: string
   beforeText: string

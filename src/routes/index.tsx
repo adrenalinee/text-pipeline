@@ -4,7 +4,6 @@ import {
   AppShell,
   Badge,
   Box,
-  Button,
   Group,
   MantineProvider,
   Modal,
@@ -25,7 +24,6 @@ import {
   Braces,
   Check,
   Code2,
-  CircleDot,
   FileText,
   ListTree,
   Moon,
@@ -38,14 +36,18 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
+import { EditorToolbar } from '#/features/workbench/components/EditorToolbar'
 import { HistorySidebar } from '#/features/workbench/components/HistorySidebar'
 import { TransformsSidebar } from '#/features/workbench/components/TransformsSidebar'
-import type { TextCommit, TransformAction } from '#/features/workbench/types'
+import type {
+  SyntaxMode,
+  TextCommit,
+  TransformAction,
+} from '#/features/workbench/types'
+import { validateFormat } from '#/features/workbench/utils/formatValidation'
 import { getChangeStats } from '#/features/workbench/utils/textMetrics'
 
 export const Route = createFileRoute('/')({ component: Home })
-
-type SyntaxMode = 'plain' | 'json' | 'yaml'
 
 const SYNTAX_OPTIONS: Array<{
   description: string
@@ -69,12 +71,6 @@ const SYNTAX_OPTIONS: Array<{
   },
 ]
 
-const SYNTAX_LABELS: Record<SyntaxMode, string> = {
-  json: 'JSON',
-  plain: 'Text',
-  yaml: 'YAML',
-}
-
 const INITIAL_EDITOR_VALUE =
   '{\n  "service": "text-pipeline",\n  "status": "draft"\n}'
 
@@ -95,6 +91,7 @@ function Workbench() {
   const [selectedRevisionId, setSelectedRevisionId] = useState('working')
   const [syntaxMode, setSyntaxMode] = useState<SyntaxMode>('json')
   const [syntaxModalOpened, setSyntaxModalOpened] = useState(false)
+  const [validationEnabled, setValidationEnabled] = useState(false)
   const { setColorScheme } = useMantineColorScheme()
   const isCompact = useMediaQuery('(max-width: 48em)')
   const computedColorScheme = useComputedColorScheme('dark', {
@@ -108,6 +105,10 @@ function Workbench() {
 
     return [...syntaxExtensions, EditorView.lineWrapping]
   }, [syntaxMode])
+  const validationResult = useMemo(
+    () => (validationEnabled ? validateFormat(editorValue, syntaxMode) : null),
+    [editorValue, syntaxMode, validationEnabled],
+  )
 
   function formatJson() {
     try {
@@ -293,7 +294,7 @@ function Workbench() {
         opened={syntaxModalOpened}
         overlayProps={{ backgroundOpacity: 0.45, blur: 1 }}
         size="sm"
-        title="Highlight syntax"
+        title="Text format"
         onClose={() => setSyntaxModalOpened(false)}
       >
         <Stack gap="xs">
@@ -369,33 +370,15 @@ function Workbench() {
 
       <AppShell.Main className="workbenchMain">
         <Box className="editorPanel">
-          <Group
-            className="editorToolbar"
-            justify="space-between"
-            wrap="nowrap"
-          >
-            <Group gap="xs" wrap="nowrap">
-              <CircleDot size={14} />
-              <Text fw={600} size="sm">
-                Text Editor
-              </Text>
-            </Group>
-            <Group className="editorCommands" gap={6} wrap="nowrap">
-              <Tooltip label="Change syntax highlighting" withArrow>
-                <Button
-                  aria-label="Choose syntax highlighting"
-                  className="syntaxButton"
-                  color="gray"
-                  leftSection={<Code2 size={14} />}
-                  size="xs"
-                  variant="light"
-                  onClick={() => setSyntaxModalOpened(true)}
-                >
-                  {SYNTAX_LABELS[syntaxMode]}
-                </Button>
-              </Tooltip>
-            </Group>
-          </Group>
+          <EditorToolbar
+            syntaxMode={syntaxMode}
+            validationEnabled={validationEnabled}
+            validationResult={validationResult}
+            onChooseSyntax={() => setSyntaxModalOpened(true)}
+            onToggleValidation={() =>
+              setValidationEnabled((enabled) => !enabled)
+            }
+          />
           <CodeMirror
             aria-label="Text editor"
             className="codeEditor"
