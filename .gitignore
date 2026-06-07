@@ -10,5 +10,6 @@ dist-ssr
 .output
 .vinxi
 __unconfig*
+.tmp
 todos.json
 .idea

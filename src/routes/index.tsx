@@ -4,10 +4,12 @@ import {
   AppShell,
   Badge,
   Box,
+  Button,
   Code,
   Divider,
   Group,
   MantineProvider,
+  Modal,
   ScrollArea,
   Stack,
   Text,
@@ -17,12 +19,16 @@ import {
 } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { json } from '@codemirror/lang-json'
+import { yaml } from '@codemirror/lang-yaml'
 import { EditorView } from '@codemirror/view'
 import { oneDark } from '@codemirror/theme-one-dark'
 import CodeMirror from '@uiw/react-codemirror'
 import {
   Braces,
+  Check,
+  Code2,
   CircleDot,
+  FileText,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
@@ -35,6 +41,36 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 
 export const Route = createFileRoute('/')({ component: Home })
+
+type SyntaxMode = 'plain' | 'json' | 'yaml'
+
+const SYNTAX_OPTIONS: Array<{
+  description: string
+  label: string
+  value: SyntaxMode
+}> = [
+  {
+    description: 'No highlighting',
+    label: 'Plain text',
+    value: 'plain',
+  },
+  {
+    description: 'Objects, arrays, payloads',
+    label: 'JSON',
+    value: 'json',
+  },
+  {
+    description: 'Config and manifests',
+    label: 'YAML',
+    value: 'yaml',
+  },
+]
+
+const SYNTAX_LABELS: Record<SyntaxMode, string> = {
+  json: 'JSON',
+  plain: 'Text',
+  yaml: 'YAML',
+}
 
 function Home() {
   return (
@@ -50,13 +86,20 @@ function Workbench() {
   const [editorValue, setEditorValue] = useState(
     '{\n  "service": "text-pipeline",\n  "status": "draft"\n}',
   )
+  const [syntaxMode, setSyntaxMode] = useState<SyntaxMode>('json')
+  const [syntaxModalOpened, setSyntaxModalOpened] = useState(false)
   const { setColorScheme } = useMantineColorScheme()
   const isCompact = useMediaQuery('(max-width: 48em)')
   const computedColorScheme = useComputedColorScheme('dark', {
     getInitialValueInEffect: true,
   })
   const isDark = computedColorScheme === 'dark'
-  const editorExtensions = useMemo(() => [json(), EditorView.lineWrapping], [])
+  const editorExtensions = useMemo(() => {
+    const syntaxExtensions =
+      syntaxMode === 'json' ? [json()] : syntaxMode === 'yaml' ? [yaml()] : []
+
+    return [...syntaxExtensions, EditorView.lineWrapping]
+  }, [syntaxMode])
 
   useEffect(() => {
     if (isCompact) {
@@ -82,6 +125,31 @@ function Workbench() {
       withBorder
       className="workbenchShell"
     >
+      <Modal
+        centered
+        opened={syntaxModalOpened}
+        overlayProps={{ backgroundOpacity: 0.45, blur: 1 }}
+        size="sm"
+        title="Highlight syntax"
+        onClose={() => setSyntaxModalOpened(false)}
+      >
+        <Stack gap="xs">
+          {SYNTAX_OPTIONS.map((option) => (
+            <SyntaxOptionButton
+              active={syntaxMode === option.value}
+              description={option.description}
+              key={option.value}
+              label={option.label}
+              value={option.value}
+              onClick={() => {
+                setSyntaxMode(option.value)
+                setSyntaxModalOpened(false)
+              }}
+            />
+          ))}
+        </Stack>
+      </Modal>
+
       <AppShell.Header className="workbenchHeader">
         <Group h="100%" px="sm" justify="space-between" wrap="nowrap">
           <Group gap="xs" wrap="nowrap">
@@ -143,14 +211,32 @@ function Workbench() {
 
       <AppShell.Main className="workbenchMain">
         <Box className="editorPanel">
-          <Group className="editorToolbar" justify="space-between" wrap="nowrap">
+          <Group
+            className="editorToolbar"
+            justify="space-between"
+            wrap="nowrap"
+          >
             <Group gap="xs" wrap="nowrap">
               <CircleDot size={14} />
               <Text fw={600} size="sm">
                 Text Editor
               </Text>
             </Group>
-            <Code fz="xs">json</Code>
+            <Group className="editorCommands" gap={6} wrap="nowrap">
+              <Tooltip label="Change syntax highlighting" withArrow>
+                <Button
+                  aria-label="Choose syntax highlighting"
+                  className="syntaxButton"
+                  color="gray"
+                  leftSection={<Code2 size={14} />}
+                  size="xs"
+                  variant="light"
+                  onClick={() => setSyntaxModalOpened(true)}
+                >
+                  {SYNTAX_LABELS[syntaxMode]}
+                </Button>
+              </Tooltip>
+            </Group>
           </Group>
           <CodeMirror
             aria-label="Text editor"
@@ -192,6 +278,55 @@ function Workbench() {
       </AppShell.Aside>
     </AppShell>
   )
+}
+
+function SyntaxOptionButton({
+  active,
+  description,
+  label,
+  onClick,
+  value,
+}: {
+  active: boolean
+  description: string
+  label: string
+  onClick: () => void
+  value: SyntaxMode
+}) {
+  return (
+    <button
+      aria-pressed={active}
+      className="syntaxOption"
+      data-selected={active || undefined}
+      type="button"
+      onClick={onClick}
+    >
+      <Group className="syntaxOptionMain" gap="sm" wrap="nowrap">
+        <SyntaxIcon value={value} />
+        <Box className="syntaxOptionText">
+          <Text fw={650} size="sm">
+            {label}
+          </Text>
+          <Text c="dimmed" size="xs">
+            {description}
+          </Text>
+        </Box>
+      </Group>
+      {active ? <Check size={16} /> : null}
+    </button>
+  )
+}
+
+function SyntaxIcon({ value }: { value: SyntaxMode }) {
+  if (value === 'json') {
+    return <Braces size={18} />
+  }
+
+  if (value === 'yaml') {
+    return <Code2 size={18} />
+  }
+
+  return <FileText size={18} />
 }
 
 function HeaderIconButton({
@@ -258,13 +393,7 @@ function FlowItem({
   )
 }
 
-function SideAction({
-  icon,
-  label,
-}: {
-  icon: React.ReactNode
-  label: string
-}) {
+function SideAction({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
     <Group className="sideAction" gap="xs" wrap="nowrap">
       {icon}

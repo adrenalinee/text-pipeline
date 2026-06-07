@@ -6,14 +6,19 @@
     "#/*": "./src/*"
   },
   "scripts": {
-    "dev": "vite dev --port 3000",
-    "generate-routes": "tsr generate",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test": "vitest run",
-    "lint": "eslint",
-    "format": "prettier --write . && eslint --fix",
-    "check": "prettier --check ."
+    "dev": "node ./node_modules/vite/bin/vite.js dev --port 3000",
+    "dev:local": "node ./node_modules/vite/bin/vite.js dev --host 127.0.0.1 --port 3000",
+    "dev:server": "node ./scripts/dev-server.mjs start",
+    "dev:status": "node ./scripts/dev-server.mjs status",
+    "dev:logs": "node ./scripts/dev-server.mjs logs",
+    "dev:stop": "node ./scripts/dev-server.mjs stop",
+    "generate-routes": "node ./node_modules/@tanstack/router-cli/bin/tsr.cjs generate",
+    "build": "node ./node_modules/vite/bin/vite.js build",
+    "preview": "node ./node_modules/vite/bin/vite.js preview",
+    "test": "node ./node_modules/vitest/vitest.mjs run --passWithNoTests",
+    "lint": "node ./node_modules/eslint/bin/eslint.js",
+    "format": "node ./node_modules/prettier/bin/prettier.cjs --write . && node ./node_modules/eslint/bin/eslint.js --fix",
+    "check": "node ./node_modules/prettier/bin/prettier.cjs --check ."
   },
   "dependencies": {
     "@codemirror/lang-json": "^6.0.2",

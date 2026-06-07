@@ -1,4 +1,4 @@
-Welcome to your new TanStack Start app! 
+Welcome to your new TanStack Start app!
 
 # Getting Started
 
@@ -7,6 +7,22 @@ To run this application:
 ```bash
 yarn install
 yarn run dev
+```
+
+For local browser smoke tests, bind Vite to localhost explicitly:
+
+```bash
+yarn run dev:local
+```
+
+For automated browser smoke tests, start a background server and wait until it
+is ready:
+
+```bash
+yarn run dev:server
+yarn run dev:status
+yarn run dev:logs
+yarn run dev:stop
 ```
 
 # Building For Production
@@ -40,7 +56,6 @@ If you prefer not to use Tailwind CSS:
 
 ## Linting & Formatting
 
-
 This project uses [eslint](https://eslint.org/) and [prettier](https://prettier.io/) for linting and formatting. Eslint is configured using [tanstack/eslint-config](https://tanstack.com/config/latest/docs/eslint). The following scripts are available:
 
 ```bash
@@ -48,8 +63,6 @@ yarn run lint
 yarn run format
 yarn run check
 ```
-
-
 
 ## Routing
 
@@ -68,7 +81,7 @@ Now that you have two routes you can use a `Link` component to navigate between 
 To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
 
 ```tsx
-import { Link } from "@tanstack/react-router";
+import { Link } from '@tanstack/react-router'
 ```
 
 Then anywhere in your JSX you can use it like so:
@@ -136,11 +149,11 @@ const getServerTime = createServerFn({
 // Use in a component
 function MyComponent() {
   const [time, setTime] = useState('')
-  
+
   useEffect(() => {
     getServerTime().then(setTime)
   }, [])
-  
+
   return <div>Server time: {time}</div>
 }
 ```

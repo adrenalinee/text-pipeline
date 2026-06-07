@@ -51,16 +51,31 @@ yarn install
 yarn run dev
 ```
 
-현재 `dev` 스크립트는 Vite를 3000번 포트로 실행한다.
+현재 `dev` 스크립트는 로컬 Vite CLI를 직접 호출해 3000번 포트로 실행한다.
 
 ```bash
-vite dev --port 3000
+node ./node_modules/vite/bin/vite.js dev --port 3000
+```
+
+브라우저 스모크 테스트처럼 localhost 바인딩이 필요하면 다음 스크립트를 사용한다.
+
+```bash
+yarn run dev:local
+```
+
+자동화된 브라우저 스모크 테스트처럼 명령이 종료된 뒤 서버가 계속 살아 있어야 하면 다음 서버 관리 스크립트를 사용한다. 이 스크립트는 `.tmp/dev-server.json`에 PID를 기록하고, `.tmp/dev-server.*.log`에 로그를 남긴다.
+
+```bash
+yarn run dev:server
+yarn run dev:status
+yarn run dev:logs
+yarn run dev:stop
 ```
 
 3000번 포트가 이미 사용 중이면 Vite를 직접 실행해 다른 포트를 지정한다.
 
 ```bash
-node ./node_modules/vite/bin/vite.js --host 127.0.0.1 --port 3001
+node ./node_modules/vite/bin/vite.js dev --host 127.0.0.1 --port 3001
 ```
 
 프로덕션 빌드:
