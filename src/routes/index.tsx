@@ -5,8 +5,6 @@ import {
   Badge,
   Box,
   Button,
-  Code,
-  Divider,
   Group,
   MantineProvider,
   Modal,
@@ -18,6 +16,7 @@ import {
   useMantineColorScheme,
 } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
+import { Notifications, notifications } from '@mantine/notifications'
 import { json } from '@codemirror/lang-json'
 import { yaml } from '@codemirror/lang-yaml'
 import { EditorView } from '@codemirror/view'
@@ -29,12 +28,12 @@ import {
   Code2,
   CircleDot,
   FileText,
+  ListTree,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightClose,
   PanelRightOpen,
-  Search,
   Sun,
   Workflow,
 } from 'lucide-react'
@@ -75,6 +74,7 @@ const SYNTAX_LABELS: Record<SyntaxMode, string> = {
 function Home() {
   return (
     <MantineProvider defaultColorScheme="dark">
+      <Notifications position="top-right" />
       <Workbench />
     </MantineProvider>
   )
@@ -100,6 +100,28 @@ function Workbench() {
 
     return [...syntaxExtensions, EditorView.lineWrapping]
   }, [syntaxMode])
+
+  function formatJson() {
+    try {
+      const formatted = JSON.stringify(JSON.parse(editorValue), null, 2)
+      setEditorValue(formatted)
+      setSyntaxMode('json')
+      notifications.show({
+        color: 'green',
+        message: 'JSON was formatted.',
+        title: 'Transform complete',
+      })
+    } catch (error) {
+      notifications.show({
+        color: 'red',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'The editor content is not valid JSON.',
+        title: 'JSON format failed',
+      })
+    }
+  }
 
   useEffect(() => {
     if (isCompact) {
@@ -200,13 +222,6 @@ function Workbench() {
             <FlowItem label="Draft result" meta="current" />
           </Stack>
         </SidebarSection>
-        <Divider />
-        <SidebarSection title="Transforms">
-          <Stack gap={6}>
-            <SideAction icon={<Braces size={15} />} label="JSON" />
-            <SideAction icon={<Search size={15} />} label="Extract" />
-          </Stack>
-        </SidebarSection>
       </AppShell.Navbar>
 
       <AppShell.Main className="workbenchMain">
@@ -259,21 +274,15 @@ function Workbench() {
       </AppShell.Main>
 
       <AppShell.Aside className="workbenchSidebar">
-        <SidebarSection title="Inspector">
-          <Stack gap="xs">
-            <MetaRow label="Characters" value={String(editorValue.length)} />
-            <MetaRow
-              label="Lines"
-              value={String(editorValue.split(/\r\n|\r|\n/).length)}
+        <SidebarSection title="Transforms">
+          <Stack gap={6}>
+            <TransformButton
+              description="Pretty print the current editor JSON"
+              icon={<ListTree size={16} />}
+              label="JSON format"
+              onClick={formatJson}
             />
-            <MetaRow label="Selected step" value="Input" />
           </Stack>
-        </SidebarSection>
-        <Divider />
-        <SidebarSection title="Context">
-          <Text size="xs" c="dimmed">
-            Local workspace
-          </Text>
         </SidebarSection>
       </AppShell.Aside>
     </AppShell>
@@ -393,22 +402,30 @@ function FlowItem({
   )
 }
 
-function SideAction({ icon, label }: { icon: React.ReactNode; label: string }) {
+function TransformButton({
+  description,
+  icon,
+  label,
+  onClick,
+}: {
+  description: string
+  icon: React.ReactNode
+  label: string
+  onClick: () => void
+}) {
   return (
-    <Group className="sideAction" gap="xs" wrap="nowrap">
-      {icon}
-      <Text size="sm">{label}</Text>
-    </Group>
-  )
-}
-
-function MetaRow({ label, value }: { label: string; value: string }) {
-  return (
-    <Group justify="space-between" gap="sm" wrap="nowrap">
-      <Text size="xs" c="dimmed">
-        {label}
-      </Text>
-      <Code fz="xs">{value}</Code>
-    </Group>
+    <button className="transformButton" type="button" onClick={onClick}>
+      <Group gap="xs" wrap="nowrap">
+        {icon}
+        <Box className="transformButtonText">
+          <Text fw={650} size="sm">
+            {label}
+          </Text>
+          <Text c="dimmed" size="xs">
+            {description}
+          </Text>
+        </Box>
+      </Group>
+    </button>
   )
 }

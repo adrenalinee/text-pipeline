@@ -170,7 +170,7 @@ button {
 }
 
 .flowItem,
-.sideAction {
+.transformButton {
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
@@ -188,17 +188,31 @@ button {
   background: light-dark(var(--mantine-color-blue-0), rgba(34, 139, 230, 0.12));
 }
 
-.sideAction {
-  min-height: 32px;
-  padding: 0 8px;
+.transformButton {
+  display: block;
+  width: 100%;
+  min-height: 58px;
+  padding: 9px 10px;
   color: var(--mantine-color-text);
+  cursor: pointer;
+  text-align: left;
 }
 
-.sideAction:hover {
+.transformButton:hover {
   background: light-dark(
     var(--mantine-color-gray-1),
     var(--mantine-color-dark-6)
   );
+}
+
+.transformButton:focus-visible {
+  outline: 2px solid
+    light-dark(var(--mantine-color-blue-5), var(--mantine-color-blue-4));
+  outline-offset: 2px;
+}
+
+.transformButtonText {
+  min-width: 0;
 }
 
 @media (max-width: 360px) {
