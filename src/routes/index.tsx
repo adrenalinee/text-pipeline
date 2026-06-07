@@ -8,7 +8,6 @@ import {
   Group,
   MantineProvider,
   Modal,
-  ScrollArea,
   Stack,
   Text,
   Tooltip,
@@ -39,21 +38,14 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
+import { HistorySidebar } from '#/features/workbench/components/HistorySidebar'
+import { TransformsSidebar } from '#/features/workbench/components/TransformsSidebar'
+import type { TextCommit, TransformAction } from '#/features/workbench/types'
+import { getChangeStats } from '#/features/workbench/utils/textMetrics'
+
 export const Route = createFileRoute('/')({ component: Home })
 
 type SyntaxMode = 'plain' | 'json' | 'yaml'
-
-type TextCommit = {
-  afterText: string
-  beforeText: string
-  charDelta: number
-  description: string
-  id: string
-  lineDelta: number
-  parentId: string
-  title: string
-  timestamp: string
-}
 
 const SYNTAX_OPTIONS: Array<{
   description: string
@@ -262,6 +254,23 @@ function Workbench() {
     }
   }, [isCompact])
 
+  const transformActions: Array<TransformAction> = [
+    {
+      description: 'Pretty print the current editor JSON',
+      icon: <ListTree size={16} />,
+      id: 'json-format',
+      label: 'JSON format',
+      onClick: formatJson,
+    },
+    {
+      description: 'Remove whitespace from current JSON',
+      icon: <Braces size={16} />,
+      id: 'json-minify',
+      label: 'JSON minify',
+      onClick: minifyJson,
+    },
+  ]
+
   return (
     <AppShell
       header={{ height: 44 }}
@@ -348,37 +357,14 @@ function Workbench() {
       </AppShell.Header>
 
       <AppShell.Navbar className="workbenchSidebar">
-        <SidebarSection title="History">
-          <Stack gap={6}>
-            <WorkingTreeItem
-              active={selectedRevisionId === 'working'}
-              charCount={editorValue.length}
-              lineCount={countLines(editorValue)}
-            />
-            <Box className="historyDivider" />
-            {commits.length > 0 ? (
-              commits.map((commit) => (
-                <CommitItem
-                  active={selectedRevisionId === commit.id}
-                  commit={commit}
-                  key={commit.id}
-                  onClick={() => restoreCommit(commit)}
-                  onParentClick={() => restoreCommitParent(commit)}
-                />
-              ))
-            ) : (
-              <Text className="emptyHistory" c="dimmed" size="xs">
-                No transform commits yet.
-              </Text>
-            )}
-            <Box className="historyRootBlock">
-              <CommitRootItem
-                active={selectedRevisionId === 'root'}
-                onClick={restoreRootText}
-              />
-            </Box>
-          </Stack>
-        </SidebarSection>
+        <HistorySidebar
+          commits={commits}
+          currentText={editorValue}
+          selectedRevisionId={selectedRevisionId}
+          onRestoreCommit={restoreCommit}
+          onRestoreCommitParent={restoreCommitParent}
+          onRestoreRoot={restoreRootText}
+        />
       </AppShell.Navbar>
 
       <AppShell.Main className="workbenchMain">
@@ -431,22 +417,7 @@ function Workbench() {
       </AppShell.Main>
 
       <AppShell.Aside className="workbenchSidebar">
-        <SidebarSection title="Transforms">
-          <Stack gap={6}>
-            <TransformButton
-              description="Pretty print the current editor JSON"
-              icon={<ListTree size={16} />}
-              label="JSON format"
-              onClick={formatJson}
-            />
-            <TransformButton
-              description="Remove whitespace from current JSON"
-              icon={<Braces size={16} />}
-              label="JSON minify"
-              onClick={minifyJson}
-            />
-          </Stack>
-        </SidebarSection>
+        <TransformsSidebar actions={transformActions} />
       </AppShell.Aside>
     </AppShell>
   )
@@ -523,174 +494,6 @@ function HeaderIconButton({
       </ActionIcon>
     </Tooltip>
   )
-}
-
-function SidebarSection({
-  children,
-  title,
-}: {
-  children: React.ReactNode
-  title: string
-}) {
-  return (
-    <ScrollArea.Autosize mah="50vh" type="hover">
-      <Stack gap="xs" p="sm">
-        <Text fw={700} size="xs" tt="uppercase" c="dimmed">
-          {title}
-        </Text>
-        {children}
-      </Stack>
-    </ScrollArea.Autosize>
-  )
-}
-
-function WorkingTreeItem({
-  active,
-  charCount,
-  lineCount,
-}: {
-  active: boolean
-  charCount: number
-  lineCount: number
-}) {
-  return (
-    <Box className="historyItem" data-active={active || undefined}>
-      <Group gap="xs" wrap="nowrap">
-        <CircleDot size={14} />
-        <Text size="sm" fw={650}>
-          Working text
-        </Text>
-      </Group>
-      <Text size="xs" c="dimmed">
-        {lineCount} lines | {charCount} chars
-      </Text>
-    </Box>
-  )
-}
-
-function CommitRootItem({
-  active,
-  onClick,
-}: {
-  active: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      className="historyItem historyItemButton"
-      data-active={active || undefined}
-      type="button"
-      onClick={onClick}
-    >
-      <Group justify="space-between" gap="xs" wrap="nowrap">
-        <Group gap="xs" wrap="nowrap">
-          <CircleDot size={14} />
-          <Text size="sm" fw={650}>
-            Root input
-          </Text>
-        </Group>
-        <Text className="commitHash" size="xs">
-          root
-        </Text>
-      </Group>
-      <Text size="xs" c="dimmed">
-        Baseline text
-      </Text>
-    </button>
-  )
-}
-
-function CommitItem({
-  active,
-  commit,
-  onClick,
-  onParentClick,
-}: {
-  active: boolean
-  commit: TextCommit
-  onClick: () => void
-  onParentClick: () => void
-}) {
-  return (
-    <Box className="commitItemWrap">
-      <button
-        className="historyItem historyItemButton"
-        data-active={active || undefined}
-        type="button"
-        onClick={onClick}
-      >
-        <Group justify="space-between" gap="xs" wrap="nowrap">
-          <Group gap="xs" wrap="nowrap">
-            <CircleDot size={14} />
-            <Text size="sm" fw={650}>
-              {commit.title}
-            </Text>
-          </Group>
-          <Text className="commitHash" size="xs">
-            {commit.id}
-          </Text>
-        </Group>
-        <Text size="xs" c="dimmed">
-          {commit.description}
-        </Text>
-        <Group className="commitStats" gap={4} wrap="wrap">
-          <Text size="xs">{formatSignedValue(commit.lineDelta)} lines</Text>
-          <Text size="xs">{formatSignedValue(commit.charDelta)} chars</Text>
-          <Text size="xs">{commit.timestamp}</Text>
-        </Group>
-      </button>
-      <button className="parentRef" type="button" onClick={onParentClick}>
-        parent {commit.parentId}
-      </button>
-    </Box>
-  )
-}
-
-function TransformButton({
-  description,
-  icon,
-  label,
-  onClick,
-}: {
-  description: string
-  icon: React.ReactNode
-  label: string
-  onClick: () => void
-}) {
-  return (
-    <button className="transformButton" type="button" onClick={onClick}>
-      <Group gap="xs" wrap="nowrap">
-        {icon}
-        <Box className="transformButtonText">
-          <Text fw={650} size="sm">
-            {label}
-          </Text>
-          <Text c="dimmed" size="xs">
-            {description}
-          </Text>
-        </Box>
-      </Group>
-    </button>
-  )
-}
-
-function countLines(value: string) {
-  if (value.length === 0) {
-    return 0
-  }
-
-  return value.split(/\r\n|\r|\n/).length
-}
-
-function getChangeStats(beforeText: string, afterText: string) {
-  return {
-    charDelta: afterText.length - beforeText.length,
-    lineDelta: countLines(afterText) - countLines(beforeText),
-  }
-}
-
-function formatSignedValue(value: number) {
-  return value > 0 ? `+${value}` : String(value)
 }
 
 function formatCommitTimestamp(date: Date) {
