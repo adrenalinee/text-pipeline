@@ -1,4 +1,5 @@
 import { load } from 'js-yaml'
+import { parse as parseToml } from 'smol-toml'
 
 import type { SyntaxMode } from '../types'
 
@@ -31,7 +32,11 @@ export function validateFormat(
     return validateJson(value)
   }
 
-  return validateYaml(value)
+  if (syntaxMode === 'yaml') {
+    return validateYaml(value)
+  }
+
+  return validateToml(value)
 }
 
 function validateJson(value: string): FormatValidationResult {
@@ -87,6 +92,30 @@ function validateYaml(value: string): FormatValidationResult {
   }
 }
 
+function validateToml(value: string): FormatValidationResult {
+  try {
+    parseToml(value)
+
+    return {
+      message: 'No TOML syntax errors found.',
+      status: 'valid',
+      title: 'Valid TOML',
+    }
+  } catch (error) {
+    const issue = getTomlErrorIssue(error)
+
+    return {
+      issue,
+      message: formatInvalidMessage(
+        error instanceof Error ? error.message : 'TOML syntax is invalid.',
+        issue,
+      ),
+      status: 'invalid',
+      title: formatInvalidTitle('TOML', issue),
+    }
+  }
+}
+
 function isJsonLike(value: string) {
   try {
     JSON.parse(value)
@@ -113,6 +142,25 @@ export function getYamlErrorIssue(
     column: column + 1,
     line: line + 1,
     position: typeof position === 'number' ? position : undefined,
+  }
+}
+
+export function getTomlErrorIssue(
+  error: unknown,
+): FormatValidationIssue | undefined {
+  if (!isRecord(error)) {
+    return undefined
+  }
+
+  const { column, line } = error
+
+  if (typeof line !== 'number' || typeof column !== 'number') {
+    return undefined
+  }
+
+  return {
+    column,
+    line,
   }
 }
 
@@ -165,7 +213,7 @@ function formatInvalidMessage(
 }
 
 function formatInvalidTitle(
-  format: 'JSON' | 'YAML',
+  format: 'JSON' | 'TOML' | 'YAML',
   issue: FormatValidationIssue | undefined,
 ) {
   return issue ? `${format} line ${issue.line}` : `Invalid ${format}`

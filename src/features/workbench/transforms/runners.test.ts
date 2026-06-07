@@ -40,6 +40,82 @@ describe('transform runners', () => {
       outputFormat: 'json',
     })
   })
+
+  it('converts JSON to YAML', () => {
+    expect(
+      runTransform(
+        'json-to-yaml',
+        '{"service":"text-pipeline","items":["one","two"]}',
+      ),
+    ).toEqual({
+      output: 'service: text-pipeline\nitems:\n  - one\n  - two\n',
+      outputFormat: 'yaml',
+    })
+  })
+
+  it('converts JSON to TOML', () => {
+    expect(
+      runTransform(
+        'json-to-toml',
+        '{"service":"text-pipeline","items":["one","two"],"request":{"enabled":true,"durationMs":42}}',
+      ),
+    ).toEqual({
+      output:
+        'service = "text-pipeline"\nitems = [ "one", "two" ]\n\n[request]\nenabled = true\ndurationMs = 42\n',
+      outputFormat: 'toml',
+    })
+  })
+
+  it('converts YAML to TOML', () => {
+    expect(
+      runTransform(
+        'yaml-to-toml',
+        'service: text-pipeline\nitems:\n  - one\n  - two\nrequest:\n  enabled: true\n  durationMs: 42\n',
+      ),
+    ).toEqual({
+      output:
+        'service = "text-pipeline"\nitems = [ "one", "two" ]\n\n[request]\nenabled = true\ndurationMs = 42\n',
+      outputFormat: 'toml',
+    })
+  })
+
+  it('converts TOML to pretty printed JSON', () => {
+    expect(
+      runTransform(
+        'toml-to-json',
+        'service = "text-pipeline"\nitems = [ "one", "two" ]\n\n[request]\nenabled = true\ndurationMs = 42\n',
+      ),
+    ).toEqual({
+      output:
+        '{\n  "service": "text-pipeline",\n  "items": [\n    "one",\n    "two"\n  ],\n  "request": {\n    "enabled": true,\n    "durationMs": 42\n  }\n}',
+      outputFormat: 'json',
+    })
+  })
+
+  it('converts TOML to YAML', () => {
+    expect(
+      runTransform(
+        'toml-to-yaml',
+        'service = "text-pipeline"\nitems = [ "one", "two" ]\n\n[request]\nenabled = true\ndurationMs = 42\n',
+      ),
+    ).toEqual({
+      output:
+        'service: text-pipeline\nitems:\n  - one\n  - two\nrequest:\n  enabled: true\n  durationMs: 42\n',
+      outputFormat: 'yaml',
+    })
+  })
+
+  it('rejects TOML output when the source value cannot be represented', () => {
+    expect(() => runTransform('json-to-toml', '{"service":null}')).toThrow(
+      'TOML output does not support null values at root.service.',
+    )
+  })
+
+  it('rejects JSON output when TOML contains non-finite numbers', () => {
+    expect(() => runTransform('toml-to-json', 'metric = nan\n')).toThrow(
+      'JSON output does not support non-finite numbers at root.metric.',
+    )
+  })
 })
 
 function runTransform(id: TransformId, input: string) {

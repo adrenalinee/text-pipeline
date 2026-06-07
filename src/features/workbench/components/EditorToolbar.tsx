@@ -16,6 +16,7 @@ import type { FormatValidationResult } from '../utils/formatValidation'
 const SYNTAX_LABELS: Record<SyntaxMode, string> = {
   json: 'JSON',
   plain: 'Text',
+  toml: 'TOML',
   yaml: 'YAML',
 }
 

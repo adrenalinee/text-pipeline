@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-export type SyntaxMode = 'plain' | 'json' | 'yaml'
+export type SyntaxMode = 'plain' | 'json' | 'toml' | 'yaml'
 
 export type TransformGroup = 'format' | 'general'
 
@@ -9,12 +9,16 @@ export type TransformId =
   | 'base64-encode'
   | 'json-format'
   | 'json-minify'
+  | 'json-to-toml'
   | 'json-to-yaml'
   | 'json-validate'
   | 'jsonpath-query'
+  | 'toml-to-json'
+  | 'toml-to-yaml'
   | 'url-decode'
   | 'url-encode'
   | 'yaml-to-json'
+  | 'yaml-to-toml'
 
 export type TextCommit = {
   afterText: string

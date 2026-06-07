@@ -59,6 +59,7 @@ describe('transform filtering', () => {
 
     expect(isTransformAvailable(generalTransform, 'plain')).toBe(true)
     expect(isTransformAvailable(generalTransform, 'json')).toBe(true)
+    expect(isTransformAvailable(generalTransform, 'toml')).toBe(true)
     expect(isTransformAvailable(generalTransform, 'yaml')).toBe(true)
   })
 
@@ -108,8 +109,28 @@ describe('transform filtering', () => {
 
     expect(sections).toEqual([
       {
-        ids: ['yaml-to-json'],
+        ids: ['yaml-to-json', 'yaml-to-toml'],
         title: 'YAML transforms',
+      },
+      {
+        ids: ['url-encode', 'url-decode', 'base64-encode', 'base64-decode'],
+        title: 'General transforms',
+      },
+    ])
+  })
+
+  it('exposes TOML conversions with general transforms for TOML input', () => {
+    const sections = getTransformSections(TRANSFORM_DEFINITIONS, 'toml').map(
+      (section) => ({
+        ids: section.transforms.map(({ id }) => id),
+        title: section.title,
+      }),
+    )
+
+    expect(sections).toEqual([
+      {
+        ids: ['toml-to-json', 'toml-to-yaml'],
+        title: 'TOML transforms',
       },
       {
         ids: ['url-encode', 'url-decode', 'base64-encode', 'base64-decode'],

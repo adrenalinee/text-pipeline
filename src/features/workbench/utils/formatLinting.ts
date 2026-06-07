@@ -3,9 +3,10 @@ import type { Diagnostic, LintSource } from '@codemirror/lint'
 import type { Text } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 import { load } from 'js-yaml'
+import { parse as parseToml } from 'smol-toml'
 
 import type { SyntaxMode } from '../types'
-import { getYamlErrorIssue } from './formatValidation'
+import { getTomlErrorIssue, getYamlErrorIssue } from './formatValidation'
 
 export function getFormatLintSource(syntaxMode: SyntaxMode): LintSource | null {
   if (syntaxMode === 'json') {
@@ -14,6 +15,10 @@ export function getFormatLintSource(syntaxMode: SyntaxMode): LintSource | null {
 
   if (syntaxMode === 'yaml') {
     return yamlLintSource
+  }
+
+  if (syntaxMode === 'toml') {
+    return tomlLintSource
   }
 
   return null
@@ -28,17 +33,55 @@ const yamlLintSource: LintSource = (view) => {
   }
 }
 
+const tomlLintSource: LintSource = (view) => {
+  try {
+    parseToml(view.state.doc.toString())
+    return []
+  } catch (error) {
+    return [
+      createDiagnostic({
+        error,
+        fallbackMessage: 'TOML syntax is invalid.',
+        from: getTomlErrorIssue(error),
+        source: 'TOML',
+        view,
+      }),
+    ]
+  }
+}
+
 function createYamlDiagnostic(error: unknown, view: EditorView): Diagnostic {
-  const issue = getYamlErrorIssue(error)
+  return createDiagnostic({
+    error,
+    fallbackMessage: 'YAML syntax is invalid.',
+    from: getYamlErrorIssue(error),
+    source: 'YAML',
+    view,
+  })
+}
+
+function createDiagnostic({
+  error,
+  fallbackMessage,
+  from: issue,
+  source,
+  view,
+}: {
+  error: unknown
+  fallbackMessage: string
+  from: { column: number; line: number } | undefined
+  source: string
+  view: EditorView
+}): Diagnostic {
   const from = issue
     ? getPositionFromIssue(view.state.doc, issue.line, issue.column)
     : 0
 
   return {
     from,
-    message: error instanceof Error ? error.message : 'YAML syntax is invalid.',
+    message: error instanceof Error ? error.message : fallbackMessage,
     severity: 'error',
-    source: 'YAML',
+    source,
     to: Math.min(from + 1, view.state.doc.length),
   }
 }

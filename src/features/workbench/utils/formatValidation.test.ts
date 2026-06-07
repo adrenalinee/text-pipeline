@@ -25,4 +25,17 @@ describe('format validation', () => {
       line: 3,
     })
   })
+
+  it('reports TOML syntax line and column from the TOML parser', () => {
+    const result = validateFormat(
+      'service = "text-pipeline"\nitems = [1, 2\nstatus = true\n',
+      'toml',
+    )
+
+    expect(result.status).toBe('invalid')
+    expect(result.issue).toMatchObject({
+      column: 13,
+      line: 2,
+    })
+  })
 })

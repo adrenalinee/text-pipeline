@@ -4,7 +4,7 @@ export type TextSample = {
   description: string
   id: string
   label: string
-  syntaxMode: Extract<SyntaxMode, 'json' | 'yaml'>
+  syntaxMode: Extract<SyntaxMode, 'json' | 'toml' | 'yaml'>
   value: string
 }
 
@@ -51,6 +51,34 @@ history:
   retention:
     maxCommits: 25
     persistLocal: false
+`,
+  },
+  {
+    description: 'Pipeline configuration with nested tables',
+    id: 'toml-pipeline-config',
+    label: 'Pipeline config TOML',
+    syntaxMode: 'toml',
+    value: `service = "text-pipeline"
+environment = "local"
+
+[input]
+format = "toml"
+preserveSource = true
+
+[[transforms]]
+id = "toml-to-json"
+enabled = true
+
+[[transforms]]
+id = "json-minify"
+enabled = false
+
+[history]
+branchMode = true
+
+[history.retention]
+maxCommits = 25
+persistLocal = false
 `,
   },
 ] satisfies ReadonlyArray<TextSample>

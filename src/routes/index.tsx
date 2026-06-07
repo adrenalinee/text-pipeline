@@ -17,6 +17,8 @@ import { useMediaQuery } from '@mantine/hooks'
 import { Notifications, notifications } from '@mantine/notifications'
 import { json } from '@codemirror/lang-json'
 import { yaml } from '@codemirror/lang-yaml'
+import { StreamLanguage } from '@codemirror/language'
+import { toml } from '@codemirror/legacy-modes/mode/toml'
 import { linter, lintGutter } from '@codemirror/lint'
 import { EditorView } from '@codemirror/view'
 import { oneDark } from '@codemirror/theme-one-dark'
@@ -82,10 +84,16 @@ const SYNTAX_OPTIONS: Array<{
     label: 'YAML',
     value: 'yaml',
   },
+  {
+    description: 'Config tables and arrays',
+    label: 'TOML',
+    value: 'toml',
+  },
 ]
 
 const INITIAL_EDITOR_VALUE =
   '{\n  "service": "text-pipeline",\n  "status": "draft"\n}'
+const TOML_LANGUAGE = StreamLanguage.define(toml)
 
 function Home() {
   return (
@@ -113,8 +121,7 @@ function Workbench() {
   const isDark = computedColorScheme === 'dark'
   const rootText = commits.at(-1)?.beforeText ?? INITIAL_EDITOR_VALUE
   const editorExtensions = useMemo(() => {
-    const syntaxExtensions =
-      syntaxMode === 'json' ? [json()] : syntaxMode === 'yaml' ? [yaml()] : []
+    const syntaxExtensions = getSyntaxExtensions(syntaxMode)
     const lintSource = validationEnabled
       ? getFormatLintSource(syntaxMode)
       : null
@@ -448,7 +455,7 @@ function getTransformIcon(id: TransformDefinition['id']) {
     return <Braces size={16} />
   }
 
-  if (id === 'yaml-to-json') {
+  if (id.endsWith('-to-json')) {
     return <FileJson size={16} />
   }
 
@@ -509,7 +516,27 @@ function SyntaxIcon({ value }: { value: SyntaxMode }) {
     return <Code2 size={18} />
   }
 
+  if (value === 'toml') {
+    return <FileText size={18} />
+  }
+
   return <FileText size={18} />
+}
+
+function getSyntaxExtensions(syntaxMode: SyntaxMode) {
+  if (syntaxMode === 'json') {
+    return [json()]
+  }
+
+  if (syntaxMode === 'yaml') {
+    return [yaml()]
+  }
+
+  if (syntaxMode === 'toml') {
+    return [TOML_LANGUAGE]
+  }
+
+  return []
 }
 
 function HeaderIconButton({
