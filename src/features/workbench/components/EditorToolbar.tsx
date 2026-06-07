@@ -1,13 +1,16 @@
-import { Button, Group, Text, Tooltip } from '@mantine/core'
+import { Button, Group, Menu, Text, Tooltip } from '@mantine/core'
 import {
+  ChevronDown,
   CircleAlert,
   CircleCheck,
   CircleDot,
   Code2,
+  FileJson,
   ShieldCheck,
 } from 'lucide-react'
 
 import type { SyntaxMode } from '../types'
+import type { TextSample } from '../samples'
 import type { FormatValidationResult } from '../utils/formatValidation'
 
 const SYNTAX_LABELS: Record<SyntaxMode, string> = {
@@ -17,14 +20,18 @@ const SYNTAX_LABELS: Record<SyntaxMode, string> = {
 }
 
 export function EditorToolbar({
+  onLoadSample,
   onChooseSyntax,
   onToggleValidation,
+  sampleOptions,
   syntaxMode,
   validationEnabled,
   validationResult,
 }: {
   onChooseSyntax: () => void
+  onLoadSample: (sample: TextSample) => void
   onToggleValidation: () => void
+  sampleOptions: ReadonlyArray<TextSample>
   syntaxMode: SyntaxMode
   validationEnabled: boolean
   validationResult: FormatValidationResult | null
@@ -38,6 +45,7 @@ export function EditorToolbar({
         </Text>
       </Group>
       <Group className="editorToolbarActions" gap={6} wrap="nowrap">
+        <SampleMenu sampleOptions={sampleOptions} onLoadSample={onLoadSample} />
         <FormatValidationStatus
           result={validationEnabled ? validationResult : null}
         />
@@ -82,6 +90,58 @@ export function EditorToolbar({
       </Group>
     </Group>
   )
+}
+
+function SampleMenu({
+  onLoadSample,
+  sampleOptions,
+}: {
+  onLoadSample: (sample: TextSample) => void
+  sampleOptions: ReadonlyArray<TextSample>
+}) {
+  return (
+    <Menu position="bottom-end" shadow="md" width={240} withinPortal>
+      <Menu.Target>
+        <Button
+          aria-label="Load sample data"
+          className="sampleButton"
+          color="gray"
+          leftSection={<FileJson size={14} />}
+          rightSection={
+            <ChevronDown className="sampleButtonChevron" size={13} />
+          }
+          size="xs"
+          variant="light"
+        >
+          Samples
+        </Button>
+      </Menu.Target>
+      <Menu.Dropdown>
+        {sampleOptions.map((sample) => (
+          <Menu.Item
+            key={sample.id}
+            leftSection={<SampleIcon syntaxMode={sample.syntaxMode} />}
+            onClick={() => onLoadSample(sample)}
+          >
+            <Text fw={650} size="sm">
+              {sample.label}
+            </Text>
+            <Text c="dimmed" size="xs">
+              {sample.description}
+            </Text>
+          </Menu.Item>
+        ))}
+      </Menu.Dropdown>
+    </Menu>
+  )
+}
+
+function SampleIcon({ syntaxMode }: { syntaxMode: TextSample['syntaxMode'] }) {
+  if (syntaxMode === 'json') {
+    return <FileJson size={14} />
+  }
+
+  return <Code2 size={14} />
 }
 
 function FormatValidationStatus({

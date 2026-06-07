@@ -17,6 +17,7 @@ import { useMediaQuery } from '@mantine/hooks'
 import { Notifications, notifications } from '@mantine/notifications'
 import { json } from '@codemirror/lang-json'
 import { yaml } from '@codemirror/lang-yaml'
+import { linter, lintGutter } from '@codemirror/lint'
 import { EditorView } from '@codemirror/view'
 import { oneDark } from '@codemirror/theme-one-dark'
 import CodeMirror from '@uiw/react-codemirror'
@@ -42,6 +43,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { EditorToolbar } from '#/features/workbench/components/EditorToolbar'
 import { HistorySidebar } from '#/features/workbench/components/HistorySidebar'
 import { TransformsSidebar } from '#/features/workbench/components/TransformsSidebar'
+import { TEXT_SAMPLES } from '#/features/workbench/samples'
+import type { TextSample } from '#/features/workbench/samples'
 import type {
   SyntaxMode,
   TextCommit,
@@ -53,6 +56,7 @@ import type {
 import { TRANSFORM_DEFINITIONS } from '#/features/workbench/transforms/definitions'
 import { getTransformSections } from '#/features/workbench/transforms/filterTransforms'
 import { TRANSFORM_RUNNERS } from '#/features/workbench/transforms/runners'
+import { getFormatLintSource } from '#/features/workbench/utils/formatLinting'
 import { validateFormat } from '#/features/workbench/utils/formatValidation'
 import { getChangeStats } from '#/features/workbench/utils/textMetrics'
 
@@ -86,7 +90,7 @@ const INITIAL_EDITOR_VALUE =
 function Home() {
   return (
     <MantineProvider defaultColorScheme="dark">
-      <Notifications position="top-right" />
+      <Notifications position="top-center" />
       <Workbench />
     </MantineProvider>
   )
@@ -111,9 +115,15 @@ function Workbench() {
   const editorExtensions = useMemo(() => {
     const syntaxExtensions =
       syntaxMode === 'json' ? [json()] : syntaxMode === 'yaml' ? [yaml()] : []
+    const lintSource = validationEnabled
+      ? getFormatLintSource(syntaxMode)
+      : null
+    const lintExtensions = lintSource
+      ? [lintGutter(), linter(lintSource, { delay: 250 })]
+      : []
 
-    return [...syntaxExtensions, EditorView.lineWrapping]
-  }, [syntaxMode])
+    return [...syntaxExtensions, ...lintExtensions, EditorView.lineWrapping]
+  }, [syntaxMode, validationEnabled])
   const validationResult = useMemo(
     () => (validationEnabled ? validateFormat(editorValue, syntaxMode) : null),
     [editorValue, syntaxMode, validationEnabled],
@@ -241,6 +251,18 @@ function Workbench() {
   function updateEditorValue(value: string) {
     setEditorValue(value)
     setSelectedRevisionId('working')
+  }
+
+  function loadSample(sample: TextSample) {
+    setEditorValue(sample.value)
+    setSyntaxMode(sample.syntaxMode)
+    setSelectedRevisionId('working')
+
+    notifications.show({
+      color: 'blue',
+      message: `${sample.label} is now loaded in the editor.`,
+      title: 'Sample loaded',
+    })
   }
 
   useEffect(() => {
@@ -380,10 +402,12 @@ function Workbench() {
       <AppShell.Main className="workbenchMain">
         <Box className="editorPanel">
           <EditorToolbar
+            sampleOptions={TEXT_SAMPLES}
             syntaxMode={syntaxMode}
             validationEnabled={validationEnabled}
             validationResult={validationResult}
             onChooseSyntax={() => setSyntaxModalOpened(true)}
+            onLoadSample={loadSample}
             onToggleValidation={() =>
               setValidationEnabled((enabled) => !enabled)
             }

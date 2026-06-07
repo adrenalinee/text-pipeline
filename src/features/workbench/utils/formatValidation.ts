@@ -1,8 +1,15 @@
-import { yamlLanguage } from '@codemirror/lang-yaml'
+import { load } from 'js-yaml'
 
 import type { SyntaxMode } from '../types'
 
+export type FormatValidationIssue = {
+  column: number
+  line: number
+  position?: number
+}
+
 export type FormatValidationResult = {
+  issue?: FormatValidationIssue
   message: string
   status: 'invalid' | 'unsupported' | 'valid'
   title: string
@@ -37,35 +44,46 @@ function validateJson(value: string): FormatValidationResult {
       title: 'Valid JSON',
     }
   } catch (error) {
+    const issue =
+      error instanceof Error
+        ? getJsonErrorIssue(error.message, value)
+        : undefined
+
     return {
-      message:
+      issue,
+      message: formatInvalidMessage(
         error instanceof Error ? error.message : 'JSON syntax is invalid.',
+        issue,
+      ),
       status: 'invalid',
-      title: 'Invalid JSON',
+      title: formatInvalidTitle('JSON', issue),
     }
   }
 }
 
 function validateYaml(value: string): FormatValidationResult {
-  const tree = yamlLanguage.parser.parse(value)
-  const cursor = tree.cursor()
+  try {
+    load(value)
 
-  do {
-    if (cursor.type.isError) {
-      return {
-        message: 'The YAML parser found a syntax error.',
-        status: 'invalid',
-        title: 'Invalid YAML',
-      }
+    return {
+      message: isJsonLike(value)
+        ? 'JSON-style input is valid YAML flow syntax.'
+        : 'No YAML syntax errors found.',
+      status: 'valid',
+      title: 'Valid YAML',
     }
-  } while (cursor.next())
+  } catch (error) {
+    const issue = getYamlErrorIssue(error)
 
-  return {
-    message: isJsonLike(value)
-      ? 'JSON-style input is valid YAML flow syntax.'
-      : 'No YAML syntax errors found.',
-    status: 'valid',
-    title: 'Valid YAML',
+    return {
+      issue,
+      message: formatInvalidMessage(
+        error instanceof Error ? error.message : 'YAML syntax is invalid.',
+        issue,
+      ),
+      status: 'invalid',
+      title: formatInvalidTitle('YAML', issue),
+    }
   }
 }
 
@@ -76,4 +94,83 @@ function isJsonLike(value: string) {
   } catch {
     return false
   }
+}
+
+export function getYamlErrorIssue(
+  error: unknown,
+): FormatValidationIssue | undefined {
+  if (!isRecord(error) || !isRecord(error.mark)) {
+    return undefined
+  }
+
+  const { column, line, position } = error.mark
+
+  if (typeof line !== 'number' || typeof column !== 'number') {
+    return undefined
+  }
+
+  return {
+    column: column + 1,
+    line: line + 1,
+    position: typeof position === 'number' ? position : undefined,
+  }
+}
+
+function getJsonErrorIssue(
+  message: string,
+  value: string,
+): FormatValidationIssue | undefined {
+  const lineColumnMatch = message.match(/at line (\d+) column (\d+)/)
+
+  if (lineColumnMatch?.[1] && lineColumnMatch[2]) {
+    return {
+      column: Number(lineColumnMatch[2]),
+      line: Number(lineColumnMatch[1]),
+    }
+  }
+
+  const positionMatch = message.match(/at position (\d+)/)
+
+  if (!positionMatch?.[1]) {
+    return undefined
+  }
+
+  return getIssueFromPosition(value, Number(positionMatch[1]))
+}
+
+function getIssueFromPosition(
+  value: string,
+  position: number,
+): FormatValidationIssue {
+  const normalizedPosition = Math.max(0, Math.min(position, value.length))
+  const beforeError = value.slice(0, normalizedPosition)
+  const lines = beforeError.split(/\r\n|\r|\n/)
+
+  return {
+    column: lines.at(-1)?.length ? lines.at(-1)!.length + 1 : 1,
+    line: lines.length,
+    position: normalizedPosition,
+  }
+}
+
+function formatInvalidMessage(
+  message: string,
+  issue: FormatValidationIssue | undefined,
+) {
+  if (!issue) {
+    return message
+  }
+
+  return `${message} Line ${issue.line}, column ${issue.column}.`
+}
+
+function formatInvalidTitle(
+  format: 'JSON' | 'YAML',
+  issue: FormatValidationIssue | undefined,
+) {
+  return issue ? `${format} line ${issue.line}` : `Invalid ${format}`
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
 }

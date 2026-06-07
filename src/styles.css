@@ -90,6 +90,11 @@ button {
   font-weight: 700;
 }
 
+.sampleButton {
+  min-width: 92px;
+  font-weight: 700;
+}
+
 .validationToggle {
   min-width: 94px;
   font-weight: 700;
@@ -366,6 +371,16 @@ button {
 
   .editorToolbarActions {
     gap: 4px;
+  }
+
+  .sampleButton {
+    width: 34px;
+    min-width: 34px;
+  }
+
+  .sampleButton .mantine-Button-label,
+  .sampleButtonChevron {
+    display: none;
   }
 
   .validationToggle {
