@@ -22,7 +22,9 @@ export type TransformId =
 
 export type TextCommit = {
   afterText: string
+  afterSyntaxMode: SyntaxMode
   beforeText: string
+  beforeSyntaxMode: SyntaxMode
   charDelta: number
   description: string
   id: string

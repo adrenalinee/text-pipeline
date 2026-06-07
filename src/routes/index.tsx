@@ -120,6 +120,7 @@ function Workbench() {
   })
   const isDark = computedColorScheme === 'dark'
   const rootText = commits.at(-1)?.beforeText ?? INITIAL_EDITOR_VALUE
+  const rootSyntaxMode = commits.at(-1)?.beforeSyntaxMode ?? 'json'
   const editorExtensions = useMemo(() => {
     const syntaxExtensions = getSyntaxExtensions(syntaxMode)
     const lintSource = validationEnabled
@@ -141,16 +142,16 @@ function Workbench() {
     runner: TransformRunner,
   ) {
     try {
+      const beforeSyntaxMode = syntaxMode
       const result = runner(editorValue)
-      const outputFormat = result.outputFormat ?? definition.outputFormat
-
-      if (outputFormat) {
-        setSyntaxMode(outputFormat)
-      }
+      const afterSyntaxMode =
+        result.outputFormat ?? definition.outputFormat ?? beforeSyntaxMode
 
       commitTransform({
         afterText: result.output,
+        afterSyntaxMode,
         beforeText: editorValue,
+        beforeSyntaxMode,
         description: definition.description,
         title: definition.label,
       })
@@ -168,16 +169,20 @@ function Workbench() {
 
   function commitTransform({
     afterText,
+    afterSyntaxMode,
     beforeText,
+    beforeSyntaxMode,
     description,
     title,
   }: {
     afterText: string
+    afterSyntaxMode: SyntaxMode
     beforeText: string
+    beforeSyntaxMode: SyntaxMode
     description: string
     title: string
   }) {
-    if (afterText === beforeText) {
+    if (afterText === beforeText && afterSyntaxMode === beforeSyntaxMode) {
       notifications.show({
         color: 'blue',
         message: 'The transform did not change the text.',
@@ -191,11 +196,14 @@ function Workbench() {
     const id = `c${String(index).padStart(3, '0')}`
 
     setEditorValue(afterText)
+    setSyntaxMode(afterSyntaxMode)
     setSelectedRevisionId(id)
     setCommits((currentCommits) => [
       {
         afterText,
+        afterSyntaxMode,
         beforeText,
+        beforeSyntaxMode,
         charDelta: changeStats.charDelta,
         description,
         id,
@@ -217,7 +225,7 @@ function Workbench() {
   function restoreCommit(commit: TextCommit) {
     setEditorValue(commit.afterText)
     setSelectedRevisionId(commit.id)
-    setSyntaxMode('json')
+    setSyntaxMode(commit.afterSyntaxMode)
     notifications.show({
       color: 'blue',
       message: `${commit.id} is now loaded in the editor.`,
@@ -228,7 +236,7 @@ function Workbench() {
   function restoreRootText() {
     setEditorValue(rootText)
     setSelectedRevisionId('root')
-    setSyntaxMode('json')
+    setSyntaxMode(rootSyntaxMode)
     notifications.show({
       color: 'blue',
       message: 'Root input is now loaded in the editor.',
