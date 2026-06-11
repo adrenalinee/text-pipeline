@@ -62,7 +62,10 @@ import { getFormatLintSource } from '#/features/workbench/utils/formatLinting'
 import { validateFormat } from '#/features/workbench/utils/formatValidation'
 import { getChangeStats } from '#/features/workbench/utils/textMetrics'
 
-export const Route = createFileRoute('/')({ component: Home })
+export const Route = createFileRoute('/')({
+  ssr: false,
+  component: Home,
+})
 
 const SYNTAX_OPTIONS: Array<{
   description: string

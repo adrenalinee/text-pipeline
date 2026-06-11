@@ -11,12 +11,19 @@ const config = defineConfig({
   plugins: [
     devtools({
       eventBusConfig: {
-        port: 4450
-      }
+        port: 4450,
+      },
     }),
     tailwindcss(),
-    tanstackStart(),
-    viteReact()
+    tanstackStart({
+      pages: [{ path: '/' }],
+      prerender: {
+        enabled: true,
+        crawlLinks: true,
+        failOnError: true,
+      },
+    }),
+    viteReact(),
   ],
 })
 
