@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-export type SyntaxMode = 'plain' | 'json' | 'toml' | 'yaml'
+export type SyntaxMode = 'plain' | 'json' | 'markdown' | 'toml' | 'yaml'
 
 export type TransformGroup = 'format' | 'general'
 

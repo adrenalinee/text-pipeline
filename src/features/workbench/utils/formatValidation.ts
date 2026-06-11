@@ -21,11 +21,7 @@ export function validateFormat(
   syntaxMode: SyntaxMode,
 ): FormatValidationResult {
   if (syntaxMode === 'plain') {
-    return {
-      message: 'Plain text has no syntax validator.',
-      status: 'unsupported',
-      title: 'No validator',
-    }
+    return unsupportedValidationResult('Plain text')
   }
 
   if (syntaxMode === 'json') {
@@ -36,7 +32,19 @@ export function validateFormat(
     return validateYaml(value)
   }
 
+  if (syntaxMode === 'markdown') {
+    return unsupportedValidationResult('Markdown')
+  }
+
   return validateToml(value)
+}
+
+function unsupportedValidationResult(format: string): FormatValidationResult {
+  return {
+    message: `${format} has no syntax validator.`,
+    status: 'unsupported',
+    title: 'No validator',
+  }
 }
 
 function validateJson(value: string): FormatValidationResult {

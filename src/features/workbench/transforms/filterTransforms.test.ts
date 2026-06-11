@@ -59,6 +59,7 @@ describe('transform filtering', () => {
 
     expect(isTransformAvailable(generalTransform, 'plain')).toBe(true)
     expect(isTransformAvailable(generalTransform, 'json')).toBe(true)
+    expect(isTransformAvailable(generalTransform, 'markdown')).toBe(true)
     expect(isTransformAvailable(generalTransform, 'toml')).toBe(true)
     expect(isTransformAvailable(generalTransform, 'yaml')).toBe(true)
   })
@@ -142,6 +143,14 @@ describe('transform filtering', () => {
   it('exposes only general transforms for plain text input', () => {
     expect(
       getAvailableTransforms(TRANSFORM_DEFINITIONS, 'plain').map(
+        ({ id }) => id,
+      ),
+    ).toEqual(['url-encode', 'url-decode', 'base64-encode', 'base64-decode'])
+  })
+
+  it('exposes only general transforms for Markdown input', () => {
+    expect(
+      getAvailableTransforms(TRANSFORM_DEFINITIONS, 'markdown').map(
         ({ id }) => id,
       ),
     ).toEqual(['url-encode', 'url-decode', 'base64-encode', 'base64-decode'])

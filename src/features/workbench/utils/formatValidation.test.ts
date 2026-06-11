@@ -38,4 +38,14 @@ describe('format validation', () => {
       line: 2,
     })
   })
+
+  it('treats Markdown validation as unsupported', () => {
+    const result = validateFormat('# Text Pipeline\n\n- local transforms\n', 'markdown')
+
+    expect(result).toMatchObject({
+      message: 'Markdown has no syntax validator.',
+      status: 'unsupported',
+      title: 'No validator',
+    })
+  })
 })

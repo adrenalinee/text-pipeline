@@ -4,7 +4,7 @@ export type TextSample = {
   description: string
   id: string
   label: string
-  syntaxMode: Extract<SyntaxMode, 'json' | 'toml' | 'yaml'>
+  syntaxMode: Extract<SyntaxMode, 'json' | 'markdown' | 'toml' | 'yaml'>
   value: string
 }
 
@@ -51,6 +51,28 @@ history:
   retention:
     maxCommits: 25
     persistLocal: false
+`,
+  },
+  {
+    description: 'Release notes with a fenced JSON payload',
+    id: 'markdown-release-notes',
+    label: 'Release notes Markdown',
+    syntaxMode: 'markdown',
+    value: `# Text Pipeline notes
+
+- Keep source input intact.
+- Commit every transform as a pipeline step.
+- Highlight fenced code blocks.
+
+> Sensitive payloads should stay in the browser.
+
+\`\`\`json
+{
+  "service": "text-pipeline",
+  "format": "markdown",
+  "localOnly": true
+}
+\`\`\`
 `,
   },
   {

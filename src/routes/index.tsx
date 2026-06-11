@@ -16,8 +16,10 @@ import {
 import { useMediaQuery } from '@mantine/hooks'
 import { Notifications, notifications } from '@mantine/notifications'
 import { json } from '@codemirror/lang-json'
+import { markdown } from '@codemirror/lang-markdown'
 import { yaml } from '@codemirror/lang-yaml'
 import { StreamLanguage } from '@codemirror/language'
+import { languages } from '@codemirror/language-data'
 import { toml } from '@codemirror/legacy-modes/mode/toml'
 import { linter, lintGutter } from '@codemirror/lint'
 import { EditorView } from '@codemirror/view'
@@ -81,6 +83,11 @@ const SYNTAX_OPTIONS: Array<{
     description: 'Objects, arrays, payloads',
     label: 'JSON',
     value: 'json',
+  },
+  {
+    description: 'Notes, docs, and fenced code',
+    label: 'Markdown',
+    value: 'markdown',
   },
   {
     description: 'Config and manifests',
@@ -527,6 +534,10 @@ function SyntaxIcon({ value }: { value: SyntaxMode }) {
     return <Code2 size={18} />
   }
 
+  if (value === 'markdown') {
+    return <FileText size={18} />
+  }
+
   if (value === 'toml') {
     return <FileText size={18} />
   }
@@ -541,6 +552,10 @@ function getSyntaxExtensions(syntaxMode: SyntaxMode) {
 
   if (syntaxMode === 'yaml') {
     return [yaml()]
+  }
+
+  if (syntaxMode === 'markdown') {
+    return [markdown({ codeLanguages: languages })]
   }
 
   if (syntaxMode === 'toml') {
