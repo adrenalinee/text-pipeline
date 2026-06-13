@@ -49,7 +49,7 @@ export function HistorySidebar({
   } as CSSProperties
 
   return (
-    <SidebarSection title="History">
+    <SidebarSection title="History Graph">
       <Stack gap={6}>
         <WorkingTreeItem
           active={selectedRevisionId === WORKING_REVISION_ID}
