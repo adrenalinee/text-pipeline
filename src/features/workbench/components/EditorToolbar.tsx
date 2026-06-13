@@ -1,4 +1,4 @@
-import { Button, Group, SegmentedControl, Text, Tooltip } from '@mantine/core'
+import {ActionIcon, Button, Group, SegmentedControl, Text, Tooltip } from '@mantine/core'
 import {
   CircleAlert,
   CircleCheck,
@@ -12,6 +12,7 @@ import {
 
 import type { WorkbenchViewMode } from '../types'
 import type { FormatValidationResult } from '../utils/formatValidation'
+import {IconGitCommit, IconShieldCheck, IconTextWrap, IconTextWrapDisabled} from "@tabler/icons-react";
 
 export function EditorToolbar({
   activeViewMode,
@@ -51,8 +52,6 @@ export function EditorToolbar({
         <Text fw={600} size="sm">
           Text Editor
         </Text>
-      </Group>
-      <Group className="editorToolbarActions" gap={6} wrap="nowrap">
         <SegmentedControl
           aria-label="Editor view mode"
           className="viewModeTabs"
@@ -64,46 +63,22 @@ export function EditorToolbar({
           value={activeViewMode}
           onChange={(value) => onSetViewMode(value as WorkbenchViewMode)}
         />
-        <Tooltip
-          label={softWrapEnabled ? 'Disable soft wrap' : 'Enable soft wrap'}
-          withArrow
-        >
+      </Group>
+      <Group className="editorToolbarActions" gap={6} wrap="nowrap">
+        <Tooltip label="Choose text format" withArrow>
           <Button
-            aria-label={
-              softWrapEnabled ? 'Disable soft wrap' : 'Enable soft wrap'
-            }
-            aria-pressed={softWrapEnabled}
-            className="softWrapToggle"
+            aria-label="Choose text format"
+            className="syntaxButton"
             color="gray"
-            leftSection={<TextWrap size={14} />}
+            leftSection={<Code2 size={14} />}
             size="xs"
-            variant={softWrapEnabled ? 'filled' : 'light'}
-            onClick={onToggleSoftWrap}
+            variant="light"
+            onClick={onChooseSyntax}
           >
-            Soft wrap
+            {formatLabel}
           </Button>
         </Tooltip>
-        <Tooltip
-          label={
-            canCommitWorkingText
-              ? 'Commit current editor text'
-              : 'No editor changes to commit'
-          }
-          withArrow
-        >
-          <Button
-            aria-label="Commit current editor text"
-            className="commitButton"
-            color={canCommitWorkingText ? 'green' : 'gray'}
-            disabled={!canCommitWorkingText}
-            leftSection={<GitCommitHorizontal size={14} />}
-            size="xs"
-            variant={canCommitWorkingText ? 'filled' : 'light'}
-            onClick={onCommitWorkingText}
-          >
-            Commit
-          </Button>
-        </Tooltip>
+
         <Tooltip label="Choose sample data" withArrow>
           <Button
             aria-label="Choose sample data"
@@ -130,7 +105,7 @@ export function EditorToolbar({
           }
           withArrow
         >
-          <Button
+          <ActionIcon
             aria-label={
               !validationAvailable
                 ? 'Validation is not available for this format'
@@ -139,29 +114,55 @@ export function EditorToolbar({
                   : 'Enable format validation'
             }
             aria-pressed={validationEnabled}
-            className="validationToggle"
+            // className="validationToggle"
             color={getValidationColor(validationResult)}
             disabled={!validationAvailable}
-            leftSection={<ShieldCheck size={14} />}
-            size="xs"
+            // leftSection={<ShieldCheck size={14} />}
+            // size="xs"
             variant={validationEnabled ? 'filled' : 'light'}
             onClick={onToggleValidation}
           >
-            Validate
-          </Button>
+            {/*<ShieldCheck size={18} />*/}
+            <IconShieldCheck size={18} />
+          </ActionIcon>
         </Tooltip>
-        <Tooltip label="Choose text format" withArrow>
-          <Button
-            aria-label="Choose text format"
-            className="syntaxButton"
-            color="gray"
-            leftSection={<Code2 size={14} />}
-            size="xs"
-            variant="light"
-            onClick={onChooseSyntax}
+        <Tooltip
+          label={softWrapEnabled ? 'Disable soft wrap' : 'Enable soft wrap'}
+          withArrow
+        >
+          <ActionIcon
+            aria-label={
+              softWrapEnabled ? 'Disable soft wrap' : 'Enable soft wrap'
+            }
+            aria-pressed={softWrapEnabled}
+            color="dark"
+            variant={softWrapEnabled ? 'filled' : 'light'}
+            onClick={onToggleSoftWrap}
           >
-            {formatLabel}
-          </Button>
+            {softWrapEnabled ? (
+              <IconTextWrapDisabled size={18} />
+            ) : (
+              <IconTextWrap size={18} />
+            )}
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip
+          label={
+            canCommitWorkingText
+              ? 'Commit current editor text'
+              : 'No editor changes to commit'
+          }
+          withArrow
+        >
+          <ActionIcon
+            aria-label="Commit current editor text"
+            color={canCommitWorkingText ? 'green' : 'gray'}
+            disabled={!canCommitWorkingText}
+            variant={canCommitWorkingText ? 'filled' : 'light'}
+            onClick={onCommitWorkingText}
+          >
+            <IconGitCommit size={18} />
+          </ActionIcon>
         </Tooltip>
       </Group>
     </Group>

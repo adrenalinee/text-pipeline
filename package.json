@@ -36,6 +36,7 @@
     "@mantine/hooks": "^9.3.0",
     "@mantine/modals": "^9.3.0",
     "@mantine/notifications": "^9.3.0",
+    "@tabler/icons-react": "^3.44.0",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-devtools": "latest",
     "@tanstack/react-router": "latest",

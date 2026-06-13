@@ -1282,6 +1282,18 @@
     estraverse "^5.3.0"
     picomatch "^4.0.3"
 
+"@tabler/icons-react@^3.44.0":
+  version "3.44.0"
+  resolved "https://registry.yarnpkg.com/@tabler/icons-react/-/icons-react-3.44.0.tgz#26e84ee0ef756bfae5dcbd8265312ba3cd5a91d9"
+  integrity sha512-8+rvzBbVm/1Z3sG3x7GUNAaxIKxwgz8xaMhRs23nrCnMTKRFAhEC+82zAIFeAA0seXdrAGX5HFCkaLpGK2rVHg==
+  dependencies:
+    "@tabler/icons" "3.44.0"
+
+"@tabler/icons@3.44.0":
+  version "3.44.0"
+  resolved "https://registry.yarnpkg.com/@tabler/icons/-/icons-3.44.0.tgz#286b203aac98591e27360de03974762568bbb272"
+  integrity sha512-Wn0AOZG9sg0L+bjfMqq4eNhC6pQjIrk94LvvWYNYkY8KH8wC3YILRzQlrnVJc4FUeMxH/AK97QsYCX35H3LndA==
+
 "@tailwindcss/node@4.3.0":
   version "4.3.0"
   resolved "https://registry.yarnpkg.com/@tailwindcss/node/-/node-4.3.0.tgz#9dc5312bf41c48658529f36021e0b466c4eb7860"
