@@ -43,7 +43,7 @@ export function HistorySidebar({
           ))
         ) : (
           <Text className="emptyHistory" c="dimmed" size="xs">
-            No transform commits yet.
+            No commits yet.
           </Text>
         )}
         <Box className="historyRootBlock">

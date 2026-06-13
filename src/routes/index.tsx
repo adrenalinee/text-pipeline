@@ -49,6 +49,16 @@ import {
   FORMAT_VIEWS,
   getFormatDefinition,
 } from '#/features/workbench/formats'
+import {
+  createTextCommit,
+  createWorkingSnapshotCommit,
+  getNextCommitId,
+  getRevisionSnapshot,
+  getRootRevisionSnapshot,
+  hasRevisionTextChanged,
+  ROOT_REVISION_ID,
+  WORKING_REVISION_ID,
+} from '#/features/workbench/history'
 import { TEXT_SAMPLES } from '#/features/workbench/samples'
 import type { TextSample } from '#/features/workbench/samples'
 import type {
@@ -68,7 +78,6 @@ import {
 } from '#/features/workbench/transforms/progress'
 import { TRANSFORM_RUNNERS } from '#/features/workbench/transforms/runners'
 import { validateFormat } from '#/features/workbench/utils/formatValidation'
-import { getChangeStats } from '#/features/workbench/utils/textMetrics'
 import { FormatViewPanel } from '#/features/workbench/views/FormatViewPanel'
 
 export const Route = createFileRoute('/')({
@@ -78,11 +87,15 @@ export const Route = createFileRoute('/')({
 
 const INITIAL_EDITOR_VALUE =
   '{\n  "service": "text-pipeline",\n  "status": "draft"\n}'
+const INITIAL_TEXT_REVISION = {
+  syntaxMode: 'json',
+  text: INITIAL_EDITOR_VALUE,
+} satisfies { syntaxMode: SyntaxMode; text: string }
 
 function Home() {
   return (
     <MantineProvider defaultColorScheme="dark">
-      <Notifications position="top-center" />
+      <Notifications position="bottom-center" />
       <Workbench />
     </MantineProvider>
   )
@@ -93,9 +106,14 @@ function Workbench() {
   const [rightOpened, setRightOpened] = useState(true)
   const [editorValue, setEditorValue] = useState(INITIAL_EDITOR_VALUE)
   const [commits, setCommits] = useState<Array<TextCommit>>([])
-  const [selectedRevisionId, setSelectedRevisionId] = useState('working')
+  const [selectedRevisionId, setSelectedRevisionId] =
+    useState(WORKING_REVISION_ID)
+  const [workingBaseRevisionId, setWorkingBaseRevisionId] =
+    useState(ROOT_REVISION_ID)
   const [syntaxMode, setSyntaxMode] = useState<SyntaxMode>('json')
   const [syntaxModalOpened, setSyntaxModalOpened] = useState(false)
+  const [sampleModalOpened, setSampleModalOpened] = useState(false)
+  const [softWrapEnabled, setSoftWrapEnabled] = useState(true)
   const [validationEnabled, setValidationEnabled] = useState(false)
   const [viewMode, setViewMode] = useState<WorkbenchViewMode>('source')
   const [runningTransformLabel, setRunningTransformLabel] = useState<
@@ -109,17 +127,32 @@ function Workbench() {
   const isDark = computedColorScheme === 'dark'
   const currentFormat = getFormatDefinition(syntaxMode)
   const viewAvailable = currentFormat.viewIds.length > 0
-  const rootText = commits.at(-1)?.beforeText ?? INITIAL_EDITOR_VALUE
-  const rootSyntaxMode = commits.at(-1)?.beforeSyntaxMode ?? 'json'
+  const rootRevision = getRootRevisionSnapshot(commits, INITIAL_TEXT_REVISION)
+  const rootText = rootRevision.text
+  const rootSyntaxMode = rootRevision.syntaxMode
+  const workingBaseRevision = useMemo(
+    () =>
+      getRevisionSnapshot({
+        commits,
+        initialRevision: INITIAL_TEXT_REVISION,
+        revisionId: workingBaseRevisionId,
+      }),
+    [commits, workingBaseRevisionId],
+  )
+  const canCommitWorkingText = hasRevisionTextChanged(
+    workingBaseRevision,
+    editorValue,
+  )
   const editorExtensions = useMemo(() => {
     const syntaxExtensions = currentFormat.getEditorExtensions()
     const lintSource = validationEnabled ? currentFormat.lintSource : null
     const lintExtensions = lintSource
       ? [lintGutter(), linter(lintSource, { delay: 250 })]
       : []
+    const wrappingExtensions = softWrapEnabled ? [EditorView.lineWrapping] : []
 
-    return [...syntaxExtensions, ...lintExtensions, EditorView.lineWrapping]
-  }, [currentFormat, validationEnabled])
+    return [...syntaxExtensions, ...lintExtensions, ...wrappingExtensions]
+  }, [currentFormat, softWrapEnabled, validationEnabled])
   const validationResult = useMemo(
     () =>
       validationEnabled && currentFormat.validation === 'supported'
@@ -134,6 +167,21 @@ function Workbench() {
   ) {
     const beforeText = editorValue
     const beforeSyntaxMode = syntaxMode
+    const workingSnapshotCommit = createWorkingSnapshotCommit({
+      baseRevision: workingBaseRevision,
+      currentSyntaxMode: beforeSyntaxMode,
+      currentText: beforeText,
+      description: 'Saved working text before transform.',
+      id: getNextCommitId(commits),
+      timestamp: formatCommitTimestamp(new Date()),
+      title: 'Manual edit',
+    })
+    const transformParentId =
+      workingSnapshotCommit?.id ?? workingBaseRevision.id
+    const transformCommitId = getNextCommitId(
+      commits,
+      workingSnapshotCommit ? 2 : 1,
+    )
     const shouldShowProgress = shouldShowTransformProgress(
       definition,
       beforeText,
@@ -143,6 +191,15 @@ function Workbench() {
       : null
 
     try {
+      if (workingSnapshotCommit) {
+        setCommits((currentCommits) => [
+          workingSnapshotCommit,
+          ...currentCommits,
+        ])
+        setSelectedRevisionId(workingSnapshotCommit.id)
+        setWorkingBaseRevisionId(workingSnapshotCommit.id)
+      }
+
       if (shouldShowProgress) {
         await waitForTransformModalPaint()
       }
@@ -157,6 +214,8 @@ function Workbench() {
         beforeText,
         beforeSyntaxMode,
         description: definition.description,
+        id: transformCommitId,
+        parentId: transformParentId,
         title: definition.label,
       })
     } catch (error) {
@@ -182,6 +241,8 @@ function Workbench() {
     beforeText,
     beforeSyntaxMode,
     description,
+    id,
+    parentId,
     title,
   }: {
     afterText: string
@@ -189,40 +250,36 @@ function Workbench() {
     beforeText: string
     beforeSyntaxMode: SyntaxMode
     description: string
+    id: string
+    parentId: string
     title: string
   }) {
-    if (afterText === beforeText && afterSyntaxMode === beforeSyntaxMode) {
+    if (afterText === beforeText) {
       notifications.show({
         color: 'blue',
         message: 'The transform did not change the text.',
-        title: 'No commit created',
+        title: 'No transform commit created',
       })
       return
     }
 
-    const changeStats = getChangeStats(beforeText, afterText)
-    const index = commits.length + 1
-    const id = `c${String(index).padStart(3, '0')}`
+    const commit = createTextCommit({
+      afterSyntaxMode,
+      afterText,
+      beforeSyntaxMode,
+      beforeText,
+      description,
+      id,
+      parentId,
+      timestamp: formatCommitTimestamp(new Date()),
+      title,
+    })
 
     setEditorValue(afterText)
     setSyntaxMode(afterSyntaxMode)
     setSelectedRevisionId(id)
-    setCommits((currentCommits) => [
-      {
-        afterText,
-        afterSyntaxMode,
-        beforeText,
-        beforeSyntaxMode,
-        charDelta: changeStats.charDelta,
-        description,
-        id,
-        lineDelta: changeStats.lineDelta,
-        parentId: currentCommits[0]?.id ?? 'root',
-        title,
-        timestamp: formatCommitTimestamp(new Date()),
-      },
-      ...currentCommits,
-    ])
+    setWorkingBaseRevisionId(id)
+    setCommits((currentCommits) => [commit, ...currentCommits])
 
     notifications.show({
       color: 'green',
@@ -231,9 +288,41 @@ function Workbench() {
     })
   }
 
+  function commitWorkingText() {
+    const commit = createWorkingSnapshotCommit({
+      baseRevision: workingBaseRevision,
+      currentSyntaxMode: syntaxMode,
+      currentText: editorValue,
+      description: 'Saved current editor text.',
+      id: getNextCommitId(commits),
+      timestamp: formatCommitTimestamp(new Date()),
+      title: 'Manual edit',
+    })
+
+    if (!commit) {
+      notifications.show({
+        color: 'blue',
+        message: 'The editor already matches the checked-out revision.',
+        title: 'No commit created',
+      })
+      return
+    }
+
+    setSelectedRevisionId(commit.id)
+    setWorkingBaseRevisionId(commit.id)
+    setCommits((currentCommits) => [commit, ...currentCommits])
+
+    notifications.show({
+      color: 'green',
+      message: `${commit.id} now points to the current editor text.`,
+      title: 'Commit created',
+    })
+  }
+
   function restoreCommit(commit: TextCommit) {
     setEditorValue(commit.afterText)
     setSelectedRevisionId(commit.id)
+    setWorkingBaseRevisionId(commit.id)
     setSyntaxMode(commit.afterSyntaxMode)
     notifications.show({
       color: 'blue',
@@ -244,7 +333,8 @@ function Workbench() {
 
   function restoreRootText() {
     setEditorValue(rootText)
-    setSelectedRevisionId('root')
+    setSelectedRevisionId(ROOT_REVISION_ID)
+    setWorkingBaseRevisionId(ROOT_REVISION_ID)
     setSyntaxMode(rootSyntaxMode)
     notifications.show({
       color: 'blue',
@@ -254,7 +344,7 @@ function Workbench() {
   }
 
   function restoreCommitParent(commit: TextCommit) {
-    if (commit.parentId === 'root') {
+    if (commit.parentId === ROOT_REVISION_ID) {
       restoreRootText()
       return
     }
@@ -274,13 +364,14 @@ function Workbench() {
 
   function updateEditorValue(value: string) {
     setEditorValue(value)
-    setSelectedRevisionId('working')
+    markWorkingTextChanged()
   }
 
   function loadSample(sample: TextSample) {
+    markWorkingTextChanged()
     setEditorValue(sample.value)
     setSyntaxMode(sample.syntaxMode)
-    setSelectedRevisionId('working')
+    setSampleModalOpened(false)
     setViewMode('source')
 
     notifications.show({
@@ -288,6 +379,15 @@ function Workbench() {
       message: `${sample.label} is now loaded in the editor.`,
       title: 'Sample loaded',
     })
+  }
+
+  function markWorkingTextChanged() {
+    setWorkingBaseRevisionId((baseRevisionId) =>
+      selectedRevisionId === WORKING_REVISION_ID
+        ? baseRevisionId
+        : selectedRevisionId,
+    )
+    setSelectedRevisionId(WORKING_REVISION_ID)
   }
 
   useEffect(() => {
@@ -366,6 +466,9 @@ function Workbench() {
               label={option.label}
               value={option.id}
               onClick={() => {
+                if (option.id !== syntaxMode) {
+                  markWorkingTextChanged()
+                }
                 setSyntaxMode(option.id)
                 setViewMode(
                   FORMAT_DEFINITIONS[option.id].viewIds.length > 0
@@ -374,6 +477,24 @@ function Workbench() {
                 )
                 setSyntaxModalOpened(false)
               }}
+            />
+          ))}
+        </Stack>
+      </Modal>
+      <Modal
+        centered
+        opened={sampleModalOpened}
+        overlayProps={{ backgroundOpacity: 0.45, blur: 1 }}
+        size="lg"
+        title="Sample data"
+        onClose={() => setSampleModalOpened(false)}
+      >
+        <Stack gap="xs">
+          {TEXT_SAMPLES.map((sample) => (
+            <SampleOptionButton
+              key={sample.id}
+              sample={sample}
+              onClick={() => loadSample(sample)}
             />
           ))}
         </Stack>
@@ -460,17 +581,18 @@ function Workbench() {
         <Box className="editorPanel">
           <EditorToolbar
             activeViewMode={viewMode}
+            canCommitWorkingText={canCommitWorkingText}
             formatLabel={currentFormat.label}
-            sampleOptions={TEXT_SAMPLES.filter((sample) =>
-              currentFormat.sampleIds.includes(sample.id),
-            )}
+            softWrapEnabled={softWrapEnabled}
             validationEnabled={validationEnabled}
             validationAvailable={currentFormat.validation === 'supported'}
             validationResult={validationResult}
             viewAvailable={viewAvailable}
             onChooseSyntax={() => setSyntaxModalOpened(true)}
-            onLoadSample={loadSample}
+            onCommitWorkingText={commitWorkingText}
+            onOpenSamples={() => setSampleModalOpened(true)}
             onSetViewMode={setViewMode}
+            onToggleSoftWrap={() => setSoftWrapEnabled((enabled) => !enabled)}
             onToggleValidation={() =>
               setValidationEnabled((enabled) => !enabled)
             }
@@ -478,7 +600,9 @@ function Workbench() {
           {viewMode === 'source' ? (
             <CodeMirror
               aria-label="Text editor"
-              className="codeEditor"
+              className={
+                softWrapEnabled ? 'codeEditor' : 'codeEditor codeEditorNoWrap'
+              }
               basicSetup={{
                 bracketMatching: true,
                 closeBrackets: true,
@@ -593,6 +717,40 @@ function getTransformProgressTimestamp() {
   }
 
   return performance.now()
+}
+
+function SampleOptionButton({
+  onClick,
+  sample,
+}: {
+  onClick: () => void
+  sample: TextSample
+}) {
+  return (
+    <button
+      aria-label={`Load ${sample.label}`}
+      className="syntaxOption sampleOption"
+      type="button"
+      onClick={onClick}
+    >
+      <Group className="syntaxOptionMain" gap="sm" wrap="nowrap">
+        <SyntaxIcon value={sample.syntaxMode} />
+        <Box className="syntaxOptionText">
+          <Group gap="xs" wrap="nowrap">
+            <Text fw={650} size="sm">
+              {sample.label}
+            </Text>
+            <Badge className="sampleFormatBadge" size="xs" variant="light">
+              {FORMAT_DEFINITIONS[sample.syntaxMode].label}
+            </Badge>
+          </Group>
+          <Text c="dimmed" size="xs">
+            {sample.description}
+          </Text>
+        </Box>
+      </Group>
+    </button>
+  )
 }
 
 function SyntaxOptionButton({

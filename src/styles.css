@@ -99,6 +99,16 @@ button {
   font-weight: 700;
 }
 
+.softWrapToggle {
+  min-width: 108px;
+  font-weight: 700;
+}
+
+.commitButton {
+  min-width: 86px;
+  font-weight: 700;
+}
+
 .validationToggle {
   min-width: 94px;
   font-weight: 700;
@@ -177,6 +187,10 @@ button {
   min-width: 0;
 }
 
+.sampleFormatBadge {
+  flex: 0 0 auto;
+}
+
 .codeEditor {
   flex: 1;
   width: 100%;
@@ -199,6 +213,14 @@ button {
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
     'Courier New', monospace;
   line-height: 1.55;
+}
+
+.codeEditorNoWrap .cm-scroller {
+  overflow-x: auto;
+}
+
+.codeEditorNoWrap .cm-content {
+  min-width: max-content;
 }
 
 .codeEditor .cm-content {
@@ -613,8 +635,19 @@ button {
     min-width: 34px;
   }
 
+  .softWrapToggle {
+    width: 34px;
+    min-width: 34px;
+  }
+
+  .commitButton {
+    width: 34px;
+    min-width: 34px;
+  }
+
   .sampleButton .mantine-Button-label,
-  .sampleButtonChevron {
+  .softWrapToggle .mantine-Button-label,
+  .commitButton .mantine-Button-label {
     display: none;
   }
 

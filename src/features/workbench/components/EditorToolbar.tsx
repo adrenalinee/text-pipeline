@@ -1,45 +1,44 @@
+import { Button, Group, SegmentedControl, Text, Tooltip } from '@mantine/core'
 import {
-  Button,
-  Group,
-  Menu,
-  SegmentedControl,
-  Text,
-  Tooltip,
-} from '@mantine/core'
-import {
-  ChevronDown,
   CircleAlert,
   CircleCheck,
   CircleDot,
   Code2,
   FileJson,
+  GitCommitHorizontal,
   ShieldCheck,
+  TextWrap,
 } from 'lucide-react'
 
 import type { WorkbenchViewMode } from '../types'
-import type { TextSample } from '../samples'
 import type { FormatValidationResult } from '../utils/formatValidation'
 
 export function EditorToolbar({
   activeViewMode,
+  canCommitWorkingText,
   formatLabel,
-  onLoadSample,
   onChooseSyntax,
+  onCommitWorkingText,
+  onOpenSamples,
   onSetViewMode,
+  onToggleSoftWrap,
   onToggleValidation,
-  sampleOptions,
+  softWrapEnabled,
   validationEnabled,
   validationResult,
   validationAvailable,
   viewAvailable,
 }: {
   activeViewMode: WorkbenchViewMode
+  canCommitWorkingText: boolean
   formatLabel: string
   onChooseSyntax: () => void
-  onLoadSample: (sample: TextSample) => void
+  onCommitWorkingText: () => void
+  onOpenSamples: () => void
   onSetViewMode: (mode: WorkbenchViewMode) => void
+  onToggleSoftWrap: () => void
   onToggleValidation: () => void
-  sampleOptions: ReadonlyArray<TextSample>
+  softWrapEnabled: boolean
   validationEnabled: boolean
   validationAvailable: boolean
   validationResult: FormatValidationResult | null
@@ -65,7 +64,59 @@ export function EditorToolbar({
           value={activeViewMode}
           onChange={(value) => onSetViewMode(value as WorkbenchViewMode)}
         />
-        <SampleMenu sampleOptions={sampleOptions} onLoadSample={onLoadSample} />
+        <Tooltip
+          label={softWrapEnabled ? 'Disable soft wrap' : 'Enable soft wrap'}
+          withArrow
+        >
+          <Button
+            aria-label={
+              softWrapEnabled ? 'Disable soft wrap' : 'Enable soft wrap'
+            }
+            aria-pressed={softWrapEnabled}
+            className="softWrapToggle"
+            color="gray"
+            leftSection={<TextWrap size={14} />}
+            size="xs"
+            variant={softWrapEnabled ? 'filled' : 'light'}
+            onClick={onToggleSoftWrap}
+          >
+            Soft wrap
+          </Button>
+        </Tooltip>
+        <Tooltip
+          label={
+            canCommitWorkingText
+              ? 'Commit current editor text'
+              : 'No editor changes to commit'
+          }
+          withArrow
+        >
+          <Button
+            aria-label="Commit current editor text"
+            className="commitButton"
+            color={canCommitWorkingText ? 'green' : 'gray'}
+            disabled={!canCommitWorkingText}
+            leftSection={<GitCommitHorizontal size={14} />}
+            size="xs"
+            variant={canCommitWorkingText ? 'filled' : 'light'}
+            onClick={onCommitWorkingText}
+          >
+            Commit
+          </Button>
+        </Tooltip>
+        <Tooltip label="Choose sample data" withArrow>
+          <Button
+            aria-label="Choose sample data"
+            className="sampleButton"
+            color="gray"
+            leftSection={<FileJson size={14} />}
+            size="xs"
+            variant="light"
+            onClick={onOpenSamples}
+          >
+            Samples
+          </Button>
+        </Tooltip>
         <FormatValidationStatus
           result={validationEnabled ? validationResult : null}
         />
@@ -115,61 +166,6 @@ export function EditorToolbar({
       </Group>
     </Group>
   )
-}
-
-function SampleMenu({
-  onLoadSample,
-  sampleOptions,
-}: {
-  onLoadSample: (sample: TextSample) => void
-  sampleOptions: ReadonlyArray<TextSample>
-}) {
-  const hasSamples = sampleOptions.length > 0
-
-  return (
-    <Menu position="bottom-end" shadow="md" width={240} withinPortal>
-      <Menu.Target>
-        <Button
-          aria-label="Load sample data"
-          className="sampleButton"
-          color="gray"
-          leftSection={<FileJson size={14} />}
-          rightSection={
-            <ChevronDown className="sampleButtonChevron" size={13} />
-          }
-          disabled={!hasSamples}
-          size="xs"
-          variant="light"
-        >
-          Samples
-        </Button>
-      </Menu.Target>
-      <Menu.Dropdown>
-        {sampleOptions.map((sample) => (
-          <Menu.Item
-            key={sample.id}
-            leftSection={<SampleIcon syntaxMode={sample.syntaxMode} />}
-            onClick={() => onLoadSample(sample)}
-          >
-            <Text fw={650} size="sm">
-              {sample.label}
-            </Text>
-            <Text c="dimmed" size="xs">
-              {sample.description}
-            </Text>
-          </Menu.Item>
-        ))}
-      </Menu.Dropdown>
-    </Menu>
-  )
-}
-
-function SampleIcon({ syntaxMode }: { syntaxMode: TextSample['syntaxMode'] }) {
-  if (syntaxMode === 'json') {
-    return <FileJson size={14} />
-  }
-
-  return <Code2 size={14} />
 }
 
 function FormatValidationStatus({
