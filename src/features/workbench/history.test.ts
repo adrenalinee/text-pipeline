@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  buildCommitGraph,
   createTextCommit,
   createWorkingSnapshotCommit,
   getNextCommitId,
@@ -114,7 +115,7 @@ describe('workbench history', () => {
     })
   })
 
-  it('resolves root from the oldest commit before state', () => {
+  it('resolves root from a root child before state', () => {
     const firstCommit = createTextCommit({
       afterSyntaxMode: 'json',
       afterText: '{"status":"ready"}',
@@ -139,12 +140,85 @@ describe('workbench history', () => {
     })
 
     expect(
-      getRootRevisionSnapshot([secondCommit, firstCommit], initialRevision),
+      getRootRevisionSnapshot([firstCommit, secondCommit], initialRevision),
     ).toEqual({
       id: 'root',
       syntaxMode: 'json',
       text: initialRevision.text,
     })
     expect(getNextCommitId([secondCommit, firstCommit], 2)).toBe('c004')
+  })
+
+  it('builds graph lanes for commits branched from an older parent', () => {
+    const firstCommit = createTextCommit({
+      afterSyntaxMode: 'json',
+      afterText: '{"status":"ready"}',
+      beforeSyntaxMode: 'json',
+      beforeText: initialRevision.text,
+      description: 'Saved working text.',
+      id: 'c001',
+      parentId: 'root',
+      timestamp: '10:00:00',
+      title: 'Manual edit',
+    })
+    const secondCommit = createTextCommit({
+      afterSyntaxMode: 'json',
+      afterText: '{\n  "status": "ready"\n}',
+      beforeSyntaxMode: 'json',
+      beforeText: firstCommit.afterText,
+      description: 'Pretty print JSON.',
+      id: 'c002',
+      parentId: 'c001',
+      timestamp: '10:01:00',
+      title: 'JSON format',
+    })
+    const thirdCommit = createTextCommit({
+      afterSyntaxMode: 'json',
+      afterText: '{\n  "status": "ready",\n  "checked": true\n}',
+      beforeSyntaxMode: 'json',
+      beforeText: secondCommit.afterText,
+      description: 'Saved working text.',
+      id: 'c003',
+      parentId: 'c002',
+      timestamp: '10:02:00',
+      title: 'Manual edit',
+    })
+    const branchCommit = createTextCommit({
+      afterSyntaxMode: 'json',
+      afterText: '{"status":"archived"}',
+      beforeSyntaxMode: 'json',
+      beforeText: firstCommit.afterText,
+      description: 'Saved working text.',
+      id: 'c004',
+      parentId: 'c001',
+      timestamp: '10:03:00',
+      title: 'Manual edit',
+    })
+    const graph = buildCommitGraph(
+      [branchCommit, thirdCommit, secondCommit, firstCommit],
+      'c003',
+    )
+
+    expect(graph.laneCount).toBe(2)
+    expect(graph.rows.map(({ commit, lane }) => [commit.id, lane])).toEqual([
+      ['c004', 0],
+      ['c003', 1],
+      ['c002', 1],
+      ['c001', 0],
+    ])
+    expect(graph.rows[0]?.bottomSegments).toEqual([
+      { active: false, lane: 0 },
+    ])
+    expect(graph.rows[1]?.bottomSegments).toEqual([
+      { active: false, lane: 0 },
+      { active: true, lane: 1 },
+    ])
+    expect(graph.rows[3]?.connectors).toEqual([
+      {
+        active: true,
+        fromLane: 1,
+        toLane: 0,
+      },
+    ])
   })
 })

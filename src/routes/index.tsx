@@ -571,6 +571,7 @@ function Workbench() {
           commits={commits}
           currentText={editorValue}
           selectedRevisionId={selectedRevisionId}
+          workingBaseRevisionId={workingBaseRevisionId}
           onRestoreCommit={restoreCommit}
           onRestoreCommitParent={restoreCommitParent}
           onRestoreRoot={restoreRootText}

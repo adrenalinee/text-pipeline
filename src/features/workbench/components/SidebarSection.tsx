@@ -9,7 +9,7 @@ export function SidebarSection({
   title: string
 }) {
   return (
-    <ScrollArea.Autosize mah="50vh" type="hover">
+    <ScrollArea.Autosize mah="calc(100vh - 44px)" type="hover">
       <Stack gap="xs" p="sm">
         <Text fw={700} size="xs" tt="uppercase" c="dimmed">
           {title}

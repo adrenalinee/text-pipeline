@@ -525,10 +525,71 @@ button {
   outline-offset: 2px;
 }
 
-.commitItemWrap {
+.historyGraphList {
+  --history-graph-width: 30px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.commitGraphRow {
+  display: grid;
+  grid-template-columns: var(--history-graph-width) minmax(0, 1fr);
+  gap: 6px;
+  align-items: stretch;
+}
+
+.historyGraph {
+  width: var(--history-graph-width);
+  min-height: 64px;
+  height: 100%;
+  overflow: visible;
+}
+
+.historyGraphRoot {
+  min-height: 52px;
+}
+
+.historyGraphLine {
+  stroke: light-dark(var(--mantine-color-gray-4), var(--mantine-color-dark-3));
+  stroke-linecap: round;
+  stroke-width: 1.8;
+}
+
+.historyGraphLineActive {
+  stroke: light-dark(var(--mantine-color-blue-6), var(--mantine-color-blue-4));
+  stroke-width: 2.4;
+}
+
+.historyGraphDot {
+  fill: light-dark(var(--mantine-color-white), var(--mantine-color-dark-7));
+  stroke: light-dark(var(--mantine-color-gray-5), var(--mantine-color-dark-2));
+  stroke-width: 2.2;
+}
+
+.historyGraphDotActive {
+  fill: light-dark(var(--mantine-color-blue-6), var(--mantine-color-blue-4));
+  stroke: light-dark(var(--mantine-color-blue-7), var(--mantine-color-blue-3));
+}
+
+.commitItemWrap {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.commitTitleGroup,
+.commitTitle,
+.commitDescription {
+  min-width: 0;
+}
+
+.commitTitle,
+.commitDescription {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .commitHash,
@@ -561,7 +622,7 @@ button {
 
 .parentRef {
   width: fit-content;
-  margin-left: 24px;
+  margin-left: 8px;
   padding: 0 4px;
   border: 0;
   color: light-dark(var(--mantine-color-gray-6), var(--mantine-color-dark-2));
