@@ -119,13 +119,13 @@ function Workbench() {
     [currentFormat.validation, editorValue, syntaxMode, validationEnabled],
   )
 
-  function runTransform(
+  async function runTransform(
     definition: TransformDefinition,
     runner: TransformRunner,
   ) {
     try {
       const beforeSyntaxMode = syntaxMode
-      const result = runner(editorValue)
+      const result = await runner(editorValue)
       const afterSyntaxMode =
         result.outputFormat ?? definition.outputFormat ?? beforeSyntaxMode
 
@@ -290,7 +290,9 @@ function Workbench() {
             icon: getTransformIcon(definition.id),
             id: definition.id,
             label: definition.label,
-            onClick: () => runTransform(definition, runner),
+            onClick: () => {
+              void runTransform(definition, runner)
+            },
           } satisfies TransformAction,
         ]
       })

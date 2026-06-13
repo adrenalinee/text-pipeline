@@ -2,7 +2,13 @@ import type { ReactNode } from 'react'
 import type { Extension } from '@codemirror/state'
 import type { LintSource } from '@codemirror/lint'
 
-export type SyntaxMode = 'plain' | 'json' | 'markdown' | 'toml' | 'yaml'
+export type SyntaxMode =
+  | 'plain'
+  | 'html'
+  | 'json'
+  | 'markdown'
+  | 'toml'
+  | 'yaml'
 
 export type TransformGroup = 'format' | 'general'
 
@@ -11,6 +17,7 @@ export type FormatRenderPolicy = 'automatic' | 'explicit'
 export type FormatRenderSecurity = 'sanitized' | 'sandboxed' | 'source-only'
 
 export type FormatViewId =
+  | 'html-preview'
   | 'markdown-document'
   | 'structured-tree'
   | 'unavailable'
@@ -20,6 +27,8 @@ export type WorkbenchViewMode = 'source' | 'view'
 export type TransformId =
   | 'base64-decode'
   | 'base64-encode'
+  | 'html-format'
+  | 'html-minify'
   | 'json-format'
   | 'json-minify'
   | 'json-to-toml'
@@ -75,7 +84,9 @@ export type TransformResult = {
   outputFormat?: SyntaxMode
 }
 
-export type TransformRunner = (input: string) => TransformResult
+export type TransformRunner = (
+  input: string,
+) => Promise<TransformResult> | TransformResult
 
 export type TransformRunnerMap = Partial<Record<TransformId, TransformRunner>>
 

@@ -1,9 +1,10 @@
+import { html } from '@codemirror/lang-html'
 import { json } from '@codemirror/lang-json'
+import { jsonParseLinter } from '@codemirror/lang-json'
 import { markdown } from '@codemirror/lang-markdown'
 import { yaml } from '@codemirror/lang-yaml'
 import { StreamLanguage } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
-import { jsonParseLinter } from '@codemirror/lang-json'
 import { toml } from '@codemirror/legacy-modes/mode/toml'
 
 import type {
@@ -13,6 +14,7 @@ import type {
   TransformId,
 } from './types'
 import { getFormatLintSource } from './utils/formatLinting'
+import { HtmlPreviewView } from './views/HtmlPreviewView'
 import { MarkdownDocumentView } from './views/MarkdownDocumentView'
 import { StructuredTreeView } from './views/StructuredTreeView'
 import { UnavailableView } from './views/FormatViewPanel'
@@ -36,6 +38,11 @@ const TOML_TRANSFORMS = [
   'toml-to-yaml',
 ] satisfies ReadonlyArray<TransformId>
 
+const HTML_TRANSFORMS = [
+  'html-format',
+  'html-minify',
+] satisfies ReadonlyArray<TransformId>
+
 const GENERAL_TRANSFORMS = [
   'url-encode',
   'url-decode',
@@ -44,6 +51,13 @@ const GENERAL_TRANSFORMS = [
 ] satisfies ReadonlyArray<TransformId>
 
 export const FORMAT_VIEWS = [
+  {
+    description: 'Preview static HTML in a restricted iframe',
+    id: 'html-preview',
+    label: 'Sandboxed preview',
+    render: ({ value }) => <HtmlPreviewView value={value} />,
+    supportedFormats: ['html'],
+  },
   {
     description: 'Inspect parsed objects and arrays as collapsible nodes',
     id: 'structured-tree',
@@ -66,6 +80,20 @@ export const FORMAT_VIEWS = [
 ] satisfies ReadonlyArray<FormatViewDefinition>
 
 export const FORMAT_DEFINITIONS = {
+  html: {
+    defaultViewId: 'html-preview',
+    description: 'Markup fragments and documents',
+    getEditorExtensions: () => [html()],
+    id: 'html',
+    label: 'HTML',
+    lintSource: getFormatLintSource('html') ?? undefined,
+    renderPolicy: 'explicit',
+    renderSecurity: 'sandboxed',
+    sampleIds: ['html-status-panel'],
+    transformIds: [...HTML_TRANSFORMS, ...GENERAL_TRANSFORMS],
+    validation: 'supported',
+    viewIds: ['html-preview'],
+  },
   json: {
     defaultViewId: 'structured-tree',
     description: 'Objects, arrays, payloads',

@@ -4,7 +4,10 @@ export type TextSample = {
   description: string
   id: string
   label: string
-  syntaxMode: Extract<SyntaxMode, 'json' | 'markdown' | 'toml' | 'yaml'>
+  syntaxMode: Extract<
+    SyntaxMode,
+    'html' | 'json' | 'markdown' | 'toml' | 'yaml'
+  >
   value: string
 }
 
@@ -52,6 +55,51 @@ history:
     maxCommits: 25
     persistLocal: false
 `,
+  },
+  {
+    description: 'Static admin panel fragment with inline styles',
+    id: 'html-status-panel',
+    label: 'Status panel HTML',
+    syntaxMode: 'html',
+    value: `<main class="status-panel">
+  <style>
+    .status-panel {
+      color: #1f2937;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      padding: 24px;
+    }
+
+    .status-panel table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    .status-panel th,
+    .status-panel td {
+      border-bottom: 1px solid #d1d5db;
+      padding: 8px 10px;
+      text-align: left;
+    }
+  </style>
+  <h1>Pipeline status</h1>
+  <p>Local transforms are running in the browser.</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Format</th>
+        <th>Validation</th>
+        <th>View mode</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>HTML</td>
+        <td>Parse errors</td>
+        <td>Sandboxed preview</td>
+      </tr>
+    </tbody>
+  </table>
+</main>`,
   },
   {
     description: 'Release notes with a fenced JSON payload',

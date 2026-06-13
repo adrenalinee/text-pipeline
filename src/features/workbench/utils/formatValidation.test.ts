@@ -39,8 +39,33 @@ describe('format validation', () => {
     })
   })
 
+  it('validates HTML fragments with browser parser recovery limits', () => {
+    const result = validateFormat('<main><h1>Text Pipeline</h1></main>', 'html')
+
+    expect(result).toMatchObject({
+      status: 'valid',
+      title: 'Valid HTML',
+    })
+  })
+
+  it('reports HTML parse errors with line and column when available', () => {
+    const result = validateFormat(
+      '<main>\n  <div class=>x</div>\n</main>',
+      'html',
+    )
+
+    expect(result.status).toBe('invalid')
+    expect(result.issue).toMatchObject({
+      column: 14,
+      line: 2,
+    })
+  })
+
   it('treats Markdown validation as unsupported', () => {
-    const result = validateFormat('# Text Pipeline\n\n- local transforms\n', 'markdown')
+    const result = validateFormat(
+      '# Text Pipeline\n\n- local transforms\n',
+      'markdown',
+    )
 
     expect(result).toMatchObject({
       message: 'Markdown has no syntax validator.',

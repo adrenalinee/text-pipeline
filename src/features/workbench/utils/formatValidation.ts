@@ -1,4 +1,6 @@
 import { load } from 'js-yaml'
+import { parseFragment } from 'parse5'
+import type { ParserError } from 'parse5'
 import { parse as parseToml } from 'smol-toml'
 
 import type { SyntaxMode } from '../types'
@@ -28,6 +30,10 @@ export function validateFormat(
     return validateJson(value)
   }
 
+  if (syntaxMode === 'html') {
+    return validateHtml(value)
+  }
+
   if (syntaxMode === 'yaml') {
     return validateYaml(value)
   }
@@ -44,6 +50,35 @@ function unsupportedValidationResult(format: string): FormatValidationResult {
     message: `${format} has no syntax validator.`,
     status: 'unsupported',
     title: 'No validator',
+  }
+}
+
+function validateHtml(value: string): FormatValidationResult {
+  const errors: Array<ParserError> = []
+
+  parseFragment(value, {
+    onParseError: (error) => errors.push(error),
+  })
+
+  const error = errors[0]
+
+  if (!error) {
+    return {
+      message:
+        'No HTML parse errors found. Browser-recovered structure issues may still exist.',
+      status: 'valid',
+      title: 'Valid HTML',
+    }
+  }
+
+  const issue = getHtmlErrorIssue(error)
+  const message = `HTML parse error: ${formatHtmlParseError(error.code)}.`
+
+  return {
+    issue,
+    message: formatInvalidMessage(message, issue),
+    status: 'invalid',
+    title: formatInvalidTitle('HTML', issue),
   }
 }
 
@@ -131,6 +166,24 @@ function isJsonLike(value: string) {
   } catch {
     return false
   }
+}
+
+export function getHtmlErrorIssue(
+  error: ParserError,
+): FormatValidationIssue | undefined {
+  if (error.startLine < 1 || error.startCol < 1) {
+    return undefined
+  }
+
+  return {
+    column: error.startCol,
+    line: error.startLine,
+    position: error.startOffset >= 0 ? error.startOffset : undefined,
+  }
+}
+
+export function formatHtmlParseError(code: string) {
+  return code.replaceAll('-', ' ')
 }
 
 export function getYamlErrorIssue(
@@ -221,7 +274,7 @@ function formatInvalidMessage(
 }
 
 function formatInvalidTitle(
-  format: 'JSON' | 'TOML' | 'YAML',
+  format: 'HTML' | 'JSON' | 'TOML' | 'YAML',
   issue: FormatValidationIssue | undefined,
 ) {
   return issue ? `${format} line ${issue.line}` : `Invalid ${format}`

@@ -10,6 +10,7 @@ import {
 describe('FORMAT_DEFINITIONS', () => {
   it('defines capabilities for every supported syntax mode', () => {
     expect(FORMAT_OPTIONS.map((format) => format.id).sort()).toEqual([
+      'html',
       'json',
       'markdown',
       'plain',
@@ -17,6 +18,7 @@ describe('FORMAT_DEFINITIONS', () => {
       'yaml',
     ])
     expect(FORMAT_OPTIONS.map((format) => format.label).sort()).toEqual([
+      'HTML',
       'JSON',
       'Markdown',
       'Plain text',
@@ -25,7 +27,8 @@ describe('FORMAT_DEFINITIONS', () => {
     ])
   })
 
-  it('exposes default visual views for JSON, YAML, and Markdown', () => {
+  it('exposes default visual views for HTML, JSON, YAML, and Markdown', () => {
+    expect(getFormatDefinition('html').defaultViewId).toBe('html-preview')
     expect(getFormatDefinition('json').defaultViewId).toBe('structured-tree')
     expect(getFormatDefinition('yaml').defaultViewId).toBe('structured-tree')
     expect(getFormatDefinition('markdown').defaultViewId).toBe(
@@ -40,6 +43,11 @@ describe('FORMAT_DEFINITIONS', () => {
   })
 
   it('keeps transform availability in the registry', () => {
+    expect(FORMAT_DEFINITIONS.html.transformIds).toContain('html-format')
+    expect(FORMAT_DEFINITIONS.html.transformIds).toContain('html-minify')
+    expect(FORMAT_DEFINITIONS.html.transformIds).toContain('base64-encode')
+    expect(FORMAT_DEFINITIONS.html.renderSecurity).toBe('sandboxed')
+    expect(FORMAT_DEFINITIONS.html.sampleIds).toContain('html-status-panel')
     expect(FORMAT_DEFINITIONS.json.transformIds).toContain('json-format')
     expect(FORMAT_DEFINITIONS.json.transformIds).toContain('base64-encode')
     expect(FORMAT_DEFINITIONS.markdown.transformIds).not.toContain(
@@ -51,6 +59,9 @@ describe('FORMAT_DEFINITIONS', () => {
 
 describe('FORMAT_VIEWS', () => {
   it('declares supported formats for each visual view', () => {
+    expect(
+      FORMAT_VIEWS.find((view) => view.id === 'html-preview')?.supportedFormats,
+    ).toEqual(['html'])
     expect(
       FORMAT_VIEWS.find((view) => view.id === 'structured-tree')
         ?.supportedFormats,

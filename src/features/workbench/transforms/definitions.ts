@@ -2,6 +2,22 @@ import type { TransformDefinition } from '../types'
 
 export const TRANSFORM_DEFINITIONS = [
   {
+    description: 'Pretty print the current editor HTML',
+    group: 'format',
+    id: 'html-format',
+    inputFormats: ['html'],
+    label: 'HTML format',
+    outputFormat: 'html',
+  },
+  {
+    description: 'Remove comments and extra whitespace from current HTML',
+    group: 'format',
+    id: 'html-minify',
+    inputFormats: ['html'],
+    label: 'HTML minify',
+    outputFormat: 'html',
+  },
+  {
     description: 'Pretty print the current editor JSON',
     group: 'format',
     id: 'json-format',

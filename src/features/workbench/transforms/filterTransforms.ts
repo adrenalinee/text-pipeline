@@ -7,6 +7,7 @@ export type TransformDefinitionSection = {
 }
 
 const FORMAT_SECTION_TITLES: Record<SyntaxMode, string> = {
+  html: 'HTML transforms',
   json: 'JSON transforms',
   markdown: 'Markdown transforms',
   plain: 'Text transforms',

@@ -3,14 +3,25 @@ import type { Diagnostic, LintSource } from '@codemirror/lint'
 import type { Text } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 import { load } from 'js-yaml'
+import { parseFragment } from 'parse5'
+import type { ParserError } from 'parse5'
 import { parse as parseToml } from 'smol-toml'
 
 import type { SyntaxMode } from '../types'
-import { getTomlErrorIssue, getYamlErrorIssue } from './formatValidation'
+import {
+  formatHtmlParseError,
+  getHtmlErrorIssue,
+  getTomlErrorIssue,
+  getYamlErrorIssue,
+} from './formatValidation'
 
 export function getFormatLintSource(syntaxMode: SyntaxMode): LintSource | null {
   if (syntaxMode === 'json') {
     return jsonParseLinter()
+  }
+
+  if (syntaxMode === 'html') {
+    return htmlLintSource
   }
 
   if (syntaxMode === 'yaml') {
@@ -48,6 +59,24 @@ const tomlLintSource: LintSource = (view) => {
       }),
     ]
   }
+}
+
+const htmlLintSource: LintSource = (view) => {
+  const errors: Array<ParserError> = []
+
+  parseFragment(view.state.doc.toString(), {
+    onParseError: (error) => errors.push(error),
+  })
+
+  return errors.map((error) =>
+    createDiagnostic({
+      error,
+      fallbackMessage: `HTML parse error: ${formatHtmlParseError(error.code)}.`,
+      from: getHtmlErrorIssue(error),
+      source: 'HTML',
+      view,
+    }),
+  )
 }
 
 function createYamlDiagnostic(error: unknown, view: EditorView): Diagnostic {
