@@ -2,6 +2,14 @@ import type { TransformDefinition } from '../types'
 
 export const TRANSFORM_DEFINITIONS = [
   {
+    description: 'Remove line-break formatting without reparsing HTML',
+    group: 'format',
+    id: 'html-compact',
+    inputFormats: ['html'],
+    label: 'HTML compact',
+    outputFormat: 'html',
+  },
+  {
     description: 'Pretty print the current editor HTML',
     group: 'format',
     id: 'html-format',
@@ -10,7 +18,8 @@ export const TRANSFORM_DEFINITIONS = [
     outputFormat: 'html',
   },
   {
-    description: 'Remove comments and extra whitespace from current HTML',
+    description:
+      'Normalize parsed HTML and remove comments and extra whitespace',
     group: 'format',
     id: 'html-minify',
     inputFormats: ['html'],

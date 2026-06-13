@@ -39,6 +39,7 @@ const TOML_TRANSFORMS = [
 ] satisfies ReadonlyArray<TransformId>
 
 const HTML_TRANSFORMS = [
+  'html-compact',
   'html-format',
   'html-minify',
 ] satisfies ReadonlyArray<TransformId>

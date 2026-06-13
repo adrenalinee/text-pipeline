@@ -141,7 +141,7 @@ describe('transform filtering', () => {
     ])
   })
 
-  it('exposes HTML formatting and minifying with general transforms for HTML input', () => {
+  it('exposes HTML compacting, formatting, and minifying with general transforms for HTML input', () => {
     const sections = getTransformSections(TRANSFORM_DEFINITIONS, 'html').map(
       (section) => ({
         ids: section.transforms.map(({ id }) => id),
@@ -151,7 +151,7 @@ describe('transform filtering', () => {
 
     expect(sections).toEqual([
       {
-        ids: ['html-format', 'html-minify'],
+        ids: ['html-compact', 'html-format', 'html-minify'],
         title: 'HTML transforms',
       },
       {

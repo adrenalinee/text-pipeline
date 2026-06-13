@@ -16,6 +16,10 @@ export const TRANSFORM_RUNNERS: TransformRunnerMap = {
     output: encodeBase64(input),
     outputFormat: 'plain',
   }),
+  'html-compact': (input) => ({
+    output: compactHtml(input),
+    outputFormat: 'html',
+  }),
   'html-format': async (input) => ({
     output: await formatHtml(input),
     outputFormat: 'html',
@@ -138,6 +142,109 @@ const BLOCK_TAGS = new Set([
   'tr',
   'ul',
 ])
+
+function compactHtml(input: string) {
+  let output = ''
+  let index = 0
+
+  while (index < input.length) {
+    const rawTextStart = getRawTextStart(input, index)
+
+    if (rawTextStart) {
+      const closeStart = findRawTextClose(input, rawTextStart.tagName, index)
+
+      if (closeStart === -1) {
+        output += input.slice(index)
+        break
+      }
+
+      const closeEnd = input.indexOf('>', closeStart)
+
+      if (closeEnd === -1) {
+        output += input.slice(index)
+        break
+      }
+
+      output += input.slice(index, closeEnd + 1)
+      index = closeEnd + 1
+      continue
+    }
+
+    const character = input[index]
+
+    if (character && /\s/.test(character)) {
+      const whitespaceStart = index
+
+      while (index < input.length && /\s/.test(input[index] ?? '')) {
+        index += 1
+      }
+
+      const whitespace = input.slice(whitespaceStart, index)
+
+      if (!/[\r\n]/.test(whitespace)) {
+        output += whitespace
+        continue
+      }
+
+      if (isFormattingWhitespace(input, output, index)) {
+        continue
+      }
+
+      if (!output.endsWith(' ')) {
+        output += ' '
+      }
+
+      continue
+    }
+
+    output += character
+    index += 1
+  }
+
+  return output.trim()
+}
+
+function getRawTextStart(input: string, index: number) {
+  if (input[index] !== '<' || input[index + 1] === '/') {
+    return null
+  }
+
+  const match = input.slice(index).match(/^<([a-zA-Z][\w:-]*)(?:\s|>|\/)/)
+  const tagName = match?.[1]?.toLowerCase()
+
+  if (!tagName || !RAW_TEXT_TAGS.has(tagName)) {
+    return null
+  }
+
+  return { tagName }
+}
+
+function findRawTextClose(input: string, tagName: string, fromIndex: number) {
+  return input.toLowerCase().indexOf(`</${tagName}`, fromIndex)
+}
+
+function isFormattingWhitespace(
+  input: string,
+  output: string,
+  nextIndex: number,
+) {
+  const previous = output.at(-1)
+  const next = getNextNonWhitespace(input, nextIndex)
+
+  return previous === '>' && next === '<'
+}
+
+function getNextNonWhitespace(input: string, fromIndex: number) {
+  for (let index = fromIndex; index < input.length; index += 1) {
+    const character = input[index]
+
+    if (character && !/\s/.test(character)) {
+      return character
+    }
+  }
+
+  return null
+}
 
 function minifyHtml(input: string) {
   const errors: Array<ParserError> = []

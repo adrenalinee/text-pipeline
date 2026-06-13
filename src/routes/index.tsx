@@ -5,6 +5,7 @@ import {
   Badge,
   Box,
   Group,
+  Loader,
   MantineProvider,
   Modal,
   Stack,
@@ -37,6 +38,7 @@ import {
   Workflow,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { flushSync } from 'react-dom'
 
 import { EditorToolbar } from '#/features/workbench/components/EditorToolbar'
 import { HistorySidebar } from '#/features/workbench/components/HistorySidebar'
@@ -60,6 +62,10 @@ import type {
 } from '#/features/workbench/types'
 import { TRANSFORM_DEFINITIONS } from '#/features/workbench/transforms/definitions'
 import { getTransformSections } from '#/features/workbench/transforms/filterTransforms'
+import {
+  shouldShowTransformProgress,
+  TRANSFORM_PROGRESS_THRESHOLDS,
+} from '#/features/workbench/transforms/progress'
 import { TRANSFORM_RUNNERS } from '#/features/workbench/transforms/runners'
 import { validateFormat } from '#/features/workbench/utils/formatValidation'
 import { getChangeStats } from '#/features/workbench/utils/textMetrics'
@@ -92,6 +98,9 @@ function Workbench() {
   const [syntaxModalOpened, setSyntaxModalOpened] = useState(false)
   const [validationEnabled, setValidationEnabled] = useState(false)
   const [viewMode, setViewMode] = useState<WorkbenchViewMode>('source')
+  const [runningTransformLabel, setRunningTransformLabel] = useState<
+    string | null
+  >(null)
   const { setColorScheme } = useMantineColorScheme()
   const isCompact = useMediaQuery('(max-width: 48em)')
   const computedColorScheme = useComputedColorScheme('dark', {
@@ -123,16 +132,29 @@ function Workbench() {
     definition: TransformDefinition,
     runner: TransformRunner,
   ) {
+    const beforeText = editorValue
+    const beforeSyntaxMode = syntaxMode
+    const shouldShowProgress = shouldShowTransformProgress(
+      definition,
+      beforeText,
+    )
+    const progressStartedAt = shouldShowProgress
+      ? showTransformProgress(definition.label, setRunningTransformLabel)
+      : null
+
     try {
-      const beforeSyntaxMode = syntaxMode
-      const result = await runner(editorValue)
+      if (shouldShowProgress) {
+        await waitForTransformModalPaint()
+      }
+
+      const result = await runner(beforeText)
       const afterSyntaxMode =
         result.outputFormat ?? definition.outputFormat ?? beforeSyntaxMode
 
       commitTransform({
         afterText: result.output,
         afterSyntaxMode,
-        beforeText: editorValue,
+        beforeText,
         beforeSyntaxMode,
         description: definition.description,
         title: definition.label,
@@ -146,6 +168,11 @@ function Workbench() {
             : 'The transform could not be applied.',
         title: `${definition.label} failed`,
       })
+    } finally {
+      if (shouldShowProgress) {
+        await waitForTransformProgressMinimumDuration(progressStartedAt)
+        setRunningTransformLabel(null)
+      }
     }
   }
 
@@ -351,6 +378,29 @@ function Workbench() {
           ))}
         </Stack>
       </Modal>
+      <Modal
+        centered
+        closeOnClickOutside={false}
+        closeOnEscape={false}
+        opened={runningTransformLabel !== null}
+        overlayProps={{ backgroundOpacity: 0.55, blur: 2 }}
+        size="xs"
+        title="Transform running"
+        withCloseButton={false}
+        onClose={() => undefined}
+      >
+        <Group gap="sm" wrap="nowrap">
+          <Loader size="sm" />
+          <Box>
+            <Text fw={700} size="sm">
+              {runningTransformLabel}
+            </Text>
+            <Text c="dimmed" size="xs">
+              Processing a large text input locally.
+            </Text>
+          </Box>
+        </Group>
+      </Modal>
 
       <AppShell.Header className="workbenchHeader">
         <Group h="100%" px="sm" justify="space-between" wrap="nowrap">
@@ -482,6 +532,67 @@ function getTransformIcon(id: TransformDefinition['id']) {
   }
 
   return <Code2 size={16} />
+}
+
+function waitForTransformModalPaint() {
+  if (typeof window === 'undefined') {
+    return Promise.resolve()
+  }
+
+  return new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.setTimeout(resolve, 0)
+      })
+    })
+  })
+}
+
+function showTransformProgress(
+  label: string,
+  setRunningTransformLabel: (label: string) => void,
+) {
+  const startedAt = getTransformProgressTimestamp()
+
+  if (typeof window === 'undefined') {
+    setRunningTransformLabel(label)
+    return startedAt
+  }
+
+  flushSync(() => {
+    setRunningTransformLabel(label)
+  })
+
+  return startedAt
+}
+
+function waitForTransformProgressMinimumDuration(startedAt: number | null) {
+  if (startedAt === null) {
+    return Promise.resolve()
+  }
+
+  const remainingMs =
+    TRANSFORM_PROGRESS_THRESHOLDS.minimumVisibleMs -
+    (getTransformProgressTimestamp() - startedAt)
+
+  if (remainingMs <= 0) {
+    return Promise.resolve()
+  }
+
+  return new Promise<void>((resolve) => {
+    const setDelay =
+      typeof window === 'undefined' ? setTimeout : window.setTimeout
+
+    setDelay(resolve, remainingMs)
+  })
+}
+
+function getTransformProgressTimestamp() {
+  if (typeof performance === 'undefined') {
+    return Date.now()
+  }
+
+  return performance.now()
 }
 
 function SyntaxOptionButton({

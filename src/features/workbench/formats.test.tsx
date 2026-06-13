@@ -43,6 +43,7 @@ describe('FORMAT_DEFINITIONS', () => {
   })
 
   it('keeps transform availability in the registry', () => {
+    expect(FORMAT_DEFINITIONS.html.transformIds).toContain('html-compact')
     expect(FORMAT_DEFINITIONS.html.transformIds).toContain('html-format')
     expect(FORMAT_DEFINITIONS.html.transformIds).toContain('html-minify')
     expect(FORMAT_DEFINITIONS.html.transformIds).toContain('base64-encode')

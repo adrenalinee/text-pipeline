@@ -27,6 +27,7 @@ export type WorkbenchViewMode = 'source' | 'view'
 export type TransformId =
   | 'base64-decode'
   | 'base64-encode'
+  | 'html-compact'
   | 'html-format'
   | 'html-minify'
   | 'json-format'

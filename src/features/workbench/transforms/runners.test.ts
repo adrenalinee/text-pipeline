@@ -37,6 +37,32 @@ describe('transform runners', () => {
     })
   })
 
+  it('compacts HTML without reparsing or removing comments', async () => {
+    expect(
+      await runTransform(
+        'html-compact',
+        '<!-- note -->\n<main>\n  <h1>Hi</h1>\n  <p>Hello\n    <strong>team</strong>\n  </p>\n</main>',
+      ),
+    ).toEqual({
+      output:
+        '<!-- note --><main><h1>Hi</h1><p>Hello <strong>team</strong></p></main>',
+      outputFormat: 'html',
+    })
+  })
+
+  it('preserves raw text contents while compacting HTML', async () => {
+    expect(
+      await runTransform(
+        'html-compact',
+        '<style>\n  .status-panel { color: red; }\n</style>\n<main>ok</main>',
+      ),
+    ).toEqual({
+      output:
+        '<style>\n  .status-panel { color: red; }\n</style><main>ok</main>',
+      outputFormat: 'html',
+    })
+  })
+
   it('minifies HTML conservatively', async () => {
     expect(
       await runTransform(
