@@ -529,7 +529,7 @@ button {
   --history-graph-width: 30px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0;
 }
 
 .commitGraphRow {
@@ -540,8 +540,17 @@ button {
 }
 
 .historyGraph {
+  position: relative;
   width: var(--history-graph-width);
   min-height: 64px;
+  height: 100%;
+  overflow: visible;
+}
+
+.historyGraphLines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
   height: 100%;
   overflow: visible;
 }
@@ -562,14 +571,29 @@ button {
 }
 
 .historyGraphDot {
-  fill: light-dark(var(--mantine-color-white), var(--mantine-color-dark-7));
-  stroke: light-dark(var(--mantine-color-gray-5), var(--mantine-color-dark-2));
-  stroke-width: 2.2;
+  position: absolute;
+  top: 50%;
+  width: 8.5px;
+  height: 8.5px;
+  border: 2.2px solid
+    light-dark(var(--mantine-color-gray-5), var(--mantine-color-dark-2));
+  border-radius: 999px;
+  background: light-dark(
+    var(--mantine-color-white),
+    var(--mantine-color-dark-7)
+  );
+  transform: translate(-50%, -50%);
 }
 
 .historyGraphDotActive {
-  fill: light-dark(var(--mantine-color-blue-6), var(--mantine-color-blue-4));
-  stroke: light-dark(var(--mantine-color-blue-7), var(--mantine-color-blue-3));
+  border-color: light-dark(
+    var(--mantine-color-blue-7),
+    var(--mantine-color-blue-3)
+  );
+  background: light-dark(
+    var(--mantine-color-blue-6),
+    var(--mantine-color-blue-4)
+  );
 }
 
 .commitItemWrap {
@@ -641,7 +665,7 @@ button {
 }
 
 .historyRootBlock {
-  padding-top: 6px;
+  padding-top: 0;
 }
 
 .transformButton {

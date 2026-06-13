@@ -27,7 +27,7 @@ type HistorySidebarProps = {
 const GRAPH_LANE_GAP = 14
 const GRAPH_PADDING = 8
 const GRAPH_MAX_WIDTH = 86
-const GRAPH_HEIGHT = 64
+const GRAPH_HEIGHT = 100
 const GRAPH_CENTER_Y = GRAPH_HEIGHT / 2
 
 export function HistorySidebar({
@@ -45,9 +45,7 @@ export function HistorySidebar({
       : selectedRevisionId
   const commitGraph = buildCommitGraph(commits, graphRevisionId)
   const graphStyle = {
-    '--history-graph-width': `${getHistoryGraphWidth(
-      commitGraph.laneCount,
-    )}px`,
+    '--history-graph-width': `${getHistoryGraphWidth(commitGraph.laneCount)}px`,
   } as CSSProperties
 
   return (
@@ -74,6 +72,7 @@ export function HistorySidebar({
             <Box className="historyRootBlock">
               <CommitRootItem
                 active={selectedRevisionId === ROOT_REVISION_ID}
+                connected={commitGraph.rows.length > 0}
                 graphLaneCount={commitGraph.laneCount}
                 pathActive={commitGraph.ancestorIds.has(ROOT_REVISION_ID)}
                 onClick={onRestoreRoot}
@@ -89,6 +88,7 @@ export function HistorySidebar({
               <Box className="historyRootBlock">
                 <CommitRootItem
                   active={selectedRevisionId === ROOT_REVISION_ID}
+                  connected={commitGraph.rows.length > 0}
                   graphLaneCount={commitGraph.laneCount}
                   pathActive={commitGraph.ancestorIds.has(ROOT_REVISION_ID)}
                   onClick={onRestoreRoot}
@@ -128,11 +128,13 @@ function WorkingTreeItem({
 
 function CommitRootItem({
   active,
+  connected,
   graphLaneCount,
   onClick,
   pathActive,
 }: {
   active: boolean
+  connected: boolean
   graphLaneCount: number
   onClick: () => void
   pathActive: boolean
@@ -140,8 +142,9 @@ function CommitRootItem({
   return (
     <Box className="commitGraphRow historyRootRow">
       <RootGraph
-        graphLaneCount={graphLaneCount}
         active={active || pathActive}
+        connected={connected}
+        graphLaneCount={graphLaneCount}
       />
       <button
         className="historyItem historyItemButton"
@@ -231,73 +234,89 @@ function CommitGraph({
   const graphWidth = getHistoryGraphSvgWidth(graphLaneCount)
 
   return (
-    <svg
-      aria-hidden="true"
-      className="historyGraph"
-      focusable="false"
-      viewBox={`0 0 ${graphWidth} ${GRAPH_HEIGHT}`}
-    >
-      {row.topSegments.map((segment) => (
-        <LaneLine
-          key={`top-${segment.lane}`}
-          segment={segment}
-          y1={0}
-          y2={GRAPH_CENTER_Y}
-        />
-      ))}
-      {row.bottomSegments.map((segment) => (
-        <LaneLine
-          key={`bottom-${segment.lane}`}
-          segment={segment}
-          y1={GRAPH_CENTER_Y}
-          y2={GRAPH_HEIGHT}
-        />
-      ))}
-      {row.connectors.map((connector) => (
-        <ConnectorLine
-          connector={connector}
-          key={`${connector.fromLane}-${connector.toLane}`}
-        />
-      ))}
-      <circle
-        className={
-          row.isAncestor
-            ? 'historyGraphDot historyGraphDotActive'
-            : 'historyGraphDot'
-        }
-        cx={getLaneX(row.lane)}
-        cy={GRAPH_CENTER_Y}
-        r={4.25}
-      />
-    </svg>
+    <Box className="historyGraph">
+      <svg
+        aria-hidden="true"
+        focusable="false"
+        className="historyGraphLines"
+        preserveAspectRatio="none"
+        viewBox={`0 0 ${graphWidth} ${GRAPH_HEIGHT}`}
+      >
+        {row.topSegments.map((segment) => (
+          <LaneLine
+            key={`top-${segment.lane}`}
+            segment={segment}
+            y1={0}
+            y2={GRAPH_CENTER_Y}
+          />
+        ))}
+        {row.bottomSegments.map((segment) => (
+          <LaneLine
+            key={`bottom-${segment.lane}`}
+            segment={segment}
+            y1={GRAPH_CENTER_Y}
+            y2={GRAPH_HEIGHT}
+          />
+        ))}
+        {row.commit.parentId === ROOT_REVISION_ID ? (
+          <LaneLine
+            segment={{
+              active: row.isAncestor,
+              lane: row.lane,
+            }}
+            y1={GRAPH_CENTER_Y}
+            y2={GRAPH_HEIGHT}
+          />
+        ) : null}
+        {row.connectors.map((connector) => (
+          <ConnectorLine
+            connector={connector}
+            key={`${connector.fromLane}-${connector.toLane}`}
+          />
+        ))}
+      </svg>
+      <GraphDot active={row.isAncestor} lane={row.lane} />
+    </Box>
   )
 }
 
 function RootGraph({
   active,
+  connected,
   graphLaneCount,
 }: {
   active: boolean
+  connected: boolean
   graphLaneCount: number
 }) {
   const graphWidth = getHistoryGraphSvgWidth(graphLaneCount)
 
   return (
-    <svg
-      aria-hidden="true"
-      className="historyGraph historyGraphRoot"
-      focusable="false"
-      viewBox={`0 0 ${graphWidth} ${GRAPH_HEIGHT}`}
-    >
-      <circle
-        className={
-          active ? 'historyGraphDot historyGraphDotActive' : 'historyGraphDot'
-        }
-        cx={getLaneX(0)}
-        cy={GRAPH_CENTER_Y}
-        r={4.25}
-      />
-    </svg>
+    <Box className="historyGraph historyGraphRoot">
+      {connected ? (
+        <svg
+          aria-hidden="true"
+          focusable="false"
+          className="historyGraphLines"
+          preserveAspectRatio="none"
+          viewBox={`0 0 ${graphWidth} ${GRAPH_HEIGHT}`}
+        >
+          <line
+            className={
+              active
+                ? 'historyGraphLine historyGraphLineActive'
+                : 'historyGraphLine'
+            }
+            vectorEffect="non-scaling-stroke"
+            x1={getLaneX(0)}
+            x2={getLaneX(0)}
+            y1={0}
+            y2={GRAPH_CENTER_Y}
+          />
+        </svg>
+      ) : null}
+      <GraphDot active={active} lane={0} />
+    </Box>
   )
 }
 
@@ -321,6 +340,7 @@ function LaneLine({
       x2={getLaneX(segment.lane)}
       y1={y1}
       y2={y2}
+      vectorEffect="non-scaling-stroke"
     />
   )
 }
@@ -337,6 +357,19 @@ function ConnectorLine({ connector }: { connector: CommitGraphConnector }) {
       x2={getLaneX(connector.toLane)}
       y1={GRAPH_CENTER_Y}
       y2={GRAPH_CENTER_Y}
+      vectorEffect="non-scaling-stroke"
+    />
+  )
+}
+
+function GraphDot({ active, lane }: { active: boolean; lane: number }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={
+        active ? 'historyGraphDot historyGraphDotActive' : 'historyGraphDot'
+      }
+      style={{ left: getLaneX(lane) }}
     />
   )
 }
