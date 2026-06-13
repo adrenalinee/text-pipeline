@@ -15,12 +15,6 @@ import {
 } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { Notifications, notifications } from '@mantine/notifications'
-import { json } from '@codemirror/lang-json'
-import { markdown } from '@codemirror/lang-markdown'
-import { yaml } from '@codemirror/lang-yaml'
-import { StreamLanguage } from '@codemirror/language'
-import { languages } from '@codemirror/language-data'
-import { toml } from '@codemirror/legacy-modes/mode/toml'
 import { linter, lintGutter } from '@codemirror/lint'
 import { EditorView } from '@codemirror/view'
 import { oneDark } from '@codemirror/theme-one-dark'
@@ -47,6 +41,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { EditorToolbar } from '#/features/workbench/components/EditorToolbar'
 import { HistorySidebar } from '#/features/workbench/components/HistorySidebar'
 import { TransformsSidebar } from '#/features/workbench/components/TransformsSidebar'
+import {
+  FORMAT_DEFINITIONS,
+  FORMAT_OPTIONS,
+  FORMAT_VIEWS,
+  getFormatDefinition,
+} from '#/features/workbench/formats'
 import { TEXT_SAMPLES } from '#/features/workbench/samples'
 import type { TextSample } from '#/features/workbench/samples'
 import type {
@@ -56,54 +56,22 @@ import type {
   TransformActionSection,
   TransformDefinition,
   TransformRunner,
+  WorkbenchViewMode,
 } from '#/features/workbench/types'
 import { TRANSFORM_DEFINITIONS } from '#/features/workbench/transforms/definitions'
 import { getTransformSections } from '#/features/workbench/transforms/filterTransforms'
 import { TRANSFORM_RUNNERS } from '#/features/workbench/transforms/runners'
-import { getFormatLintSource } from '#/features/workbench/utils/formatLinting'
 import { validateFormat } from '#/features/workbench/utils/formatValidation'
 import { getChangeStats } from '#/features/workbench/utils/textMetrics'
+import { FormatViewPanel } from '#/features/workbench/views/FormatViewPanel'
 
 export const Route = createFileRoute('/')({
   ssr: false,
   component: Home,
 })
 
-const SYNTAX_OPTIONS: Array<{
-  description: string
-  label: string
-  value: SyntaxMode
-}> = [
-  {
-    description: 'No highlighting',
-    label: 'Plain text',
-    value: 'plain',
-  },
-  {
-    description: 'Objects, arrays, payloads',
-    label: 'JSON',
-    value: 'json',
-  },
-  {
-    description: 'Notes, docs, and fenced code',
-    label: 'Markdown',
-    value: 'markdown',
-  },
-  {
-    description: 'Config and manifests',
-    label: 'YAML',
-    value: 'yaml',
-  },
-  {
-    description: 'Config tables and arrays',
-    label: 'TOML',
-    value: 'toml',
-  },
-]
-
 const INITIAL_EDITOR_VALUE =
   '{\n  "service": "text-pipeline",\n  "status": "draft"\n}'
-const TOML_LANGUAGE = StreamLanguage.define(toml)
 
 function Home() {
   return (
@@ -123,28 +91,32 @@ function Workbench() {
   const [syntaxMode, setSyntaxMode] = useState<SyntaxMode>('json')
   const [syntaxModalOpened, setSyntaxModalOpened] = useState(false)
   const [validationEnabled, setValidationEnabled] = useState(false)
+  const [viewMode, setViewMode] = useState<WorkbenchViewMode>('source')
   const { setColorScheme } = useMantineColorScheme()
   const isCompact = useMediaQuery('(max-width: 48em)')
   const computedColorScheme = useComputedColorScheme('dark', {
     getInitialValueInEffect: true,
   })
   const isDark = computedColorScheme === 'dark'
+  const currentFormat = getFormatDefinition(syntaxMode)
+  const viewAvailable = currentFormat.viewIds.length > 0
   const rootText = commits.at(-1)?.beforeText ?? INITIAL_EDITOR_VALUE
   const rootSyntaxMode = commits.at(-1)?.beforeSyntaxMode ?? 'json'
   const editorExtensions = useMemo(() => {
-    const syntaxExtensions = getSyntaxExtensions(syntaxMode)
-    const lintSource = validationEnabled
-      ? getFormatLintSource(syntaxMode)
-      : null
+    const syntaxExtensions = currentFormat.getEditorExtensions()
+    const lintSource = validationEnabled ? currentFormat.lintSource : null
     const lintExtensions = lintSource
       ? [lintGutter(), linter(lintSource, { delay: 250 })]
       : []
 
     return [...syntaxExtensions, ...lintExtensions, EditorView.lineWrapping]
-  }, [syntaxMode, validationEnabled])
+  }, [currentFormat, validationEnabled])
   const validationResult = useMemo(
-    () => (validationEnabled ? validateFormat(editorValue, syntaxMode) : null),
-    [editorValue, syntaxMode, validationEnabled],
+    () =>
+      validationEnabled && currentFormat.validation === 'supported'
+        ? validateFormat(editorValue, syntaxMode)
+        : null,
+    [currentFormat.validation, editorValue, syntaxMode, validationEnabled],
   )
 
   function runTransform(
@@ -282,6 +254,7 @@ function Workbench() {
     setEditorValue(sample.value)
     setSyntaxMode(sample.syntaxMode)
     setSelectedRevisionId('working')
+    setViewMode('source')
 
     notifications.show({
       color: 'blue',
@@ -298,7 +271,9 @@ function Workbench() {
   }, [isCompact])
 
   const transformSections: Array<TransformActionSection> = getTransformSections(
-    TRANSFORM_DEFINITIONS,
+    TRANSFORM_DEFINITIONS.filter((definition) =>
+      currentFormat.transformIds.includes(definition.id),
+    ),
     syntaxMode,
   )
     .map((section) => {
@@ -354,15 +329,20 @@ function Workbench() {
         onClose={() => setSyntaxModalOpened(false)}
       >
         <Stack gap="xs">
-          {SYNTAX_OPTIONS.map((option) => (
+          {FORMAT_OPTIONS.map((option) => (
             <SyntaxOptionButton
-              active={syntaxMode === option.value}
+              active={syntaxMode === option.id}
               description={option.description}
-              key={option.value}
+              key={option.id}
               label={option.label}
-              value={option.value}
+              value={option.id}
               onClick={() => {
-                setSyntaxMode(option.value)
+                setSyntaxMode(option.id)
+                setViewMode(
+                  FORMAT_DEFINITIONS[option.id].viewIds.length > 0
+                    ? viewMode
+                    : 'source',
+                )
                 setSyntaxModalOpened(false)
               }}
             />
@@ -427,33 +407,47 @@ function Workbench() {
       <AppShell.Main className="workbenchMain">
         <Box className="editorPanel">
           <EditorToolbar
-            sampleOptions={TEXT_SAMPLES}
-            syntaxMode={syntaxMode}
+            activeViewMode={viewMode}
+            formatLabel={currentFormat.label}
+            sampleOptions={TEXT_SAMPLES.filter((sample) =>
+              currentFormat.sampleIds.includes(sample.id),
+            )}
             validationEnabled={validationEnabled}
+            validationAvailable={currentFormat.validation === 'supported'}
             validationResult={validationResult}
+            viewAvailable={viewAvailable}
             onChooseSyntax={() => setSyntaxModalOpened(true)}
             onLoadSample={loadSample}
+            onSetViewMode={setViewMode}
             onToggleValidation={() =>
               setValidationEnabled((enabled) => !enabled)
             }
           />
-          <CodeMirror
-            aria-label="Text editor"
-            className="codeEditor"
-            basicSetup={{
-              bracketMatching: true,
-              closeBrackets: true,
-              foldGutter: true,
-              highlightActiveLine: true,
-              highlightActiveLineGutter: true,
-              lineNumbers: true,
-            }}
-            extensions={editorExtensions}
-            height="100%"
-            theme={isDark ? oneDark : 'light'}
-            value={editorValue}
-            onChange={updateEditorValue}
-          />
+          {viewMode === 'source' ? (
+            <CodeMirror
+              aria-label="Text editor"
+              className="codeEditor"
+              basicSetup={{
+                bracketMatching: true,
+                closeBrackets: true,
+                foldGutter: true,
+                highlightActiveLine: true,
+                highlightActiveLineGutter: true,
+                lineNumbers: true,
+              }}
+              extensions={editorExtensions}
+              height="100%"
+              theme={isDark ? oneDark : 'light'}
+              value={editorValue}
+              onChange={updateEditorValue}
+            />
+          ) : (
+            <FormatViewPanel
+              format={currentFormat}
+              value={editorValue}
+              views={FORMAT_VIEWS}
+            />
+          )}
         </Box>
       </AppShell.Main>
 
@@ -543,26 +537,6 @@ function SyntaxIcon({ value }: { value: SyntaxMode }) {
   }
 
   return <FileText size={18} />
-}
-
-function getSyntaxExtensions(syntaxMode: SyntaxMode) {
-  if (syntaxMode === 'json') {
-    return [json()]
-  }
-
-  if (syntaxMode === 'yaml') {
-    return [yaml()]
-  }
-
-  if (syntaxMode === 'markdown') {
-    return [markdown({ codeLanguages: languages })]
-  }
-
-  if (syntaxMode === 'toml') {
-    return [TOML_LANGUAGE]
-  }
-
-  return []
 }
 
 function HeaderIconButton({

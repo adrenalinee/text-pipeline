@@ -1,8 +1,21 @@
 import type { ReactNode } from 'react'
+import type { Extension } from '@codemirror/state'
+import type { LintSource } from '@codemirror/lint'
 
 export type SyntaxMode = 'plain' | 'json' | 'markdown' | 'toml' | 'yaml'
 
 export type TransformGroup = 'format' | 'general'
+
+export type FormatRenderPolicy = 'automatic' | 'explicit'
+
+export type FormatRenderSecurity = 'sanitized' | 'sandboxed' | 'source-only'
+
+export type FormatViewId =
+  | 'markdown-document'
+  | 'structured-tree'
+  | 'unavailable'
+
+export type WorkbenchViewMode = 'source' | 'view'
 
 export type TransformId =
   | 'base64-decode'
@@ -65,3 +78,31 @@ export type TransformResult = {
 export type TransformRunner = (input: string) => TransformResult
 
 export type TransformRunnerMap = Partial<Record<TransformId, TransformRunner>>
+
+export type FormatViewRenderProps = {
+  syntaxMode: SyntaxMode
+  value: string
+}
+
+export type FormatViewDefinition = {
+  description: string
+  id: FormatViewId
+  label: string
+  render: (props: FormatViewRenderProps) => ReactNode
+  supportedFormats: ReadonlyArray<SyntaxMode>
+}
+
+export type FormatCapability = {
+  defaultViewId?: FormatViewId
+  description: string
+  getEditorExtensions: () => Array<Extension>
+  id: SyntaxMode
+  label: string
+  lintSource?: LintSource
+  renderPolicy?: FormatRenderPolicy
+  renderSecurity?: FormatRenderSecurity
+  sampleIds: ReadonlyArray<string>
+  transformIds: ReadonlyArray<TransformId>
+  validation: 'supported' | 'unsupported'
+  viewIds: ReadonlyArray<FormatViewId>
+}

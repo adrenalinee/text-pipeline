@@ -1,4 +1,11 @@
-import { Button, Group, Menu, Text, Tooltip } from '@mantine/core'
+import {
+  Button,
+  Group,
+  Menu,
+  SegmentedControl,
+  Text,
+  Tooltip,
+} from '@mantine/core'
 import {
   ChevronDown,
   CircleAlert,
@@ -9,34 +16,34 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 
-import type { SyntaxMode } from '../types'
+import type { WorkbenchViewMode } from '../types'
 import type { TextSample } from '../samples'
 import type { FormatValidationResult } from '../utils/formatValidation'
 
-const SYNTAX_LABELS: Record<SyntaxMode, string> = {
-  json: 'JSON',
-  markdown: 'Markdown',
-  plain: 'Text',
-  toml: 'TOML',
-  yaml: 'YAML',
-}
-
 export function EditorToolbar({
+  activeViewMode,
+  formatLabel,
   onLoadSample,
   onChooseSyntax,
+  onSetViewMode,
   onToggleValidation,
   sampleOptions,
-  syntaxMode,
   validationEnabled,
   validationResult,
+  validationAvailable,
+  viewAvailable,
 }: {
+  activeViewMode: WorkbenchViewMode
+  formatLabel: string
   onChooseSyntax: () => void
   onLoadSample: (sample: TextSample) => void
+  onSetViewMode: (mode: WorkbenchViewMode) => void
   onToggleValidation: () => void
   sampleOptions: ReadonlyArray<TextSample>
-  syntaxMode: SyntaxMode
   validationEnabled: boolean
+  validationAvailable: boolean
   validationResult: FormatValidationResult | null
+  viewAvailable: boolean
 }) {
   return (
     <Group className="editorToolbar" justify="space-between" wrap="nowrap">
@@ -47,27 +54,43 @@ export function EditorToolbar({
         </Text>
       </Group>
       <Group className="editorToolbarActions" gap={6} wrap="nowrap">
+        <SegmentedControl
+          aria-label="Editor view mode"
+          className="viewModeTabs"
+          data={[
+            { label: 'Source', value: 'source' },
+            { disabled: !viewAvailable, label: 'View', value: 'view' },
+          ]}
+          size="xs"
+          value={activeViewMode}
+          onChange={(value) => onSetViewMode(value as WorkbenchViewMode)}
+        />
         <SampleMenu sampleOptions={sampleOptions} onLoadSample={onLoadSample} />
         <FormatValidationStatus
           result={validationEnabled ? validationResult : null}
         />
         <Tooltip
           label={
-            validationEnabled
-              ? 'Disable format validation'
-              : 'Enable format validation'
+            !validationAvailable
+              ? 'Validation is not available for this format'
+              : validationEnabled
+                ? 'Disable format validation'
+                : 'Enable format validation'
           }
           withArrow
         >
           <Button
             aria-label={
-              validationEnabled
-                ? 'Disable format validation'
-                : 'Enable format validation'
+              !validationAvailable
+                ? 'Validation is not available for this format'
+                : validationEnabled
+                  ? 'Disable format validation'
+                  : 'Enable format validation'
             }
             aria-pressed={validationEnabled}
             className="validationToggle"
             color={getValidationColor(validationResult)}
+            disabled={!validationAvailable}
             leftSection={<ShieldCheck size={14} />}
             size="xs"
             variant={validationEnabled ? 'filled' : 'light'}
@@ -86,7 +109,7 @@ export function EditorToolbar({
             variant="light"
             onClick={onChooseSyntax}
           >
-            {SYNTAX_LABELS[syntaxMode]}
+            {formatLabel}
           </Button>
         </Tooltip>
       </Group>
@@ -101,6 +124,8 @@ function SampleMenu({
   onLoadSample: (sample: TextSample) => void
   sampleOptions: ReadonlyArray<TextSample>
 }) {
+  const hasSamples = sampleOptions.length > 0
+
   return (
     <Menu position="bottom-end" shadow="md" width={240} withinPortal>
       <Menu.Target>
@@ -112,6 +137,7 @@ function SampleMenu({
           rightSection={
             <ChevronDown className="sampleButtonChevron" size={13} />
           }
+          disabled={!hasSamples}
           size="xs"
           variant="light"
         >

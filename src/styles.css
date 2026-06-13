@@ -82,6 +82,10 @@ button {
   flex-shrink: 0;
 }
 
+.viewModeTabs {
+  flex: 0 0 auto;
+}
+
 .syntaxButton {
   min-width: 78px;
   font-family:
@@ -216,6 +220,216 @@ button {
 
 .codeEditor .cm-focused {
   outline: 0;
+}
+
+.formatViewPanel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  background: light-dark(
+    var(--mantine-color-white),
+    var(--mantine-color-dark-8)
+  );
+}
+
+.formatViewHeader {
+  min-height: 46px;
+  padding: 7px 14px;
+  border-bottom: 1px solid
+    light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+  background: light-dark(
+    var(--mantine-color-gray-0),
+    var(--mantine-color-dark-7)
+  );
+}
+
+.formatViewBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.formatViewEmpty,
+.formatViewError {
+  margin: 16px;
+  padding: 12px;
+  border: 1px solid
+    light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+  border-radius: 6px;
+  background: light-dark(
+    var(--mantine-color-gray-0),
+    var(--mantine-color-dark-7)
+  );
+}
+
+.formatViewError {
+  border-color: light-dark(
+    var(--mantine-color-red-3),
+    var(--mantine-color-red-8)
+  );
+}
+
+.treeView {
+  min-width: max-content;
+  padding: 10px 12px 24px;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+}
+
+.treeNode {
+  min-width: 0;
+}
+
+.treeNodeRow {
+  min-height: 28px;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.treeNodeRow:hover {
+  background: light-dark(
+    var(--mantine-color-gray-0),
+    var(--mantine-color-dark-7)
+  );
+}
+
+.treeToggle,
+.treeToggleSpacer {
+  flex: 0 0 24px;
+}
+
+.treeToggleSpacer {
+  display: inline-block;
+  width: 24px;
+}
+
+.treeKey {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.treeTypeBadge {
+  flex: 0 0 auto;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+}
+
+.treeValue {
+  max-width: 420px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.treeActions {
+  margin-left: auto;
+  opacity: 0;
+}
+
+.treeNodeRow:hover .treeActions,
+.treeActions:focus-within {
+  opacity: 1;
+}
+
+.treeChildren {
+  margin-left: 22px;
+  padding-left: 10px;
+  border-left: 1px solid
+    light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+}
+
+.markdownView {
+  max-width: 860px;
+  padding: 18px 22px 36px;
+  color: var(--mantine-color-text);
+}
+
+.markdownView :where(h1, h2, h3) {
+  margin: 1.1em 0 0.45em;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.markdownView h1 {
+  margin-top: 0;
+  font-size: 28px;
+}
+
+.markdownView h2 {
+  font-size: 22px;
+}
+
+.markdownView h3 {
+  font-size: 18px;
+}
+
+.markdownView :where(p, ul, ol, blockquote, table, pre) {
+  margin: 0 0 12px;
+}
+
+.markdownView :where(ul, ol) {
+  padding-left: 22px;
+}
+
+.markdownView blockquote {
+  padding: 8px 12px;
+  border-left: 3px solid
+    light-dark(var(--mantine-color-blue-5), var(--mantine-color-blue-4));
+  color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-gray-3));
+  background: light-dark(
+    var(--mantine-color-gray-0),
+    var(--mantine-color-dark-7)
+  );
+}
+
+.markdownView code,
+.markdownView pre {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+}
+
+.markdownView code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: light-dark(
+    var(--mantine-color-gray-1),
+    var(--mantine-color-dark-6)
+  );
+}
+
+.markdownView pre {
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid
+    light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+  border-radius: 6px;
+  background: light-dark(
+    var(--mantine-color-gray-0),
+    var(--mantine-color-dark-9)
+  );
+}
+
+.markdownView pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.markdownView table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.markdownView :where(th, td) {
+  padding: 6px 8px;
+  border: 1px solid
+    light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
 }
 
 .historyItem,
@@ -399,5 +613,13 @@ button {
 
   .validationStatusText {
     display: none;
+  }
+
+  .viewModeTabs {
+    max-width: 112px;
+  }
+
+  .viewModeTabs .mantine-SegmentedControl-label {
+    padding-inline: 7px;
   }
 }
