@@ -10,10 +10,13 @@ import { parse as parseToml } from 'smol-toml'
 import type { SyntaxMode } from '../types'
 import {
   formatHtmlParseError,
+  getCsvError,
   getHtmlErrorIssue,
   getTomlErrorIssue,
+  getXmlError,
   getYamlErrorIssue,
 } from './formatValidation'
+import type { FormatSyntaxError } from './formatValidation'
 
 export function getFormatLintSource(syntaxMode: SyntaxMode): LintSource | null {
   if (syntaxMode === 'json') {
@@ -32,7 +35,41 @@ export function getFormatLintSource(syntaxMode: SyntaxMode): LintSource | null {
     return tomlLintSource
   }
 
+  if (syntaxMode === 'xml') {
+    return xmlLintSource
+  }
+
+  if (syntaxMode === 'csv') {
+    return csvLintSource
+  }
+
   return null
+}
+
+const xmlLintSource: LintSource = (view) =>
+  toSyntaxDiagnostics(getXmlError(view.state.doc.toString()), 'XML', view)
+
+const csvLintSource: LintSource = (view) =>
+  toSyntaxDiagnostics(getCsvError(view.state.doc.toString()), 'CSV', view)
+
+function toSyntaxDiagnostics(
+  error: FormatSyntaxError | null,
+  source: string,
+  view: EditorView,
+): Array<Diagnostic> {
+  if (!error) {
+    return []
+  }
+
+  return [
+    createDiagnostic({
+      error: new Error(error.message),
+      fallbackMessage: `${source} is invalid.`,
+      from: error.issue,
+      source,
+      view,
+    }),
+  ]
 }
 
 const yamlLintSource: LintSource = (view) => {

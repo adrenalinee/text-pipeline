@@ -5,9 +5,7 @@ import {
   CircleDot,
   Code2,
   FileJson,
-  GitCommitHorizontal,
   ShieldCheck,
-  TextWrap,
 } from 'lucide-react'
 
 import type { WorkbenchViewMode } from '../types'
@@ -61,7 +59,7 @@ export function EditorToolbar({
           ]}
           size="xs"
           value={activeViewMode}
-          onChange={(value) => onSetViewMode(value as WorkbenchViewMode)}
+          onChange={(value) => onSetViewMode(value)}
         />
       </Group>
       <Group className="editorToolbarActions" gap={6} wrap="nowrap">
@@ -122,7 +120,6 @@ export function EditorToolbar({
             variant={validationEnabled ? 'filled' : 'light'}
             onClick={onToggleValidation}
           >
-            {/*<ShieldCheck size={18} />*/}
             <IconShieldCheck size={18} />
           </ActionIcon>
         </Tooltip>

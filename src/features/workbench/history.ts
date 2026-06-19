@@ -173,7 +173,7 @@ export function buildCommitGraph(
 
   const rows = commits.map((commit) => {
     const incomingLaneIndexes = getLaneIndexes(activeLanes, commit.id)
-    const activeLaneIndex = incomingLaneIndexes[0]
+    const activeLaneIndex = incomingLaneIndexes.at(0)
     const lane =
       activeLaneIndex === undefined ? activeLanes.length : activeLaneIndex
     const isAncestor = ancestorIds.has(commit.id)
@@ -262,7 +262,7 @@ function getOldestRootChildCommit(commits: ReadonlyArray<TextCommit>) {
   for (let index = commits.length - 1; index >= 0; index -= 1) {
     const commit = commits[index]
 
-    if (commit?.parentId === ROOT_REVISION_ID) {
+    if (commit.parentId === ROOT_REVISION_ID) {
       return commit
     }
   }

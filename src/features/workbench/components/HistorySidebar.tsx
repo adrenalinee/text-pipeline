@@ -5,11 +5,12 @@ import type { CSSProperties } from 'react'
 import {
   buildCommitGraph,
   ROOT_REVISION_ID,
-  WORKING_REVISION_ID,
-  type CommitGraphConnector,
-  type CommitGraphRow,
-  type CommitGraphSegment,
+  WORKING_REVISION_ID
+  
+  
+  
 } from '../history'
+import type {CommitGraphConnector, CommitGraphRow, CommitGraphSegment} from '../history';
 import type { TextCommit } from '../types'
 import { countLines, formatSignedValue } from '../utils/textMetrics'
 import { SidebarSection } from './SidebarSection'

@@ -7,11 +7,15 @@ export type TransformDefinitionSection = {
 }
 
 const FORMAT_SECTION_TITLES: Record<SyntaxMode, string> = {
+  csv: 'CSV transforms',
+  diff: 'Diff transforms',
   html: 'HTML transforms',
   json: 'JSON transforms',
   markdown: 'Markdown transforms',
   plain: 'Text transforms',
+  sql: 'SQL transforms',
   toml: 'TOML transforms',
+  xml: 'XML transforms',
   yaml: 'YAML transforms',
 }
 

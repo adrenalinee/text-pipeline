@@ -4,10 +4,14 @@ import type { LintSource } from '@codemirror/lint'
 
 export type SyntaxMode =
   | 'plain'
+  | 'csv'
+  | 'diff'
   | 'html'
   | 'json'
   | 'markdown'
+  | 'sql'
   | 'toml'
+  | 'xml'
   | 'yaml'
 
 export type TransformGroup = 'format' | 'general'

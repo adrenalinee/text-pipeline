@@ -808,6 +808,10 @@ function SyntaxIcon({ value }: { value: SyntaxMode }) {
     return <FileText size={18} />
   }
 
+  if (value === 'xml' || value === 'sql') {
+    return <Code2 size={18} />
+  }
+
   return <FileText size={18} />
 }
 

@@ -1,10 +1,12 @@
 import { html } from '@codemirror/lang-html'
-import { json } from '@codemirror/lang-json'
-import { jsonParseLinter } from '@codemirror/lang-json'
+import { json, jsonParseLinter } from '@codemirror/lang-json'
 import { markdown } from '@codemirror/lang-markdown'
+import { sql } from '@codemirror/lang-sql'
+import { xml } from '@codemirror/lang-xml'
 import { yaml } from '@codemirror/lang-yaml'
 import { StreamLanguage } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
+import { diff } from '@codemirror/legacy-modes/mode/diff'
 import { toml } from '@codemirror/legacy-modes/mode/toml'
 
 import type {
@@ -13,6 +15,7 @@ import type {
   SyntaxMode,
   TransformId,
 } from './types'
+import { csvLanguage } from './utils/csvLanguage'
 import { getFormatLintSource } from './utils/formatLinting'
 import { HtmlPreviewView } from './views/HtmlPreviewView'
 import { MarkdownDocumentView } from './views/MarkdownDocumentView'
@@ -20,6 +23,7 @@ import { StructuredTreeView } from './views/StructuredTreeView'
 import { UnavailableView } from './views/FormatViewPanel'
 
 const TOML_LANGUAGE = StreamLanguage.define(toml)
+const DIFF_LANGUAGE = StreamLanguage.define(diff)
 
 const JSON_TRANSFORMS = [
   'json-format',
@@ -81,6 +85,31 @@ export const FORMAT_VIEWS = [
 ] satisfies ReadonlyArray<FormatViewDefinition>
 
 export const FORMAT_DEFINITIONS = {
+  csv: {
+    description: 'Delimited rows and columns',
+    getEditorExtensions: () => [csvLanguage],
+    id: 'csv',
+    label: 'CSV',
+    lintSource: getFormatLintSource('csv') ?? undefined,
+    renderPolicy: 'explicit',
+    renderSecurity: 'source-only',
+    sampleIds: ['csv-pipeline-metrics'],
+    transformIds: [...GENERAL_TRANSFORMS],
+    validation: 'supported',
+    viewIds: [],
+  },
+  diff: {
+    description: 'Unified diff and patch output',
+    getEditorExtensions: () => [DIFF_LANGUAGE],
+    id: 'diff',
+    label: 'Diff',
+    renderPolicy: 'explicit',
+    renderSecurity: 'source-only',
+    sampleIds: ['diff-pipeline-config'],
+    transformIds: [...GENERAL_TRANSFORMS],
+    validation: 'unsupported',
+    viewIds: [],
+  },
   html: {
     defaultViewId: 'html-preview',
     description: 'Markup fragments and documents',
@@ -134,6 +163,18 @@ export const FORMAT_DEFINITIONS = {
     validation: 'unsupported',
     viewIds: [],
   },
+  sql: {
+    description: 'Queries and schema statements',
+    getEditorExtensions: () => [sql()],
+    id: 'sql',
+    label: 'SQL',
+    renderPolicy: 'explicit',
+    renderSecurity: 'source-only',
+    sampleIds: ['sql-event-report'],
+    transformIds: [...GENERAL_TRANSFORMS],
+    validation: 'unsupported',
+    viewIds: [],
+  },
   toml: {
     description: 'Config tables and arrays',
     getEditorExtensions: () => [TOML_LANGUAGE],
@@ -144,6 +185,19 @@ export const FORMAT_DEFINITIONS = {
     renderSecurity: 'source-only',
     sampleIds: ['toml-pipeline-config'],
     transformIds: [...TOML_TRANSFORMS, ...GENERAL_TRANSFORMS],
+    validation: 'supported',
+    viewIds: [],
+  },
+  xml: {
+    description: 'Markup documents and feeds',
+    getEditorExtensions: () => [xml()],
+    id: 'xml',
+    label: 'XML',
+    lintSource: getFormatLintSource('xml') ?? undefined,
+    renderPolicy: 'explicit',
+    renderSecurity: 'source-only',
+    sampleIds: ['xml-pipeline-config'],
+    transformIds: [...GENERAL_TRANSFORMS],
     validation: 'supported',
     viewIds: [],
   },

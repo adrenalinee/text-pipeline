@@ -14,9 +14,10 @@ import { useMemo, useState } from 'react'
 import type { SyntaxMode } from '../types'
 import {
   formatTreeValue,
-  parseStructuredTree,
-  type StructuredTreeNode,
+  parseStructuredTree
+  
 } from './treeData'
+import type {StructuredTreeNode} from './treeData';
 
 export function StructuredTreeView({
   syntaxMode,

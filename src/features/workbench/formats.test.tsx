@@ -10,19 +10,27 @@ import {
 describe('FORMAT_DEFINITIONS', () => {
   it('defines capabilities for every supported syntax mode', () => {
     expect(FORMAT_OPTIONS.map((format) => format.id).sort()).toEqual([
+      'csv',
+      'diff',
       'html',
       'json',
       'markdown',
       'plain',
+      'sql',
       'toml',
+      'xml',
       'yaml',
     ])
     expect(FORMAT_OPTIONS.map((format) => format.label).sort()).toEqual([
+      'CSV',
+      'Diff',
       'HTML',
       'JSON',
       'Markdown',
       'Plain text',
+      'SQL',
       'TOML',
+      'XML',
       'YAML',
     ])
   })

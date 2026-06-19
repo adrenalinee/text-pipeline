@@ -348,7 +348,7 @@ function findNonCommentSibling(
   ) {
     const sibling = nodes[siblingIndex]
 
-    if (!sibling || isCommentNode(sibling)) {
+    if (isCommentNode(sibling)) {
       continue
     }
 

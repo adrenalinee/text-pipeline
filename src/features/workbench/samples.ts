@@ -4,10 +4,7 @@ export type TextSample = {
   description: string
   id: string
   label: string
-  syntaxMode: Extract<
-    SyntaxMode,
-    'html' | 'json' | 'markdown' | 'toml' | 'yaml'
-  >
+  syntaxMode: Exclude<SyntaxMode, 'plain'>
   value: string
 }
 
@@ -149,6 +146,70 @@ branchMode = true
 [history.retention]
 maxCommits = 25
 persistLocal = false
+`,
+  },
+  {
+    description: 'Pipeline configuration expressed as XML elements',
+    id: 'xml-pipeline-config',
+    label: 'Pipeline config XML',
+    syntaxMode: 'xml',
+    value: `<?xml version="1.0" encoding="UTF-8"?>
+<pipeline service="text-pipeline" environment="local">
+  <input format="xml" preserveSource="true" />
+  <transforms>
+    <transform id="json-format" enabled="true" />
+    <transform id="base64-encode" enabled="false" />
+  </transforms>
+  <!-- Local transforms run in the browser -->
+  <history maxCommits="25" persistLocal="false" />
+</pipeline>
+`,
+  },
+  {
+    description: 'Transform run metrics with a quoted field',
+    id: 'csv-pipeline-metrics',
+    label: 'Transform metrics CSV',
+    syntaxMode: 'csv',
+    value: `transform,format,duration_ms,success
+json-format,json,42,true
+yaml-to-json,yaml,18,true
+"html-minify, dom",html,73,false
+base64-encode,plain,5,true
+`,
+  },
+  {
+    description: 'Unified diff updating the pipeline config',
+    id: 'diff-pipeline-config',
+    label: 'Pipeline config diff',
+    syntaxMode: 'diff',
+    value: `--- a/pipeline.yaml
++++ b/pipeline.yaml
+@@ -1,5 +1,5 @@
+-service: text-pipeline
++service: text-pipeline-v2
+ environment: local
+ transforms:
+-  - id: json-minify
++  - id: json-format
+   - id: base64-encode
+`,
+  },
+  {
+    description: 'Aggregate report over recorded transform events',
+    id: 'sql-event-report',
+    label: 'Event report SQL',
+    syntaxMode: 'sql',
+    value: `-- Aggregate transform events by format
+SELECT
+  format,
+  COUNT(*) AS total,
+  AVG(duration_ms) AS avg_duration
+FROM transform_events
+WHERE success = TRUE
+  AND created_at >= '2026-06-01'
+GROUP BY format
+ORDER BY total DESC
+LIMIT 10;
 `,
   },
 ] satisfies ReadonlyArray<TextSample>

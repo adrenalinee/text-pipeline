@@ -18,14 +18,17 @@ export type FormatValidationResult = {
   title: string
 }
 
+const UNVALIDATED_FORMAT_LABELS: Partial<Record<SyntaxMode, string>> = {
+  diff: 'Diff',
+  markdown: 'Markdown',
+  plain: 'Plain text',
+  sql: 'SQL',
+}
+
 export function validateFormat(
   value: string,
   syntaxMode: SyntaxMode,
 ): FormatValidationResult {
-  if (syntaxMode === 'plain') {
-    return unsupportedValidationResult('Plain text')
-  }
-
   if (syntaxMode === 'json') {
     return validateJson(value)
   }
@@ -38,11 +41,21 @@ export function validateFormat(
     return validateYaml(value)
   }
 
-  if (syntaxMode === 'markdown') {
-    return unsupportedValidationResult('Markdown')
+  if (syntaxMode === 'toml') {
+    return validateToml(value)
   }
 
-  return validateToml(value)
+  if (syntaxMode === 'xml') {
+    return validateXml(value)
+  }
+
+  if (syntaxMode === 'csv') {
+    return validateCsv(value)
+  }
+
+  return unsupportedValidationResult(
+    UNVALIDATED_FORMAT_LABELS[syntaxMode] ?? 'This format',
+  )
 }
 
 function unsupportedValidationResult(format: string): FormatValidationResult {
@@ -60,9 +73,7 @@ function validateHtml(value: string): FormatValidationResult {
     onParseError: (error) => errors.push(error),
   })
 
-  const error = errors[0]
-
-  if (!error) {
+  if (errors.length === 0) {
     return {
       message:
         'No HTML parse errors found. Browser-recovered structure issues may still exist.',
@@ -71,6 +82,7 @@ function validateHtml(value: string): FormatValidationResult {
     }
   }
 
+  const error = errors[0]
   const issue = getHtmlErrorIssue(error)
   const message = `HTML parse error: ${formatHtmlParseError(error.code)}.`
 
@@ -157,6 +169,190 @@ function validateToml(value: string): FormatValidationResult {
       title: formatInvalidTitle('TOML', issue),
     }
   }
+}
+
+function validateXml(value: string): FormatValidationResult {
+  const error = getXmlError(value)
+
+  if (!error) {
+    return {
+      message: 'No XML syntax errors found.',
+      status: 'valid',
+      title: 'Valid XML',
+    }
+  }
+
+  return {
+    issue: error.issue,
+    message: formatInvalidMessage(error.message, error.issue),
+    status: 'invalid',
+    title: formatInvalidTitle('XML', error.issue),
+  }
+}
+
+function validateCsv(value: string): FormatValidationResult {
+  const error = getCsvError(value)
+
+  if (!error) {
+    return {
+      message: 'No CSV structure errors found.',
+      status: 'valid',
+      title: 'Valid CSV',
+    }
+  }
+
+  return {
+    issue: error.issue,
+    message: formatInvalidMessage(error.message, error.issue),
+    status: 'invalid',
+    title: formatInvalidTitle('CSV', error.issue),
+  }
+}
+
+export type FormatSyntaxError = {
+  issue?: FormatValidationIssue
+  message: string
+}
+
+// XML well-formedness via the browser DOMParser. Returns null when the input is
+// well-formed, empty, or DOMParser is unavailable (e.g. server-side rendering).
+export function getXmlError(value: string): FormatSyntaxError | null {
+  if (value.trim().length === 0 || typeof DOMParser === 'undefined') {
+    return null
+  }
+
+  const doc = new DOMParser().parseFromString(value, 'application/xml')
+  const parseErrors = doc.getElementsByTagName('parsererror')
+
+  if (parseErrors.length === 0) {
+    return null
+  }
+
+  const text = parseErrors[0].textContent
+
+  return {
+    issue: getXmlErrorIssue(text),
+    message: buildXmlErrorMessage(text),
+  }
+}
+
+function getXmlErrorIssue(text: string): FormatValidationIssue | undefined {
+  // Browser parsererror text formats differ: jsdom "1:17: msg",
+  // Chrome "error on line 1 at column 17", Firefox "Line Number 1, Column 17".
+  const patterns = [
+    /^\s*(\d+):(\d+):/,
+    /line\s+(\d+)\s+at\s+column\s+(\d+)/i,
+    /line\s+number\s+(\d+),\s+column\s+(\d+)/i,
+  ]
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern)
+
+    if (match && match[1] && match[2]) {
+      return { column: Number(match[2]), line: Number(match[1]) }
+    }
+  }
+
+  return undefined
+}
+
+function buildXmlErrorMessage(text: string): string {
+  const jsdomMatch = text.match(/^\s*\d+:\d+:\s*(.+)$/m)
+
+  if (jsdomMatch && jsdomMatch[1]) {
+    return `XML parse error: ${jsdomMatch[1].trim()}`
+  }
+
+  const browserMatch = text.match(/(?:error on |)line\s+\d+.*?:\s*(.+)/i)
+
+  if (browserMatch && browserMatch[1]) {
+    return `XML parse error: ${browserMatch[1].trim()}`
+  }
+
+  return 'XML is not well-formed.'
+}
+
+type CsvRecord = { fieldCount: number; line: number }
+
+// Lightweight RFC 4180 row scan: flags unterminated quoted fields and rows whose
+// column count diverges from the header. Returns null when the input is empty or
+// structurally consistent.
+export function getCsvError(value: string): FormatSyntaxError | null {
+  if (value.trim().length === 0) {
+    return null
+  }
+
+  const records: Array<CsvRecord> = []
+  let fieldCount = 1
+  let line = 1
+  let recordStartLine = 1
+  let inQuotes = false
+  let sawContent = false
+
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index]
+
+    if (inQuotes) {
+      if (character === '"') {
+        if (value[index + 1] === '"') {
+          index += 1
+          continue
+        }
+
+        inQuotes = false
+      } else if (character === '\n') {
+        line += 1
+      }
+
+      continue
+    }
+
+    if (character === '"') {
+      inQuotes = true
+      sawContent = true
+    } else if (character === ',') {
+      fieldCount += 1
+      sawContent = true
+    } else if (character === '\n') {
+      if (sawContent || fieldCount > 1) {
+        records.push({ fieldCount, line: recordStartLine })
+      }
+
+      line += 1
+      fieldCount = 1
+      sawContent = false
+      recordStartLine = line
+    } else if (character !== '\r') {
+      sawContent = true
+    }
+  }
+
+  if (inQuotes) {
+    return {
+      issue: { column: 1, line: recordStartLine },
+      message: 'CSV has an unterminated quoted field.',
+    }
+  }
+
+  if (sawContent || fieldCount > 1) {
+    records.push({ fieldCount, line: recordStartLine })
+  }
+
+  if (records.length === 0) {
+    return null
+  }
+
+  const expected = records[0].fieldCount
+  const mismatch = records.find((record) => record.fieldCount !== expected)
+
+  if (mismatch) {
+    return {
+      issue: { column: 1, line: mismatch.line },
+      message: `CSV row has ${mismatch.fieldCount} columns but the header row has ${expected}.`,
+    }
+  }
+
+  return null
 }
 
 function isJsonLike(value: string) {
@@ -274,7 +470,7 @@ function formatInvalidMessage(
 }
 
 function formatInvalidTitle(
-  format: 'HTML' | 'JSON' | 'TOML' | 'YAML',
+  format: 'CSV' | 'HTML' | 'JSON' | 'TOML' | 'XML' | 'YAML',
   issue: FormatValidationIssue | undefined,
 ) {
   return issue ? `${format} line ${issue.line}` : `Invalid ${format}`

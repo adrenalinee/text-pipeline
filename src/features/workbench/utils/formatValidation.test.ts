@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 
 import { validateFormat } from './formatValidation'
@@ -72,5 +73,53 @@ describe('format validation', () => {
       status: 'unsupported',
       title: 'No validator',
     })
+  })
+
+  it('treats highlight-only formats as unsupported instead of TOML', () => {
+    for (const [syntaxMode, label] of [
+      ['diff', 'Diff'],
+      ['sql', 'SQL'],
+    ] as const) {
+      const result = validateFormat('a = [1, 2', syntaxMode)
+
+      expect(result).toMatchObject({
+        message: `${label} has no syntax validator.`,
+        status: 'unsupported',
+        title: 'No validator',
+      })
+    }
+  })
+
+  it('accepts well-formed XML', () => {
+    const result = validateFormat('<root><item>1</item></root>', 'xml')
+
+    expect(result).toMatchObject({ status: 'valid', title: 'Valid XML' })
+  })
+
+  it('reports a not-well-formed XML document with a line', () => {
+    const result = validateFormat('<root><item>1</root>', 'xml')
+
+    expect(result.status).toBe('invalid')
+    expect(result.issue?.line).toBe(1)
+  })
+
+  it('accepts a CSV whose rows match the header column count', () => {
+    const result = validateFormat('id,name\n1,alice\n2,bob\n', 'csv')
+
+    expect(result).toMatchObject({ status: 'valid', title: 'Valid CSV' })
+  })
+
+  it('reports a CSV row whose column count diverges from the header', () => {
+    const result = validateFormat('id,name,active\n1,alice\n', 'csv')
+
+    expect(result.status).toBe('invalid')
+    expect(result.issue).toMatchObject({ line: 2 })
+  })
+
+  it('reports an unterminated quoted CSV field', () => {
+    const result = validateFormat('id,name\n1,"alice\n', 'csv')
+
+    expect(result.status).toBe('invalid')
+    expect(result.message).toContain('unterminated')
   })
 })
