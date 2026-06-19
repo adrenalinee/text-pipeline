@@ -50,6 +50,7 @@
     "js-yaml": "^4.1.1",
     "lucide-react": "^0.545.0",
     "mantine-datatable": "^9.2.2",
+    "node-sql-parser": "^5.4.0",
     "parse5": "8.0.1",
     "prettier": "3.8.3",
     "react": "^19.2.0",

@@ -78,6 +78,7 @@ import {
 } from '#/features/workbench/transforms/progress'
 import { TRANSFORM_RUNNERS } from '#/features/workbench/transforms/runners'
 import { validateFormat } from '#/features/workbench/utils/formatValidation'
+import type { FormatValidationResult } from '#/features/workbench/utils/formatValidation'
 import { FormatViewPanel } from '#/features/workbench/views/FormatViewPanel'
 
 export const Route = createFileRoute('/')({
@@ -152,13 +153,27 @@ function Workbench() {
 
     return [...syntaxExtensions, ...lintExtensions, ...wrappingExtensions]
   }, [currentFormat, softWrapEnabled, validationEnabled])
-  const validationResult = useMemo(
-    () =>
-      validationEnabled && currentFormat.validation === 'supported'
-        ? validateFormat(editorValue, syntaxMode)
-        : null,
-    [currentFormat.validation, editorValue, syntaxMode, validationEnabled],
-  )
+  const [validationResult, setValidationResult] =
+    useState<FormatValidationResult | null>(null)
+
+  useEffect(() => {
+    if (!(validationEnabled && currentFormat.validation === 'supported')) {
+      setValidationResult(null)
+      return
+    }
+
+    let cancelled = false
+
+    void validateFormat(editorValue, syntaxMode).then((result) => {
+      if (!cancelled) {
+        setValidationResult(result)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentFormat.validation, editorValue, syntaxMode, validationEnabled])
 
   async function runTransform(
     definition: TransformDefinition,

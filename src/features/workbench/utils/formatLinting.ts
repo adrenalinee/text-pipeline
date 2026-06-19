@@ -12,6 +12,7 @@ import {
   formatHtmlParseError,
   getCsvError,
   getHtmlErrorIssue,
+  getSqlError,
   getTomlErrorIssue,
   getXmlError,
   getYamlErrorIssue,
@@ -43,6 +44,10 @@ export function getFormatLintSource(syntaxMode: SyntaxMode): LintSource | null {
     return csvLintSource
   }
 
+  if (syntaxMode === 'sql') {
+    return sqlLintSource
+  }
+
   return null
 }
 
@@ -51,6 +56,9 @@ const xmlLintSource: LintSource = (view) =>
 
 const csvLintSource: LintSource = (view) =>
   toSyntaxDiagnostics(getCsvError(view.state.doc.toString()), 'CSV', view)
+
+const sqlLintSource: LintSource = async (view) =>
+  toSyntaxDiagnostics(await getSqlError(view.state.doc.toString()), 'SQL', view)
 
 function toSyntaxDiagnostics(
   error: FormatSyntaxError | null,

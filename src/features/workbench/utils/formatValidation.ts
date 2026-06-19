@@ -1,9 +1,28 @@
 import { load } from 'js-yaml'
+import type { Parser } from 'node-sql-parser'
 import { parseFragment } from 'parse5'
 import type { ParserError } from 'parse5'
 import { parse as parseToml } from 'smol-toml'
 
 import type { SyntaxMode } from '../types'
+
+// node-sql-parser is dialect-specific; SQL valid in another dialect may be
+// flagged here. Change this single constant to switch dialects.
+const SQL_DIALECT = 'PostgreSQL'
+
+// node-sql-parser is heavy, so load it lazily (and only once) on first SQL
+// validation rather than statically importing it into the initial bundle.
+let sqlParserPromise: Promise<Parser> | null = null
+
+function loadSqlParser(): Promise<Parser> {
+  if (!sqlParserPromise) {
+    sqlParserPromise = import('node-sql-parser').then(
+      (module) => new module.Parser(),
+    )
+  }
+
+  return sqlParserPromise
+}
 
 export type FormatValidationIssue = {
   column: number
@@ -22,13 +41,12 @@ const UNVALIDATED_FORMAT_LABELS: Partial<Record<SyntaxMode, string>> = {
   diff: 'Diff',
   markdown: 'Markdown',
   plain: 'Plain text',
-  sql: 'SQL',
 }
 
-export function validateFormat(
+export async function validateFormat(
   value: string,
   syntaxMode: SyntaxMode,
-): FormatValidationResult {
+): Promise<FormatValidationResult> {
   if (syntaxMode === 'json') {
     return validateJson(value)
   }
@@ -51,6 +69,10 @@ export function validateFormat(
 
   if (syntaxMode === 'csv') {
     return validateCsv(value)
+  }
+
+  if (syntaxMode === 'sql') {
+    return validateSql(value)
   }
 
   return unsupportedValidationResult(
@@ -209,6 +231,25 @@ function validateCsv(value: string): FormatValidationResult {
   }
 }
 
+async function validateSql(value: string): Promise<FormatValidationResult> {
+  const error = await getSqlError(value)
+
+  if (!error) {
+    return {
+      message: 'No SQL syntax errors found.',
+      status: 'valid',
+      title: 'Valid SQL',
+    }
+  }
+
+  return {
+    issue: error.issue,
+    message: formatInvalidMessage(error.message, error.issue),
+    status: 'invalid',
+    title: formatInvalidTitle('SQL', error.issue),
+  }
+}
+
 export type FormatSyntaxError = {
   issue?: FormatValidationIssue
   message: string
@@ -355,6 +396,59 @@ export function getCsvError(value: string): FormatSyntaxError | null {
   return null
 }
 
+// SQL syntax check via node-sql-parser. Validation is dialect-specific
+// (see SQL_DIALECT); statements valid in another dialect may be reported here.
+export async function getSqlError(
+  value: string,
+): Promise<FormatSyntaxError | null> {
+  if (value.trim().length === 0) {
+    return null
+  }
+
+  const parser = await loadSqlParser()
+
+  try {
+    parser.astify(value, { database: SQL_DIALECT })
+    return null
+  } catch (error) {
+    return {
+      issue: getSqlErrorIssue(error),
+      message: buildSqlErrorMessage(error),
+    }
+  }
+}
+
+function getSqlErrorIssue(error: unknown): FormatValidationIssue | undefined {
+  if (!isRecord(error) || !isRecord(error.location)) {
+    return undefined
+  }
+
+  const start = error.location.start
+
+  if (!isRecord(start)) {
+    return undefined
+  }
+
+  const { column, line } = start
+
+  if (typeof line !== 'number' || typeof column !== 'number') {
+    return undefined
+  }
+
+  return { column, line }
+}
+
+function buildSqlErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : ''
+  const found = message.match(/but (.+?) found\.?\s*$/)
+
+  if (found && found[1]) {
+    return `SQL parse error: unexpected ${found[1].trim()}.`
+  }
+
+  return 'SQL syntax is invalid.'
+}
+
 function isJsonLike(value: string) {
   try {
     JSON.parse(value)
@@ -470,7 +564,7 @@ function formatInvalidMessage(
 }
 
 function formatInvalidTitle(
-  format: 'CSV' | 'HTML' | 'JSON' | 'TOML' | 'XML' | 'YAML',
+  format: 'CSV' | 'HTML' | 'JSON' | 'SQL' | 'TOML' | 'XML' | 'YAML',
   issue: FormatValidationIssue | undefined,
 ) {
   return issue ? `${format} line ${issue.line}` : `Invalid ${format}`

@@ -168,11 +168,12 @@ export const FORMAT_DEFINITIONS = {
     getEditorExtensions: () => [sql()],
     id: 'sql',
     label: 'SQL',
+    lintSource: getFormatLintSource('sql') ?? undefined,
     renderPolicy: 'explicit',
     renderSecurity: 'source-only',
     sampleIds: ['sql-event-report'],
     transformIds: [...GENERAL_TRANSFORMS],
-    validation: 'unsupported',
+    validation: 'supported',
     viewIds: [],
   },
   toml: {

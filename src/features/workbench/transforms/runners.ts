@@ -1,8 +1,6 @@
 import { dump, load } from 'js-yaml'
 import { parseFragment, serialize } from 'parse5'
 import type { DefaultTreeAdapterTypes, ParserError } from 'parse5'
-import { format as formatWithPrettier } from 'prettier/standalone'
-import * as prettierHtmlPlugin from 'prettier/plugins/html'
 import { parse as parseToml, stringify as stringifyToml } from 'smol-toml'
 
 import type { TransformRunnerMap } from '../types'
@@ -88,10 +86,16 @@ function decodeBase64(input: string) {
   return new TextDecoder().decode(bytes)
 }
 
-function formatHtml(input: string) {
-  return formatWithPrettier(input, {
+async function formatHtml(input: string) {
+  // Load prettier lazily so it stays out of the initial bundle.
+  const [{ format }, htmlPlugin] = await Promise.all([
+    import('prettier/standalone'),
+    import('prettier/plugins/html'),
+  ])
+
+  return format(input, {
     parser: 'html',
-    plugins: [prettierHtmlPlugin],
+    plugins: [htmlPlugin],
   })
 }
 
