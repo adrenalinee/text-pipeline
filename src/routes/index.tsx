@@ -85,8 +85,7 @@ export const Route = createFileRoute('/')({
   component: Home,
 })
 
-const INITIAL_EDITOR_VALUE =
-  '{\n  "service": "text-pipeline",\n  "status": "draft"\n}'
+const INITIAL_EDITOR_VALUE = ''
 const INITIAL_TEXT_REVISION = {
   syntaxMode: 'json',
   text: INITIAL_EDITOR_VALUE,
@@ -616,6 +615,7 @@ function Workbench() {
               height="100%"
               theme={isDark ? oneDark : 'light'}
               value={editorValue}
+              placeholder="any text here"
               onChange={updateEditorValue}
             />
           ) : (
