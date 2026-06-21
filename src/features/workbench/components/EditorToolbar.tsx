@@ -1,4 +1,4 @@
-import {ActionIcon, Button, Group, SegmentedControl, Text, Tooltip } from '@mantine/core'
+import { ActionIcon, Button, Group, Select, SegmentedControl, Text, Tooltip } from '@mantine/core'
 import {
   CircleAlert,
   CircleCheck,
@@ -23,6 +23,9 @@ export function EditorToolbar({
   onToggleSoftWrap,
   onToggleValidation,
   softWrapEnabled,
+  sqlDialectId,
+  sqlDialectOptions,
+  onChooseSqlDialect,
   validationEnabled,
   validationResult,
   validationAvailable,
@@ -38,6 +41,9 @@ export function EditorToolbar({
   onToggleSoftWrap: () => void
   onToggleValidation: () => void
   softWrapEnabled: boolean
+  sqlDialectId?: string
+  sqlDialectOptions?: Array<{ label: string; value: string }>
+  onChooseSqlDialect?: (id: string) => void
   validationEnabled: boolean
   validationAvailable: boolean
   validationResult: FormatValidationResult | null
@@ -76,6 +82,17 @@ export function EditorToolbar({
             {formatLabel}
           </Button>
         </Tooltip>
+        {sqlDialectOptions && sqlDialectId && onChooseSqlDialect && (
+          <Select
+            aria-label="SQL dialect"
+            className="dialectSelect"
+            data={sqlDialectOptions}
+            size="xs"
+            value={sqlDialectId}
+            withCheckIcon={false}
+            onChange={(value) => { if (value) onChooseSqlDialect(value) }}
+          />
+        )}
 
         <Tooltip label="Choose sample data" withArrow>
           <Button

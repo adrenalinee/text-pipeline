@@ -77,8 +77,15 @@ import {
   TRANSFORM_PROGRESS_THRESHOLDS,
 } from '#/features/workbench/transforms/progress'
 import { TRANSFORM_RUNNERS } from '#/features/workbench/transforms/runners'
-import { validateFormat } from '#/features/workbench/utils/formatValidation'
+import { validateFormat, validateSqlDialect } from '#/features/workbench/utils/formatValidation'
 import type { FormatValidationResult } from '#/features/workbench/utils/formatValidation'
+import { createSqlLintSource } from '#/features/workbench/utils/formatLinting'
+import {
+  DEFAULT_SQL_DIALECT,
+  SQL_DIALECT_OPTIONS,
+} from '#/features/workbench/sqlDialects'
+import type { SqlDialect } from '#/features/workbench/sqlDialects'
+import { formatSqlWithDialect } from '#/features/workbench/transforms/runners'
 import { FormatViewPanel } from '#/features/workbench/views/FormatViewPanel'
 
 export const Route = createFileRoute('/')({
@@ -115,6 +122,7 @@ function Workbench() {
   const [sampleModalOpened, setSampleModalOpened] = useState(false)
   const [softWrapEnabled, setSoftWrapEnabled] = useState(true)
   const [validationEnabled, setValidationEnabled] = useState(false)
+  const [sqlDialect, setSqlDialect] = useState<SqlDialect>(DEFAULT_SQL_DIALECT)
   const [viewMode, setViewMode] = useState<WorkbenchViewMode>('source')
   const [runningTransformLabel, setRunningTransformLabel] = useState<
     string | null
@@ -145,14 +153,22 @@ function Workbench() {
   )
   const editorExtensions = useMemo(() => {
     const syntaxExtensions = currentFormat.getEditorExtensions()
-    const lintSource = validationEnabled ? currentFormat.lintSource : null
+
+    let lintSource = validationEnabled ? (currentFormat.lintSource ?? null) : null
+
+    if (validationEnabled && syntaxMode === 'sql') {
+      lintSource = sqlDialect.parserDatabase
+        ? createSqlLintSource(sqlDialect.parserDatabase)
+        : null
+    }
+
     const lintExtensions = lintSource
       ? [lintGutter(), linter(lintSource, { delay: 250 })]
       : []
     const wrappingExtensions = softWrapEnabled ? [EditorView.lineWrapping] : []
 
     return [...syntaxExtensions, ...lintExtensions, ...wrappingExtensions]
-  }, [currentFormat, softWrapEnabled, validationEnabled])
+  }, [currentFormat, softWrapEnabled, validationEnabled, syntaxMode, sqlDialect])
   const [validationResult, setValidationResult] =
     useState<FormatValidationResult | null>(null)
 
@@ -164,7 +180,12 @@ function Workbench() {
 
     let cancelled = false
 
-    void validateFormat(editorValue, syntaxMode).then((result) => {
+    const validate =
+      syntaxMode === 'sql'
+        ? validateSqlDialect(editorValue, sqlDialect.parserDatabase)
+        : validateFormat(editorValue, syntaxMode)
+
+    void validate.then((result) => {
       if (!cancelled) {
         setValidationResult(result)
       }
@@ -173,7 +194,7 @@ function Workbench() {
     return () => {
       cancelled = true
     }
-  }, [currentFormat.validation, editorValue, syntaxMode, validationEnabled])
+  }, [currentFormat.validation, editorValue, syntaxMode, validationEnabled, sqlDialect])
 
   async function runTransform(
     definition: TransformDefinition,
@@ -425,6 +446,14 @@ function Workbench() {
           return []
         }
 
+        const effectiveRunner: TransformRunner =
+          definition.id === 'sql-format'
+            ? (input) =>
+                formatSqlWithDialect(input, sqlDialect.formatterLanguage).then(
+                  (output) => ({ output, outputFormat: 'sql' as const }),
+                )
+            : runner
+
         return [
           {
             description: definition.description,
@@ -432,7 +461,7 @@ function Workbench() {
             id: definition.id,
             label: definition.label,
             onClick: () => {
-              void runTransform(definition, runner)
+              void runTransform(definition, effectiveRunner)
             },
           } satisfies TransformAction,
         ]
@@ -599,11 +628,21 @@ function Workbench() {
             canCommitWorkingText={canCommitWorkingText}
             formatLabel={currentFormat.label}
             softWrapEnabled={softWrapEnabled}
+            sqlDialectId={syntaxMode === 'sql' ? sqlDialect.id : undefined}
+            sqlDialectOptions={
+              syntaxMode === 'sql'
+                ? SQL_DIALECT_OPTIONS.map((d) => ({ label: d.label, value: d.id }))
+                : undefined
+            }
             validationEnabled={validationEnabled}
             validationAvailable={currentFormat.validation === 'supported'}
             validationResult={validationResult}
             viewAvailable={viewAvailable}
             onChooseSyntax={() => setSyntaxModalOpened(true)}
+            onChooseSqlDialect={(id) => {
+              const found = SQL_DIALECT_OPTIONS.find((d) => d.id === id)
+              if (found) setSqlDialect(found)
+            }}
             onCommitWorkingText={commitWorkingText}
             onOpenSamples={() => setSampleModalOpened(true)}
             onSetViewMode={setViewMode}

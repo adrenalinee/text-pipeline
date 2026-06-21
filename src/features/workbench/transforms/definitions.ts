@@ -91,6 +91,22 @@ export const TRANSFORM_DEFINITIONS = [
     outputFormat: 'yaml',
   },
   {
+    description: 'Pretty print the current editor SQL',
+    group: 'format',
+    id: 'sql-format',
+    inputFormats: ['sql'],
+    label: 'SQL format',
+    outputFormat: 'sql',
+  },
+  {
+    description: 'Remove whitespace and comments from current SQL',
+    group: 'format',
+    id: 'sql-minify',
+    inputFormats: ['sql'],
+    label: 'SQL minify',
+    outputFormat: 'sql',
+  },
+  {
     description: 'Encode text for use in URLs',
     group: 'general',
     id: 'url-encode',

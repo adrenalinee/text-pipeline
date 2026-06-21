@@ -40,6 +40,8 @@ export type TransformId =
   | 'json-to-yaml'
   | 'json-validate'
   | 'jsonpath-query'
+  | 'sql-format'
+  | 'sql-minify'
   | 'toml-to-json'
   | 'toml-to-yaml'
   | 'url-decode'

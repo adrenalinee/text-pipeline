@@ -57,8 +57,14 @@ const xmlLintSource: LintSource = (view) =>
 const csvLintSource: LintSource = (view) =>
   toSyntaxDiagnostics(getCsvError(view.state.doc.toString()), 'CSV', view)
 
-const sqlLintSource: LintSource = async (view) =>
-  toSyntaxDiagnostics(await getSqlError(view.state.doc.toString()), 'SQL', view)
+export function createSqlLintSource(database: string): LintSource {
+  return async (view) =>
+    toSyntaxDiagnostics(
+      await getSqlError(view.state.doc.toString(), database),
+      'SQL',
+      view,
+    )
+}
 
 function toSyntaxDiagnostics(
   error: FormatSyntaxError | null,

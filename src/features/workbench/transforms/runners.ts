@@ -26,6 +26,14 @@ export const TRANSFORM_RUNNERS: TransformRunnerMap = {
     output: minifyHtml(input),
     outputFormat: 'html',
   }),
+  'sql-format': async (input) => ({
+    output: await formatSqlWithDialect(input, 'sql'),
+    outputFormat: 'sql',
+  }),
+  'sql-minify': (input) => ({
+    output: minifySql(input),
+    outputFormat: 'sql',
+  }),
   'json-format': (input) => ({
     output: JSON.stringify(JSON.parse(input), null, 2),
     outputFormat: 'json',
@@ -84,6 +92,24 @@ function decodeBase64(input: string) {
   const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
 
   return new TextDecoder().decode(bytes)
+}
+
+export async function formatSqlWithDialect(
+  input: string,
+  language: string,
+): Promise<string> {
+  // Load sql-formatter lazily so it stays out of the initial bundle.
+  const { format } = await import('sql-formatter')
+
+  return format(input, { language, tabWidth: 2, keywordCase: 'upper' })
+}
+
+function minifySql(input: string) {
+  return input
+    .replace(/--[^\n]*/g, '')          // strip single-line comments
+    .replace(/\/\*[\s\S]*?\*\//g, '')  // strip block comments
+    .replace(/\s+/g, ' ')             // collapse whitespace
+    .trim()
 }
 
 async function formatHtml(input: string) {

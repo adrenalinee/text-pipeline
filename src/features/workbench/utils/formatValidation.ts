@@ -396,25 +396,59 @@ export function getCsvError(value: string): FormatSyntaxError | null {
   return null
 }
 
-// SQL syntax check via node-sql-parser. Validation is dialect-specific
-// (see SQL_DIALECT); statements valid in another dialect may be reported here.
+// SQL syntax check via node-sql-parser. Validation is dialect-specific;
+// statements valid in another dialect may be reported here.
+// Pass database = null to skip parsing (generic SQL has no dialect validator).
 export async function getSqlError(
   value: string,
+  database: string | null = SQL_DIALECT,
 ): Promise<FormatSyntaxError | null> {
-  if (value.trim().length === 0) {
+  if (database === null || value.trim().length === 0) {
     return null
   }
 
   const parser = await loadSqlParser()
 
   try {
-    parser.astify(value, { database: SQL_DIALECT })
+    parser.astify(value, { database })
     return null
   } catch (error) {
     return {
       issue: getSqlErrorIssue(error),
       message: buildSqlErrorMessage(error),
     }
+  }
+}
+
+// Validate SQL with a runtime-selected dialect. Returns an unsupported result
+// when parserDatabase is null (Generic SQL).
+export async function validateSqlDialect(
+  value: string,
+  parserDatabase: string | null,
+): Promise<FormatValidationResult> {
+  if (parserDatabase === null) {
+    return {
+      message: 'Generic SQL has no dialect-specific validator. Choose a dialect to enable validation.',
+      status: 'unsupported',
+      title: 'No validator',
+    }
+  }
+
+  const error = await getSqlError(value, parserDatabase)
+
+  if (!error) {
+    return {
+      message: 'No SQL syntax errors found.',
+      status: 'valid',
+      title: 'Valid SQL',
+    }
+  }
+
+  return {
+    issue: error.issue,
+    message: formatInvalidMessage(error.message, error.issue),
+    status: 'invalid',
+    title: formatInvalidTitle('SQL', error.issue),
   }
 }
 

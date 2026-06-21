@@ -48,6 +48,11 @@ const HTML_TRANSFORMS = [
   'html-minify',
 ] satisfies ReadonlyArray<TransformId>
 
+const SQL_TRANSFORMS = [
+  'sql-format',
+  'sql-minify',
+] satisfies ReadonlyArray<TransformId>
+
 const GENERAL_TRANSFORMS = [
   'url-encode',
   'url-decode',
@@ -168,11 +173,10 @@ export const FORMAT_DEFINITIONS = {
     getEditorExtensions: () => [sql()],
     id: 'sql',
     label: 'SQL',
-    lintSource: getFormatLintSource('sql') ?? undefined,
     renderPolicy: 'explicit',
     renderSecurity: 'source-only',
     sampleIds: ['sql-event-report'],
-    transformIds: [...GENERAL_TRANSFORMS],
+    transformIds: [...SQL_TRANSFORMS, ...GENERAL_TRANSFORMS],
     validation: 'supported',
     viewIds: [],
   },
