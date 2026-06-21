@@ -87,6 +87,7 @@ export function EditorToolbar({
             aria-label="SQL dialect"
             className="dialectSelect"
             data={sqlDialectOptions}
+            maxDropdownHeight={400}
             size="xs"
             value={sqlDialectId}
             withCheckIcon={false}

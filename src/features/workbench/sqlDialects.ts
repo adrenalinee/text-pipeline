@@ -2,6 +2,7 @@ export type SqlDialectId =
   | 'bigquery'
   | 'mariadb'
   | 'mysql'
+  | 'plsql'
   | 'postgresql'
   | 'snowflake'
   | 'sqlite'
@@ -26,6 +27,7 @@ export const SQL_DIALECT_OPTIONS: ReadonlyArray<SqlDialect> = [
   { id: 'bigquery',    label: 'BigQuery',    formatterLanguage: 'bigquery',    parserDatabase: 'BigQuery'    },
   { id: 'snowflake',   label: 'Snowflake',   formatterLanguage: 'snowflake',   parserDatabase: 'Snowflake'   },
   { id: 'transactsql', label: 'TransactSQL', formatterLanguage: 'transactsql', parserDatabase: 'TransactSQL' },
+  { id: 'plsql',       label: 'Oracle (PL/SQL)', formatterLanguage: 'plsql',   parserDatabase: null          },
 ]
 
 export const DEFAULT_SQL_DIALECT: SqlDialect = SQL_DIALECT_OPTIONS[0]
