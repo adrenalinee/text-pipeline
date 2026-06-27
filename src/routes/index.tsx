@@ -41,7 +41,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { flushSync } from 'react-dom'
 
 import { EditorToolbar } from '#/features/workbench/components/EditorToolbar'
+import { HistoryRail } from '#/features/workbench/components/HistoryRail'
 import { HistorySidebar } from '#/features/workbench/components/HistorySidebar'
+import { TransformsRail } from '#/features/workbench/components/TransformsRail'
 import { TransformsSidebar } from '#/features/workbench/components/TransformsSidebar'
 import {
   FORMAT_DEFINITIONS,
@@ -76,7 +78,10 @@ import {
   shouldShowTransformProgress,
   TRANSFORM_PROGRESS_THRESHOLDS,
 } from '#/features/workbench/transforms/progress'
-import { TRANSFORM_RUNNERS } from '#/features/workbench/transforms/runners'
+import {
+  formatSqlWithDialect,
+  TRANSFORM_RUNNERS,
+} from '#/features/workbench/transforms/runners'
 import { validateFormat, validateSqlDialect } from '#/features/workbench/utils/formatValidation'
 import type { FormatValidationResult } from '#/features/workbench/utils/formatValidation'
 import { createSqlLintSource } from '#/features/workbench/utils/formatLinting'
@@ -85,7 +90,6 @@ import {
   SQL_DIALECT_OPTIONS,
 } from '#/features/workbench/sqlDialects'
 import type { SqlDialect } from '#/features/workbench/sqlDialects'
-import { formatSqlWithDialect } from '#/features/workbench/transforms/runners'
 import { FormatViewPanel } from '#/features/workbench/views/FormatViewPanel'
 
 export const Route = createFileRoute('/')({
@@ -98,6 +102,10 @@ const INITIAL_TEXT_REVISION = {
   syntaxMode: 'json',
   text: INITIAL_EDITOR_VALUE,
 } satisfies { syntaxMode: SyntaxMode; text: string }
+
+const LEFT_SIDEBAR_WIDTH = 264
+const RIGHT_SIDEBAR_WIDTH = 296
+const RAIL_WIDTH = 48
 
 function Home() {
   return (
@@ -479,14 +487,14 @@ function Workbench() {
     <AppShell
       header={{ height: 44 }}
       navbar={{
-        width: 264,
+        width: leftOpened ? LEFT_SIDEBAR_WIDTH : RAIL_WIDTH,
         breakpoint: 'sm',
-        collapsed: { mobile: !leftOpened, desktop: !leftOpened },
+        collapsed: { mobile: !leftOpened, desktop: false },
       }}
       aside={{
-        width: 296,
+        width: rightOpened ? RIGHT_SIDEBAR_WIDTH : RAIL_WIDTH,
         breakpoint: 'md',
-        collapsed: { mobile: !rightOpened, desktop: !rightOpened },
+        collapsed: { mobile: !rightOpened, desktop: false },
       }}
       padding={0}
       withBorder
@@ -609,16 +617,34 @@ function Workbench() {
         </Group>
       </AppShell.Header>
 
-      <AppShell.Navbar className="workbenchSidebar">
-        <HistorySidebar
-          commits={commits}
-          currentText={editorValue}
-          selectedRevisionId={selectedRevisionId}
-          workingBaseRevisionId={workingBaseRevisionId}
-          onRestoreCommit={restoreCommit}
-          onRestoreCommitParent={restoreCommitParent}
-          onRestoreRoot={restoreRootText}
-        />
+      <AppShell.Navbar
+        className={
+          leftOpened
+            ? 'workbenchSidebar'
+            : 'workbenchSidebar workbenchSidebarCollapsed'
+        }
+      >
+        {leftOpened ? (
+          <HistorySidebar
+            commits={commits}
+            currentText={editorValue}
+            selectedRevisionId={selectedRevisionId}
+            workingBaseRevisionId={workingBaseRevisionId}
+            onRestoreCommit={restoreCommit}
+            onRestoreCommitParent={restoreCommitParent}
+            onRestoreRoot={restoreRootText}
+          />
+        ) : (
+          <HistoryRail
+            commits={commits}
+            currentText={editorValue}
+            selectedRevisionId={selectedRevisionId}
+            workingBaseRevisionId={workingBaseRevisionId}
+            onExpand={() => setLeftOpened(true)}
+            onRestoreCommit={restoreCommit}
+            onRestoreRoot={restoreRootText}
+          />
+        )}
       </AppShell.Navbar>
 
       <AppShell.Main className="workbenchMain">
@@ -682,8 +708,21 @@ function Workbench() {
         </Box>
       </AppShell.Main>
 
-      <AppShell.Aside className="workbenchSidebar">
-        <TransformsSidebar sections={transformSections} />
+      <AppShell.Aside
+        className={
+          rightOpened
+            ? 'workbenchSidebar'
+            : 'workbenchSidebar workbenchSidebarCollapsed'
+        }
+      >
+        {rightOpened ? (
+          <TransformsSidebar sections={transformSections} />
+        ) : (
+          <TransformsRail
+            onExpand={() => setRightOpened(true)}
+            sections={transformSections}
+          />
+        )}
       </AppShell.Aside>
     </AppShell>
   )
