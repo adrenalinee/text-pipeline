@@ -498,15 +498,6 @@ button {
   background: light-dark(var(--mantine-color-blue-0), rgba(34, 139, 230, 0.12));
 }
 
-.historyDivider {
-  height: 1px;
-  margin: 2px 0 4px;
-  background: light-dark(
-    var(--mantine-color-gray-3),
-    var(--mantine-color-dark-5)
-  );
-}
-
 .historyItemButton {
   cursor: pointer;
 }
@@ -518,63 +509,69 @@ button {
   );
 }
 
-.historyItemButton:focus-visible,
-.parentRef:focus-visible {
+.historyItemButton:focus-visible {
   outline: 2px solid
     light-dark(var(--mantine-color-blue-5), var(--mantine-color-blue-4));
   outline-offset: 2px;
 }
 
-.historyGraphList {
-  --history-graph-width: 30px;
+/* Linear history timeline */
+.historyTimeline {
+  --history-dot-y: 17px;
   display: flex;
   flex-direction: column;
-  gap: 0;
 }
 
-.commitGraphRow {
+.historyRow {
   display: grid;
-  grid-template-columns: var(--history-graph-width) minmax(0, 1fr);
+  grid-template-columns: 20px minmax(0, 1fr);
   gap: 6px;
   align-items: stretch;
 }
 
-.historyGraph {
+.historyRow[data-future] {
+  opacity: 0.45;
+}
+
+.historyRowDot {
   position: relative;
-  width: var(--history-graph-width);
-  min-height: 64px;
-  height: 100%;
-  overflow: visible;
+  align-self: stretch;
 }
 
-.historyGraphLines {
+.historyRowDot::before,
+.historyRowDot::after {
+  content: '';
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
+  left: 50%;
+  width: 2px;
+  background: light-dark(
+    var(--mantine-color-gray-3),
+    var(--mantine-color-dark-4)
+  );
+  transform: translateX(-50%);
 }
 
-.historyGraphRoot {
-  min-height: 52px;
+.historyRowDot::before {
+  top: 0;
+  height: var(--history-dot-y);
 }
 
-.historyGraphLine {
-  stroke: light-dark(var(--mantine-color-gray-4), var(--mantine-color-dark-3));
-  stroke-linecap: round;
-  stroke-width: 1.8;
+.historyRowDot::after {
+  top: var(--history-dot-y);
+  bottom: 0;
 }
 
-.historyGraphLineActive {
-  stroke: light-dark(var(--mantine-color-blue-6), var(--mantine-color-blue-4));
-  stroke-width: 2.4;
+.historyRow:first-child .historyRowDot::before,
+.historyRow:last-child .historyRowDot::after {
+  display: none;
 }
 
-.historyGraphDot {
+.historyDot {
   position: absolute;
-  top: 50%;
-  width: 8.5px;
-  height: 8.5px;
+  top: var(--history-dot-y);
+  left: 50%;
+  width: 9px;
+  height: 9px;
   border: 2.2px solid
     light-dark(var(--mantine-color-gray-5), var(--mantine-color-dark-2));
   border-radius: 999px;
@@ -583,9 +580,10 @@ button {
     var(--mantine-color-dark-7)
   );
   transform: translate(-50%, -50%);
+  z-index: 1;
 }
 
-.historyGraphDotActive {
+.historyDot[data-active] {
   border-color: light-dark(
     var(--mantine-color-blue-7),
     var(--mantine-color-blue-3)
@@ -596,35 +594,32 @@ button {
   );
 }
 
-.commitItemWrap {
+.commitSummary {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
-.commitTitleGroup,
 .commitTitle,
 .commitDescription {
   min-width: 0;
-}
-
-.commitTitle,
-.commitDescription {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.commitHash,
-.parentRef {
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-    'Courier New', monospace;
+.commitSummaryCard .commitTitle,
+.commitSummaryCard .commitDescription {
+  overflow: visible;
+  white-space: normal;
 }
 
 .commitHash {
   flex-shrink: 0;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
   color: light-dark(var(--mantine-color-gray-6), var(--mantine-color-dark-2));
 }
 
@@ -644,28 +639,8 @@ button {
   );
 }
 
-.parentRef {
-  width: fit-content;
-  margin-left: 8px;
-  padding: 0 4px;
-  border: 0;
-  color: light-dark(var(--mantine-color-gray-6), var(--mantine-color-dark-2));
-  background: transparent;
-  cursor: pointer;
-  font-size: 11px;
-  text-align: left;
-}
-
-.parentRef:hover {
-  color: var(--mantine-color-text);
-}
-
 .emptyHistory {
   padding: 4px 8px;
-}
-
-.historyRootBlock {
-  padding-top: 0;
 }
 
 .transformButton {
@@ -790,6 +765,22 @@ button {
     var(--mantine-color-blue-6),
     var(--mantine-color-blue-4)
   );
+}
+
+.historyRailDot[data-future],
+.railDotMark[data-future] {
+  opacity: 0.5;
+}
+
+.historyRailDropdown {
+  max-width: 260px;
+  padding: 8px 10px;
+}
+
+.historyRailCard {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .transformRailTooltip {

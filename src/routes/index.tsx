@@ -4,6 +4,7 @@ import {
   AppShell,
   Badge,
   Box,
+  Button,
   Group,
   Loader,
   MantineProvider,
@@ -37,7 +38,7 @@ import {
   Sun,
   Workflow,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 
 import { EditorToolbar } from '#/features/workbench/components/EditorToolbar'
@@ -52,6 +53,7 @@ import {
   getFormatDefinition,
 } from '#/features/workbench/formats'
 import {
+  appendCommit,
   createTextCommit,
   createWorkingSnapshotCommit,
   getNextCommitId,
@@ -82,7 +84,10 @@ import {
   formatSqlWithDialect,
   TRANSFORM_RUNNERS,
 } from '#/features/workbench/transforms/runners'
-import { validateFormat, validateSqlDialect } from '#/features/workbench/utils/formatValidation'
+import {
+  validateFormat,
+  validateSqlDialect,
+} from '#/features/workbench/utils/formatValidation'
 import type { FormatValidationResult } from '#/features/workbench/utils/formatValidation'
 import { createSqlLintSource } from '#/features/workbench/utils/formatLinting'
 import {
@@ -135,6 +140,10 @@ function Workbench() {
   const [runningTransformLabel, setRunningTransformLabel] = useState<
     string | null
   >(null)
+  const [pendingCheckout, setPendingCheckout] = useState<
+    TextCommit | typeof ROOT_REVISION_ID | null
+  >(null)
+  const commitSeqRef = useRef(0)
   const { setColorScheme } = useMantineColorScheme()
   const isCompact = useMediaQuery('(max-width: 48em)')
   const computedColorScheme = useComputedColorScheme('dark', {
@@ -162,7 +171,9 @@ function Workbench() {
   const editorExtensions = useMemo(() => {
     const syntaxExtensions = currentFormat.getEditorExtensions()
 
-    let lintSource = validationEnabled ? (currentFormat.lintSource ?? null) : null
+    let lintSource = validationEnabled
+      ? (currentFormat.lintSource ?? null)
+      : null
 
     if (validationEnabled && syntaxMode === 'sql') {
       lintSource = sqlDialect.parserDatabase
@@ -176,7 +187,13 @@ function Workbench() {
     const wrappingExtensions = softWrapEnabled ? [EditorView.lineWrapping] : []
 
     return [...syntaxExtensions, ...lintExtensions, ...wrappingExtensions]
-  }, [currentFormat, softWrapEnabled, validationEnabled, syntaxMode, sqlDialect])
+  }, [
+    currentFormat,
+    softWrapEnabled,
+    validationEnabled,
+    syntaxMode,
+    sqlDialect,
+  ])
   const [validationResult, setValidationResult] =
     useState<FormatValidationResult | null>(null)
 
@@ -202,7 +219,18 @@ function Workbench() {
     return () => {
       cancelled = true
     }
-  }, [currentFormat.validation, editorValue, syntaxMode, validationEnabled, sqlDialect])
+  }, [
+    currentFormat.validation,
+    editorValue,
+    syntaxMode,
+    validationEnabled,
+    sqlDialect,
+  ])
+
+  function allocateCommitId() {
+    commitSeqRef.current += 1
+    return getNextCommitId(commitSeqRef.current)
+  }
 
   async function runTransform(
     definition: TransformDefinition,
@@ -210,21 +238,23 @@ function Workbench() {
   ) {
     const beforeText = editorValue
     const beforeSyntaxMode = syntaxMode
-    const workingSnapshotCommit = createWorkingSnapshotCommit({
-      baseRevision: workingBaseRevision,
-      currentSyntaxMode: beforeSyntaxMode,
-      currentText: beforeText,
-      description: 'Saved working text before transform.',
-      id: getNextCommitId(commits),
-      timestamp: formatCommitTimestamp(new Date()),
-      title: 'Manual edit',
-    })
+    const workingSnapshotCommit = hasRevisionTextChanged(
+      workingBaseRevision,
+      beforeText,
+    )
+      ? createWorkingSnapshotCommit({
+          baseRevision: workingBaseRevision,
+          currentSyntaxMode: beforeSyntaxMode,
+          currentText: beforeText,
+          description: 'Saved working text before transform.',
+          id: allocateCommitId(),
+          timestamp: formatCommitTimestamp(new Date()),
+          title: 'Manual edit',
+        })
+      : null
     const transformParentId =
       workingSnapshotCommit?.id ?? workingBaseRevision.id
-    const transformCommitId = getNextCommitId(
-      commits,
-      workingSnapshotCommit ? 2 : 1,
-    )
+    const transformCommitId = allocateCommitId()
     const shouldShowProgress = shouldShowTransformProgress(
       definition,
       beforeText,
@@ -235,10 +265,9 @@ function Workbench() {
 
     try {
       if (workingSnapshotCommit) {
-        setCommits((currentCommits) => [
-          workingSnapshotCommit,
-          ...currentCommits,
-        ])
+        setCommits((currentCommits) =>
+          appendCommit(currentCommits, workingSnapshotCommit),
+        )
         setSelectedRevisionId(workingSnapshotCommit.id)
         setWorkingBaseRevisionId(workingSnapshotCommit.id)
       }
@@ -322,7 +351,7 @@ function Workbench() {
     setSyntaxMode(afterSyntaxMode)
     setSelectedRevisionId(id)
     setWorkingBaseRevisionId(id)
-    setCommits((currentCommits) => [commit, ...currentCommits])
+    setCommits((currentCommits) => appendCommit(currentCommits, commit))
 
     notifications.show({
       color: 'green',
@@ -332,17 +361,7 @@ function Workbench() {
   }
 
   function commitWorkingText() {
-    const commit = createWorkingSnapshotCommit({
-      baseRevision: workingBaseRevision,
-      currentSyntaxMode: syntaxMode,
-      currentText: editorValue,
-      description: 'Saved current editor text.',
-      id: getNextCommitId(commits),
-      timestamp: formatCommitTimestamp(new Date()),
-      title: 'Manual edit',
-    })
-
-    if (!commit) {
+    if (!canCommitWorkingText) {
       notifications.show({
         color: 'blue',
         message: 'The editor already matches the checked-out revision.',
@@ -351,9 +370,23 @@ function Workbench() {
       return
     }
 
+    const commit = createWorkingSnapshotCommit({
+      baseRevision: workingBaseRevision,
+      currentSyntaxMode: syntaxMode,
+      currentText: editorValue,
+      description: 'Saved current editor text.',
+      id: allocateCommitId(),
+      timestamp: formatCommitTimestamp(new Date()),
+      title: 'Manual edit',
+    })
+
+    if (!commit) {
+      return
+    }
+
     setSelectedRevisionId(commit.id)
     setWorkingBaseRevisionId(commit.id)
-    setCommits((currentCommits) => [commit, ...currentCommits])
+    setCommits((currentCommits) => appendCommit(currentCommits, commit))
 
     notifications.show({
       color: 'green',
@@ -386,22 +419,31 @@ function Workbench() {
     })
   }
 
-  function restoreCommitParent(commit: TextCommit) {
-    if (commit.parentId === ROOT_REVISION_ID) {
+  function performCheckout(target: TextCommit | typeof ROOT_REVISION_ID) {
+    if (target === ROOT_REVISION_ID) {
       restoreRootText()
+    } else {
+      restoreCommit(target)
+    }
+  }
+
+  function requestCheckout(target: TextCommit | typeof ROOT_REVISION_ID) {
+    // Checking out a different revision throws away uncommitted working text,
+    // so warn before discarding it.
+    if (canCommitWorkingText) {
+      setPendingCheckout(target)
       return
     }
 
-    const parentCommit = commits.find(({ id }) => id === commit.parentId)
+    performCheckout(target)
+  }
 
-    if (parentCommit) {
-      restoreCommit(parentCommit)
-    } else {
-      notifications.show({
-        color: 'red',
-        message: `Parent commit ${commit.parentId} could not be found.`,
-        title: 'Checkout failed',
-      })
+  function confirmPendingCheckout() {
+    const target = pendingCheckout
+    setPendingCheckout(null)
+
+    if (target !== null) {
+      performCheckout(target)
     }
   }
 
@@ -573,6 +615,29 @@ function Workbench() {
           </Box>
         </Group>
       </Modal>
+      <Modal
+        centered
+        opened={pendingCheckout !== null}
+        overlayProps={{ backgroundOpacity: 0.45, blur: 1 }}
+        size="sm"
+        title="Discard working text?"
+        onClose={() => setPendingCheckout(null)}
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            The current working text has not been committed. Loading another
+            revision will discard these changes.
+          </Text>
+          <Group justify="flex-end" gap="xs" wrap="nowrap">
+            <Button variant="default" onClick={() => setPendingCheckout(null)}>
+              Cancel
+            </Button>
+            <Button color="red" onClick={confirmPendingCheckout}>
+              Discard &amp; load
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       <AppShell.Header className="workbenchHeader">
         <Group h="100%" px="sm" justify="space-between" wrap="nowrap">
@@ -630,9 +695,8 @@ function Workbench() {
             currentText={editorValue}
             selectedRevisionId={selectedRevisionId}
             workingBaseRevisionId={workingBaseRevisionId}
-            onRestoreCommit={restoreCommit}
-            onRestoreCommitParent={restoreCommitParent}
-            onRestoreRoot={restoreRootText}
+            onRestoreCommit={requestCheckout}
+            onRestoreRoot={() => requestCheckout(ROOT_REVISION_ID)}
           />
         ) : (
           <HistoryRail
@@ -641,8 +705,8 @@ function Workbench() {
             selectedRevisionId={selectedRevisionId}
             workingBaseRevisionId={workingBaseRevisionId}
             onExpand={() => setLeftOpened(true)}
-            onRestoreCommit={restoreCommit}
-            onRestoreRoot={restoreRootText}
+            onRestoreCommit={requestCheckout}
+            onRestoreRoot={() => requestCheckout(ROOT_REVISION_ID)}
           />
         )}
       </AppShell.Navbar>
@@ -657,7 +721,10 @@ function Workbench() {
             sqlDialectId={syntaxMode === 'sql' ? sqlDialect.id : undefined}
             sqlDialectOptions={
               syntaxMode === 'sql'
-                ? SQL_DIALECT_OPTIONS.map((d) => ({ label: d.label, value: d.id }))
+                ? SQL_DIALECT_OPTIONS.map((d) => ({
+                    label: d.label,
+                    value: d.id,
+                  }))
                 : undefined
             }
             validationEnabled={validationEnabled}
