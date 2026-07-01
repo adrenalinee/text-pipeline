@@ -26,6 +26,7 @@ import {
   Braces,
   Check,
   Code2,
+  Crop,
   FileJson,
   FileText,
   ListTree,
@@ -84,6 +85,7 @@ import {
   formatSqlWithDialect,
   TRANSFORM_RUNNERS,
 } from '#/features/workbench/transforms/runners'
+import { cropToSelection } from '#/features/workbench/transforms/cropSelection'
 import {
   validateFormat,
   validateSqlDialect,
@@ -137,6 +139,10 @@ function Workbench() {
   const [validationEnabled, setValidationEnabled] = useState(false)
   const [sqlDialect, setSqlDialect] = useState<SqlDialect>(DEFAULT_SQL_DIALECT)
   const [viewMode, setViewMode] = useState<WorkbenchViewMode>('source')
+  const [selectionRange, setSelectionRange] = useState<{
+    from: number
+    to: number
+  }>({ from: 0, to: 0 })
   const [runningTransformLabel, setRunningTransformLabel] = useState<
     string | null
   >(null)
@@ -152,6 +158,9 @@ function Workbench() {
   const isDark = computedColorScheme === 'dark'
   const currentFormat = getFormatDefinition(syntaxMode)
   const viewAvailable = currentFormat.viewIds.length > 0
+  // Crop relies on a live editor selection, which only exists in source mode.
+  const hasEditorSelection =
+    viewMode === 'source' && selectionRange.from !== selectionRange.to
   const rootRevision = getRootRevisionSnapshot(commits, INITIAL_TEXT_REVISION)
   const rootText = rootRevision.text
   const rootSyntaxMode = rootRevision.syntaxMode
@@ -489,33 +498,61 @@ function Workbench() {
     syntaxMode,
   )
     .map((section) => {
-      const actions = section.transforms.flatMap((definition) => {
-        const runner = TRANSFORM_RUNNERS[definition.id]
+      const actions = section.transforms.flatMap(
+        (definition): Array<TransformAction> => {
+          if (definition.id === 'crop-selection') {
+            const cropRunner: TransformRunner = (input) => ({
+              output: cropToSelection(
+                input,
+                selectionRange.from,
+                selectionRange.to,
+              ),
+            })
 
-        if (!runner) {
-          return []
-        }
+            return [
+              {
+                description: hasEditorSelection
+                  ? definition.description
+                  : 'Select text in the editor first',
+                disabled: !hasEditorSelection,
+                icon: getTransformIcon(definition.id),
+                id: definition.id,
+                label: definition.label,
+                onClick: () => {
+                  void runTransform(definition, cropRunner)
+                },
+              } satisfies TransformAction,
+            ]
+          }
 
-        const effectiveRunner: TransformRunner =
-          definition.id === 'sql-format'
-            ? (input) =>
-                formatSqlWithDialect(input, sqlDialect.formatterLanguage).then(
-                  (output) => ({ output, outputFormat: 'sql' as const }),
-                )
-            : runner
+          const runner = TRANSFORM_RUNNERS[definition.id]
 
-        return [
-          {
-            description: definition.description,
-            icon: getTransformIcon(definition.id),
-            id: definition.id,
-            label: definition.label,
-            onClick: () => {
-              void runTransform(definition, effectiveRunner)
-            },
-          } satisfies TransformAction,
-        ]
-      })
+          if (!runner) {
+            return []
+          }
+
+          const effectiveRunner: TransformRunner =
+            definition.id === 'sql-format'
+              ? (input) =>
+                  formatSqlWithDialect(
+                    input,
+                    sqlDialect.formatterLanguage,
+                  ).then((output) => ({ output, outputFormat: 'sql' as const }))
+              : runner
+
+          return [
+            {
+              description: definition.description,
+              icon: getTransformIcon(definition.id),
+              id: definition.id,
+              label: definition.label,
+              onClick: () => {
+                void runTransform(definition, effectiveRunner)
+              },
+            } satisfies TransformAction,
+          ]
+        },
+      )
 
       return {
         actions,
@@ -764,6 +801,14 @@ function Workbench() {
               value={editorValue}
               placeholder="any text here"
               onChange={updateEditorValue}
+              onStatistics={(statistics) => {
+                const { from, to } = statistics.selectionAsSingle
+                setSelectionRange((current) =>
+                  current.from === from && current.to === to
+                    ? current
+                    : { from, to },
+                )
+              }}
             />
           ) : (
             <FormatViewPanel
@@ -796,6 +841,10 @@ function Workbench() {
 }
 
 function getTransformIcon(id: TransformDefinition['id']) {
+  if (id === 'crop-selection') {
+    return <Crop size={16} />
+  }
+
   if (id === 'json-format') {
     return <ListTree size={16} />
   }
