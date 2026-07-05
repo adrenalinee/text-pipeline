@@ -15,38 +15,6 @@ export type TextRevisionSnapshot = {
   text: string
 }
 
-export type CommitGraphSegment = {
-  active: boolean
-  lane: number
-}
-
-export type CommitGraphConnector = {
-  active: boolean
-  fromLane: number
-  toLane: number
-}
-
-export type CommitGraphRow = {
-  bottomSegments: Array<CommitGraphSegment>
-  commit: TextCommit
-  connectors: Array<CommitGraphConnector>
-  isAncestor: boolean
-  lane: number
-  laneCount: number
-  topSegments: Array<CommitGraphSegment>
-}
-
-export type CommitGraph = {
-  ancestorIds: Set<string>
-  laneCount: number
-  rows: Array<CommitGraphRow>
-}
-
-type ActiveGraphLane = {
-  pathActive: boolean
-  targetId: string
-}
-
 export function getRootRevisionSnapshot(
   commits: ReadonlyArray<TextCommit>,
   initialRevision: InitialTextRevision,
@@ -55,8 +23,7 @@ export function getRootRevisionSnapshot(
 
   return {
     id: ROOT_REVISION_ID,
-    syntaxMode:
-      rootChildCommit?.beforeSyntaxMode ?? initialRevision.syntaxMode,
+    syntaxMode: rootChildCommit?.beforeSyntaxMode ?? initialRevision.syntaxMode,
     text: rootChildCommit?.beforeText ?? initialRevision.text,
   }
 }
@@ -156,103 +123,63 @@ export function createTextCommit({
   }
 }
 
-export function getNextCommitId(
-  commits: ReadonlyArray<TextCommit>,
-  offset = 1,
-) {
-  return `c${String(commits.length + offset).padStart(3, '0')}`
+/**
+ * Builds a commit id from a monotonically increasing sequence number.
+ *
+ * The sequence must be owned by the caller (a counter that never decreases)
+ * so that truncating the linear history never reuses an id for a different
+ * commit within the same session.
+ */
+export function getNextCommitId(seq: number) {
+  return `c${String(seq).padStart(3, '0')}`
 }
 
-export function buildCommitGraph(
+/**
+ * Appends a commit to a linear, newest-first history.
+ *
+ * Because history is linear, "the children of a commit" are exactly the
+ * commits that are newer than it. Appending a commit whose parent is not the
+ * current tip therefore drops every commit newer than the parent (git's
+ * branch-less reset + commit). Checking out a revision never calls this, so
+ * checkout stays non-destructive until a new commit is created.
+ */
+export function appendCommit(
   commits: ReadonlyArray<TextCommit>,
-  selectedRevisionId: string,
-): CommitGraph {
-  const ancestorIds = getRevisionAncestorIds(commits, selectedRevisionId)
-  let activeLanes: Array<ActiveGraphLane> = []
-  let laneCount = 1
+  commit: TextCommit,
+): Array<TextCommit> {
+  const parentIndex = commits.findIndex(({ id }) => id === commit.parentId)
+  // parentId === ROOT (or a missing parent) means everything is truncated.
+  const kept = parentIndex === -1 ? [] : commits.slice(parentIndex)
 
-  const rows = commits.map((commit) => {
-    const incomingLaneIndexes = getLaneIndexes(activeLanes, commit.id)
-    const activeLaneIndex = incomingLaneIndexes.at(0)
-    const lane =
-      activeLaneIndex === undefined ? activeLanes.length : activeLaneIndex
-    const isAncestor = ancestorIds.has(commit.id)
-    const topSegments = activeLanes.map(({ pathActive }, index) => ({
-      active: pathActive,
-      lane: index,
-    }))
-
-    if (activeLaneIndex === undefined) {
-      activeLanes = [
-        ...activeLanes,
-        {
-          pathActive: isAncestor,
-          targetId: commit.id,
-        },
-      ]
-    }
-
-    const rowLaneCountBeforeUpdate = Math.max(activeLanes.length, lane + 1)
-    const connectors = incomingLaneIndexes
-      .filter((incomingLaneIndex) => incomingLaneIndex !== lane)
-      .map((incomingLaneIndex) => ({
-        active: activeLanes[incomingLaneIndex]?.pathActive ?? false,
-        fromLane: incomingLaneIndex,
-        toLane: lane,
-      }))
-
-    activeLanes = getNextActiveLanes(activeLanes, commit)
-
-    const bottomSegments = activeLanes.map(({ pathActive }, index) => ({
-      active: pathActive,
-      lane: index,
-    }))
-    const rowLaneCount = Math.max(
-      rowLaneCountBeforeUpdate,
-      activeLanes.length,
-      ...connectors.flatMap(({ fromLane, toLane }) => [fromLane + 1, toLane + 1]),
-    )
-    laneCount = Math.max(laneCount, rowLaneCount)
-
-    return {
-      bottomSegments,
-      commit,
-      connectors,
-      isAncestor,
-      lane,
-      laneCount: rowLaneCount,
-      topSegments,
-    } satisfies CommitGraphRow
-  })
-
-  return {
-    ancestorIds,
-    laneCount,
-    rows,
-  }
+  return [commit, ...kept]
 }
 
-export function getRevisionAncestorIds(
+/**
+ * Returns the ids that are on the current line of history for a given base
+ * revision: the base commit, every older commit, and the root.
+ *
+ * Commits that are *not* in this set are "future" commits (newer than the
+ * checked-out base) that will be discarded when the next commit is created.
+ * The UI dims them while keeping them clickable for redo.
+ */
+export function getLinearAncestorIds(
   commits: ReadonlyArray<TextCommit>,
-  revisionId: string,
-) {
-  const commitsById = new Map(commits.map((commit) => [commit.id, commit]))
-  const ancestorIds = new Set<string>()
-  let currentRevisionId = revisionId
+  baseRevisionId: string,
+): Set<string> {
+  const ancestorIds = new Set<string>([ROOT_REVISION_ID])
 
-  while (currentRevisionId !== ROOT_REVISION_ID) {
-    const commit = commitsById.get(currentRevisionId)
-
-    if (!commit) {
-      break
-    }
-
-    ancestorIds.add(commit.id)
-    currentRevisionId = commit.parentId
+  if (baseRevisionId === ROOT_REVISION_ID) {
+    return ancestorIds
   }
 
-  if (currentRevisionId === ROOT_REVISION_ID) {
-    ancestorIds.add(ROOT_REVISION_ID)
+  const baseIndex = commits.findIndex(({ id }) => id === baseRevisionId)
+
+  if (baseIndex === -1) {
+    return ancestorIds
+  }
+
+  for (let index = baseIndex; index < commits.length; index += 1) {
+    ancestorIds.add(commits[index].id)
   }
 
   return ancestorIds
@@ -268,45 +195,4 @@ function getOldestRootChildCommit(commits: ReadonlyArray<TextCommit>) {
   }
 
   return null
-}
-
-function getLaneIndexes(
-  lanes: ReadonlyArray<ActiveGraphLane>,
-  revisionId: string,
-) {
-  return lanes.flatMap((lane, index) =>
-    lane.targetId === revisionId ? [index] : [],
-  )
-}
-
-function getNextActiveLanes(
-  activeLanes: ReadonlyArray<ActiveGraphLane>,
-  commit: TextCommit,
-) {
-  const nextLanes =
-    commit.parentId === ROOT_REVISION_ID
-      ? activeLanes.filter(({ targetId }) => targetId !== commit.id)
-      : activeLanes.map((lane) =>
-          lane.targetId === commit.id
-            ? {
-                pathActive: lane.pathActive,
-                targetId: commit.parentId,
-              }
-            : lane,
-        )
-
-  return trimTrailingInactiveRootLanes(nextLanes)
-}
-
-function trimTrailingInactiveRootLanes(lanes: Array<ActiveGraphLane>) {
-  let lastLaneIndex = lanes.length - 1
-
-  while (
-    lastLaneIndex >= 0 &&
-    lanes[lastLaneIndex]?.targetId === ROOT_REVISION_ID
-  ) {
-    lastLaneIndex -= 1
-  }
-
-  return lanes.slice(0, lastLaneIndex + 1)
 }

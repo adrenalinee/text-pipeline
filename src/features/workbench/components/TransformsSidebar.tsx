@@ -26,6 +26,7 @@ export function TransformsSidebar({
             {section.actions.map((action) => (
               <TransformButton
                 description={action.description}
+                disabled={action.disabled}
                 icon={action.icon}
                 key={action.id}
                 label={action.label}
@@ -41,12 +42,18 @@ export function TransformsSidebar({
 
 function TransformButton({
   description,
+  disabled,
   icon,
   label,
   onClick,
 }: Omit<TransformAction, 'id'>) {
   return (
-    <button className="transformButton" type="button" onClick={onClick}>
+    <button
+      className="transformButton"
+      disabled={disabled}
+      type="button"
+      onClick={onClick}
+    >
       <Group gap="xs" wrap="nowrap">
         {icon}
         <Box className="transformButtonText">

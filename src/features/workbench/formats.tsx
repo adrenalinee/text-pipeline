@@ -54,6 +54,7 @@ const SQL_TRANSFORMS = [
 ] satisfies ReadonlyArray<TransformId>
 
 const GENERAL_TRANSFORMS = [
+  'crop-selection',
   'url-encode',
   'url-decode',
   'base64-encode',

@@ -115,7 +115,13 @@ describe('transform filtering', () => {
         title: 'YAML transforms',
       },
       {
-        ids: ['url-encode', 'url-decode', 'base64-encode', 'base64-decode'],
+        ids: [
+          'crop-selection',
+          'url-encode',
+          'url-decode',
+          'base64-encode',
+          'base64-decode',
+        ],
         title: 'General transforms',
       },
     ])
@@ -135,7 +141,13 @@ describe('transform filtering', () => {
         title: 'TOML transforms',
       },
       {
-        ids: ['url-encode', 'url-decode', 'base64-encode', 'base64-decode'],
+        ids: [
+          'crop-selection',
+          'url-encode',
+          'url-decode',
+          'base64-encode',
+          'base64-decode',
+        ],
         title: 'General transforms',
       },
     ])
@@ -155,7 +167,13 @@ describe('transform filtering', () => {
         title: 'HTML transforms',
       },
       {
-        ids: ['url-encode', 'url-decode', 'base64-encode', 'base64-decode'],
+        ids: [
+          'crop-selection',
+          'url-encode',
+          'url-decode',
+          'base64-encode',
+          'base64-decode',
+        ],
         title: 'General transforms',
       },
     ])
@@ -166,7 +184,13 @@ describe('transform filtering', () => {
       getAvailableTransforms(TRANSFORM_DEFINITIONS, 'plain').map(
         ({ id }) => id,
       ),
-    ).toEqual(['url-encode', 'url-decode', 'base64-encode', 'base64-decode'])
+    ).toEqual([
+      'crop-selection',
+      'url-encode',
+      'url-decode',
+      'base64-encode',
+      'base64-decode',
+    ])
   })
 
   it('exposes only general transforms for Markdown input', () => {
@@ -174,6 +198,12 @@ describe('transform filtering', () => {
       getAvailableTransforms(TRANSFORM_DEFINITIONS, 'markdown').map(
         ({ id }) => id,
       ),
-    ).toEqual(['url-encode', 'url-decode', 'base64-encode', 'base64-decode'])
+    ).toEqual([
+      'crop-selection',
+      'url-encode',
+      'url-decode',
+      'base64-encode',
+      'base64-decode',
+    ])
   })
 })

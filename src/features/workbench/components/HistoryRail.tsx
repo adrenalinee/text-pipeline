@@ -1,9 +1,19 @@
-import { ActionIcon, Badge, Box, Stack, Tooltip } from '@mantine/core'
+import {
+  ActionIcon,
+  Badge,
+  Box,
+  HoverCard,
+  Stack,
+  Text,
+  Tooltip,
+} from '@mantine/core'
 import { PanelLeftOpen } from 'lucide-react'
+import type { ReactNode } from 'react'
 
-import { ROOT_REVISION_ID, WORKING_REVISION_ID } from '../history'
+import { getLinearAncestorIds, WORKING_REVISION_ID } from '../history'
 import type { TextCommit } from '../types'
 import { countLines } from '../utils/textMetrics'
+import { CommitSummary } from './CommitSummary'
 
 type HistoryRailProps = {
   commits: ReadonlyArray<TextCommit>
@@ -24,8 +34,12 @@ export function HistoryRail({
   selectedRevisionId,
   workingBaseRevisionId,
 }: HistoryRailProps) {
+  const baseRevisionId =
+    selectedRevisionId === WORKING_REVISION_ID
+      ? workingBaseRevisionId
+      : selectedRevisionId
+  const ancestorIds = getLinearAncestorIds(commits, baseRevisionId)
   const workingActive = selectedRevisionId === WORKING_REVISION_ID
-  const rootActive = selectedRevisionId === ROOT_REVISION_ID
 
   return (
     <Box className="workbenchRail historyRail">
@@ -52,26 +66,43 @@ export function HistoryRail({
       <Box className="railDivider" />
 
       <Stack className="historyRailTrack" gap={2}>
-        <RailDot
-          active={workingActive}
-          label={`Working text · ${countLines(currentText)} lines · ${currentText.length} chars`}
-        />
-        {commits.map((commit) => (
-          <RailDot
-            active={
-              selectedRevisionId === commit.id ||
-              (workingActive && workingBaseRevisionId === commit.id)
-            }
-            key={commit.id}
-            label={`${commit.title} · ${commit.id}`}
-            onClick={() => onRestoreCommit(commit)}
-          />
-        ))}
-        <RailDot
-          active={rootActive}
-          label="Root input · baseline text"
-          onClick={onRestoreRoot}
-        />
+        <RailDot active={workingActive} ariaLabel="Working text">
+          <Box className="historyRailCard">
+            <Text size="sm" fw={650}>
+              Working text
+            </Text>
+            <Text size="xs" c="dimmed">
+              {countLines(currentText)} lines | {currentText.length} chars
+            </Text>
+          </Box>
+        </RailDot>
+
+        {commits.map((commit) => {
+          const isAncestor = ancestorIds.has(commit.id)
+
+          return (
+            <RailDot
+              active={isAncestor}
+              ariaLabel={`${commit.title} (${commit.id})`}
+              future={!isAncestor}
+              key={commit.id}
+              onClick={() => onRestoreCommit(commit)}
+            >
+              <CommitSummary commit={commit} multiline />
+            </RailDot>
+          )
+        })}
+
+        <RailDot active ariaLabel="Root input" onClick={onRestoreRoot}>
+          <Box className="historyRailCard">
+            <Text size="sm" fw={650}>
+              Root input
+            </Text>
+            <Text size="xs" c="dimmed">
+              Baseline text
+            </Text>
+          </Box>
+        </RailDot>
       </Stack>
     </Box>
   )
@@ -79,31 +110,54 @@ export function HistoryRail({
 
 function RailDot({
   active,
-  label,
+  ariaLabel,
+  children,
+  future,
   onClick,
 }: {
   active: boolean
-  label: string
+  ariaLabel: string
+  children: ReactNode
+  future?: boolean
   onClick?: () => void
 }) {
-  const mark = <span className="railDotMark" data-active={active || undefined} />
+  const mark = (
+    <span
+      className="railDotMark"
+      data-active={active || undefined}
+      data-future={future || undefined}
+    />
+  )
+
+  const target = onClick ? (
+    <ActionIcon
+      aria-label={ariaLabel}
+      className="historyRailDot"
+      color="gray"
+      data-future={future || undefined}
+      onClick={onClick}
+      size={26}
+      variant="subtle"
+    >
+      {mark}
+    </ActionIcon>
+  ) : (
+    <Box className="historyRailDot historyRailDotStatic">{mark}</Box>
+  )
 
   return (
-    <Tooltip label={label} position="right" withArrow>
-      {onClick ? (
-        <ActionIcon
-          aria-label={label}
-          className="historyRailDot"
-          color="gray"
-          onClick={onClick}
-          size={26}
-          variant="subtle"
-        >
-          {mark}
-        </ActionIcon>
-      ) : (
-        <Box className="historyRailDot historyRailDotStatic">{mark}</Box>
-      )}
-    </Tooltip>
+    <HoverCard
+      closeDelay={80}
+      openDelay={150}
+      position="right"
+      shadow="md"
+      width={250}
+      withArrow
+    >
+      <HoverCard.Target>{target}</HoverCard.Target>
+      <HoverCard.Dropdown className="historyRailDropdown">
+        {children}
+      </HoverCard.Dropdown>
+    </HoverCard>
   )
 }

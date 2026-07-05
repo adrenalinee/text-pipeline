@@ -107,6 +107,13 @@ export const TRANSFORM_DEFINITIONS = [
     outputFormat: 'sql',
   },
   {
+    description: 'Keep only the text selected in the editor',
+    group: 'general',
+    id: 'crop-selection',
+    inputFormats: '*',
+    label: 'Crop to selection',
+  },
+  {
     description: 'Encode text for use in URLs',
     group: 'general',
     id: 'url-encode',

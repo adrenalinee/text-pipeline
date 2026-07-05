@@ -52,6 +52,7 @@ export function TransformsRail({ onExpand, sections }: TransformsRailProps) {
                     aria-label={action.label}
                     className="transformRailButton"
                     color="gray"
+                    disabled={action.disabled}
                     onClick={action.onClick}
                     size="lg"
                     variant="subtle"

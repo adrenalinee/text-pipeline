@@ -31,6 +31,7 @@ export type WorkbenchViewMode = 'source' | 'view'
 export type TransformId =
   | 'base64-decode'
   | 'base64-encode'
+  | 'crop-selection'
   | 'html-compact'
   | 'html-format'
   | 'html-minify'
@@ -65,6 +66,7 @@ export type TextCommit = {
 
 export type TransformAction = {
   description: string
+  disabled?: boolean
   icon: ReactNode
   id: string
   label: string
