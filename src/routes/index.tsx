@@ -21,6 +21,7 @@ import { linter, lintGutter } from '@codemirror/lint'
 import { EditorView } from '@codemirror/view'
 import { oneDark } from '@codemirror/theme-one-dark'
 import CodeMirror from '@uiw/react-codemirror'
+import type { ReactCodeMirrorRef } from '@uiw/react-codemirror'
 import {
   Binary,
   Braces,
@@ -64,6 +65,9 @@ import {
   ROOT_REVISION_ID,
   WORKING_REVISION_ID,
 } from '#/features/workbench/history'
+import type { TextRevisionSnapshot } from '#/features/workbench/history'
+import { useSearchReplace } from '#/features/workbench/search/useSearchReplace'
+import type { ReplaceSession } from '#/features/workbench/search/useSearchReplace'
 import { TEXT_SAMPLES } from '#/features/workbench/samples'
 import type { TextSample } from '#/features/workbench/samples'
 import type {
@@ -150,6 +154,7 @@ function Workbench() {
     TextCommit | typeof ROOT_REVISION_ID | null
   >(null)
   const commitSeqRef = useRef(0)
+  const editorRef = useRef<ReactCodeMirrorRef>(null)
   const { setColorScheme } = useMantineColorScheme()
   const isCompact = useMediaQuery('(max-width: 48em)')
   const computedColorScheme = useComputedColorScheme('dark', {
@@ -177,6 +182,10 @@ function Workbench() {
     workingBaseRevision,
     editorValue,
   )
+  const searchReplace = useSearchReplace({
+    editorRef,
+    onReplaceCommit: commitReplace,
+  })
   const editorExtensions = useMemo(() => {
     const syntaxExtensions = currentFormat.getEditorExtensions()
 
@@ -195,13 +204,19 @@ function Workbench() {
       : []
     const wrappingExtensions = softWrapEnabled ? [EditorView.lineWrapping] : []
 
-    return [...syntaxExtensions, ...lintExtensions, ...wrappingExtensions]
+    return [
+      ...syntaxExtensions,
+      ...lintExtensions,
+      ...wrappingExtensions,
+      ...searchReplace.extensions,
+    ]
   }, [
     currentFormat,
     softWrapEnabled,
     validationEnabled,
     syntaxMode,
     sqlDialect,
+    searchReplace.extensions,
   ])
   const [validationResult, setValidationResult] =
     useState<FormatValidationResult | null>(null)
@@ -241,18 +256,86 @@ function Workbench() {
     return getNextCommitId(commitSeqRef.current)
   }
 
-  async function runTransform(
-    definition: TransformDefinition,
-    runner: TransformRunner,
-  ) {
-    const beforeText = editorValue
-    const beforeSyntaxMode = syntaxMode
+  function commitReplace(session: ReplaceSession): TextRevisionSnapshot {
+    const { afterText, beforeText, occurrences, replace, search } = session
     const workingSnapshotCommit = hasRevisionTextChanged(
       workingBaseRevision,
       beforeText,
     )
       ? createWorkingSnapshotCommit({
           baseRevision: workingBaseRevision,
+          currentSyntaxMode: syntaxMode,
+          currentText: beforeText,
+          description: 'Saved working text before replace.',
+          id: allocateCommitId(),
+          timestamp: formatCommitTimestamp(new Date()),
+          title: 'Manual edit',
+        })
+      : null
+    const commitId = allocateCommitId()
+    const replaceCommit = createTextCommit({
+      afterSyntaxMode: syntaxMode,
+      afterText,
+      beforeSyntaxMode: syntaxMode,
+      beforeText,
+      description: `Replaced ${occurrences} occurrence${
+        occurrences === 1 ? '' : 's'
+      } of "${search}" with "${replace}".`,
+      id: commitId,
+      parentId: workingSnapshotCommit?.id ?? workingBaseRevision.id,
+      timestamp: formatCommitTimestamp(new Date()),
+      title: 'Replace',
+    })
+
+    setCommits((currentCommits) => {
+      const withSnapshot = workingSnapshotCommit
+        ? appendCommit(currentCommits, workingSnapshotCommit)
+        : currentCommits
+
+      return appendCommit(withSnapshot, replaceCommit)
+    })
+    setWorkingBaseRevisionId(commitId)
+    // The editor may already hold newer manual edits when the session is
+    // flushed by a non-replace change; keep those as working text.
+    setSelectedRevisionId(
+      editorValue === afterText ? commitId : WORKING_REVISION_ID,
+    )
+
+    notifications.show({
+      color: 'green',
+      message: `Replace was committed as ${commitId}.`,
+      title: 'Commit created',
+    })
+
+    return { id: commitId, syntaxMode, text: afterText }
+  }
+
+  function flushPendingReplaceCommits(): {
+    baseRevision: TextRevisionSnapshot
+    didCommit: boolean
+  } {
+    const session = searchReplace.takePendingReplace()
+
+    if (!session || session.beforeText === session.afterText) {
+      return { baseRevision: workingBaseRevision, didCommit: false }
+    }
+
+    return { baseRevision: commitReplace(session), didCommit: true }
+  }
+
+  async function runTransform(
+    definition: TransformDefinition,
+    runner: TransformRunner,
+  ) {
+    const { baseRevision } = flushPendingReplaceCommits()
+    const beforeText = editorValue
+    const beforeSyntaxMode = syntaxMode
+    const workingSnapshotCommit = hasRevisionTextChanged(
+      baseRevision,
+      beforeText,
+    )
+      ? createWorkingSnapshotCommit({
+          baseRevision,
           currentSyntaxMode: beforeSyntaxMode,
           currentText: beforeText,
           description: 'Saved working text before transform.',
@@ -261,8 +344,7 @@ function Workbench() {
           title: 'Manual edit',
         })
       : null
-    const transformParentId =
-      workingSnapshotCommit?.id ?? workingBaseRevision.id
+    const transformParentId = workingSnapshotCommit?.id ?? baseRevision.id
     const transformCommitId = allocateCommitId()
     const shouldShowProgress = shouldShowTransformProgress(
       definition,
@@ -370,17 +452,22 @@ function Workbench() {
   }
 
   function commitWorkingText() {
-    if (!canCommitWorkingText) {
-      notifications.show({
-        color: 'blue',
-        message: 'The editor already matches the checked-out revision.',
-        title: 'No commit created',
-      })
+    const { baseRevision, didCommit } = flushPendingReplaceCommits()
+
+    if (!hasRevisionTextChanged(baseRevision, editorValue)) {
+      // A flushed replace session already produced its own commit toast.
+      if (!didCommit) {
+        notifications.show({
+          color: 'blue',
+          message: 'The editor already matches the checked-out revision.',
+          title: 'No commit created',
+        })
+      }
       return
     }
 
     const commit = createWorkingSnapshotCommit({
-      baseRevision: workingBaseRevision,
+      baseRevision,
       currentSyntaxMode: syntaxMode,
       currentText: editorValue,
       description: 'Saved current editor text.',
@@ -429,6 +516,10 @@ function Workbench() {
   }
 
   function performCheckout(target: TextCommit | typeof ROOT_REVISION_ID) {
+    // Checkout discards uncommitted working text (after the warning modal),
+    // and any replace session pending inside it is discarded the same way.
+    searchReplace.takePendingReplace()
+
     if (target === ROOT_REVISION_ID) {
       restoreRootText()
     } else {
@@ -783,10 +874,15 @@ function Workbench() {
           />
           {viewMode === 'source' ? (
             <CodeMirror
+              ref={editorRef}
               aria-label="Text editor"
-              className={
-                softWrapEnabled ? 'codeEditor' : 'codeEditor codeEditorNoWrap'
-              }
+              className={[
+                softWrapEnabled ? 'codeEditor' : 'codeEditor codeEditorNoWrap',
+                searchReplace.editorProps.className,
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              style={searchReplace.editorProps.style}
               basicSetup={{
                 bracketMatching: true,
                 closeBrackets: true,
@@ -817,6 +913,7 @@ function Workbench() {
               views={FORMAT_VIEWS}
             />
           )}
+          {searchReplace.panelPortal}
         </Box>
       </AppShell.Main>
 

@@ -244,6 +244,52 @@ button {
   outline: 0;
 }
 
+/*
+ * The search/replace panel floats over the top of the editor instead of
+ * taking layout space (CodeMirror's default sticky panel pushes the text
+ * down). While it is open, the content gains matching top padding (set via
+ * --search-panel-height) so line 1 can still be scrolled out from under it;
+ * the scrollTop compensation lives in useSearchReplace.
+ */
+.codeEditor .cm-editor .cm-panels-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  border-bottom: 1px solid
+    light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+  background: light-dark(
+    var(--mantine-color-white),
+    var(--mantine-color-dark-7)
+  );
+}
+
+.codeEditorSearchOpen .cm-content {
+  padding-top: calc(16px + var(--search-panel-height, 0px));
+}
+
+.searchReplacePanel {
+  padding: 6px 8px;
+}
+
+.searchPanelInput {
+  flex: 0 1 260px;
+  min-width: 140px;
+}
+
+.searchPanelCount {
+  flex: 0 0 auto;
+  min-width: 56px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.searchPanelReplaceRow {
+  /* Aligns the replace input under the search input (chevron width + gap). */
+  margin-top: 4px;
+  padding-left: 26px;
+}
+
 .formatViewPanel {
   display: flex;
   flex: 1;
