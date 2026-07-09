@@ -37,6 +37,7 @@ import {
   PanelLeftOpen,
   PanelRightClose,
   PanelRightOpen,
+  Replace,
   Sun,
   Workflow,
 } from 'lucide-react'
@@ -645,6 +646,24 @@ function Workbench() {
         },
       )
 
+      if (section.id === 'general') {
+        const replaceAction: TransformAction = {
+          description: hasEditorSelection
+            ? 'Search for the selected text and replace it'
+            : 'Select text in the editor first',
+          disabled: !hasEditorSelection,
+          icon: <Replace size={16} />,
+          id: 'search-replace',
+          label: 'Replace',
+          onClick: () => searchReplace.openPanel('replace'),
+        }
+        const cropIndex = actions.findIndex(
+          (action) => action.id === 'crop-selection',
+        )
+
+        actions.splice(cropIndex + 1, 0, replaceAction)
+      }
+
       return {
         actions,
         id: section.id,
@@ -866,6 +885,7 @@ function Workbench() {
             }}
             onCommitWorkingText={commitWorkingText}
             onOpenSamples={() => setSampleModalOpened(true)}
+            onOpenSearch={() => searchReplace.openPanel('search')}
             onSetViewMode={setViewMode}
             onToggleSoftWrap={() => setSoftWrapEnabled((enabled) => !enabled)}
             onToggleValidation={() =>

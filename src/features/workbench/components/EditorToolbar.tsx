@@ -1,4 +1,12 @@
-import { ActionIcon, Button, Group, Select, SegmentedControl, Text, Tooltip } from '@mantine/core'
+import {
+  ActionIcon,
+  Button,
+  Group,
+  Select,
+  SegmentedControl,
+  Text,
+  Tooltip,
+} from '@mantine/core'
 import {
   CircleAlert,
   CircleCheck,
@@ -6,11 +14,17 @@ import {
   Code2,
   FileJson,
   ShieldCheck,
+  TextSearch,
 } from 'lucide-react'
 
 import type { WorkbenchViewMode } from '../types'
 import type { FormatValidationResult } from '../utils/formatValidation'
-import {IconGitCommit, IconShieldCheck, IconTextWrap, IconTextWrapDisabled} from "@tabler/icons-react";
+import {
+  IconGitCommit,
+  IconShieldCheck,
+  IconTextWrap,
+  IconTextWrapDisabled,
+} from '@tabler/icons-react'
 
 export function EditorToolbar({
   activeViewMode,
@@ -19,6 +33,7 @@ export function EditorToolbar({
   onChooseSyntax,
   onCommitWorkingText,
   onOpenSamples,
+  onOpenSearch,
   onSetViewMode,
   onToggleSoftWrap,
   onToggleValidation,
@@ -37,6 +52,7 @@ export function EditorToolbar({
   onChooseSyntax: () => void
   onCommitWorkingText: () => void
   onOpenSamples: () => void
+  onOpenSearch: () => void
   onSetViewMode: (mode: WorkbenchViewMode) => void
   onToggleSoftWrap: () => void
   onToggleValidation: () => void
@@ -91,7 +107,9 @@ export function EditorToolbar({
             size="xs"
             value={sqlDialectId}
             withCheckIcon={false}
-            onChange={(value) => { if (value) onChooseSqlDialect(value) }}
+            onChange={(value) => {
+              if (value) onChooseSqlDialect(value)
+            }}
           />
         )}
 
@@ -107,6 +125,28 @@ export function EditorToolbar({
           >
             Samples
           </Button>
+        </Tooltip>
+        <Tooltip
+          label={
+            activeViewMode === 'source'
+              ? 'Search and replace (Ctrl+F)'
+              : 'Search is available in source mode'
+          }
+          withArrow
+        >
+          <ActionIcon
+            aria-label={
+              activeViewMode === 'source'
+                ? 'Search and replace'
+                : 'Search is available in source mode'
+            }
+            color="gray"
+            disabled={activeViewMode !== 'source'}
+            variant="light"
+            onClick={onOpenSearch}
+          >
+            <TextSearch size={18} />
+          </ActionIcon>
         </Tooltip>
         <FormatValidationStatus
           result={validationEnabled ? validationResult : null}
