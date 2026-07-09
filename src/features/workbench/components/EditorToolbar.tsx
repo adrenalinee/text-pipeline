@@ -160,6 +160,26 @@ export function EditorToolbar({
           </ActionIcon>
         </Tooltip>
         <Tooltip
+          label={softWrapEnabled ? 'Disable soft wrap' : 'Enable soft wrap'}
+          withArrow
+        >
+          <ActionIcon
+            aria-label={
+              softWrapEnabled ? 'Disable soft wrap' : 'Enable soft wrap'
+            }
+            aria-pressed={softWrapEnabled}
+            color="dark"
+            variant={softWrapEnabled ? 'filled' : 'light'}
+            onClick={onToggleSoftWrap}
+          >
+            {softWrapEnabled ? (
+              <IconTextWrapDisabled size={18} />
+            ) : (
+              <IconTextWrap size={18} />
+            )}
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip
           label={
             activeViewMode === 'source'
               ? 'Search and replace (Ctrl+F)'
@@ -179,26 +199,6 @@ export function EditorToolbar({
             onClick={onOpenSearch}
           >
             <Search size={18} />
-          </ActionIcon>
-        </Tooltip>
-        <Tooltip
-          label={softWrapEnabled ? 'Disable soft wrap' : 'Enable soft wrap'}
-          withArrow
-        >
-          <ActionIcon
-            aria-label={
-              softWrapEnabled ? 'Disable soft wrap' : 'Enable soft wrap'
-            }
-            aria-pressed={softWrapEnabled}
-            color="dark"
-            variant={softWrapEnabled ? 'filled' : 'light'}
-            onClick={onToggleSoftWrap}
-          >
-            {softWrapEnabled ? (
-              <IconTextWrapDisabled size={18} />
-            ) : (
-              <IconTextWrap size={18} />
-            )}
           </ActionIcon>
         </Tooltip>
         <Tooltip

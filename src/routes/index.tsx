@@ -119,6 +119,34 @@ const LEFT_SIDEBAR_WIDTH = 264
 const RIGHT_SIDEBAR_WIDTH = 296
 const RAIL_WIDTH = 48
 
+const LEFT_PANEL_STORAGE_KEY = 'text-pipeline:leftSidebarOpened'
+const RIGHT_PANEL_STORAGE_KEY = 'text-pipeline:rightSidebarOpened'
+
+function readStoredPanelOpened(key: string, fallback: boolean) {
+  if (typeof window === 'undefined') {
+    return fallback
+  }
+
+  try {
+    const stored = window.localStorage.getItem(key)
+    return stored === null ? fallback : stored === 'true'
+  } catch {
+    return fallback
+  }
+}
+
+function writeStoredPanelOpened(key: string, value: boolean) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  try {
+    window.localStorage.setItem(key, String(value))
+  } catch {
+    // Ignore storage failures (private mode, quota, disabled storage).
+  }
+}
+
 function Home() {
   return (
     <MantineProvider defaultColorScheme="dark">
@@ -129,8 +157,12 @@ function Home() {
 }
 
 function Workbench() {
-  const [leftOpened, setLeftOpened] = useState(true)
-  const [rightOpened, setRightOpened] = useState(true)
+  const [leftOpened, setLeftOpened] = useState(() =>
+    readStoredPanelOpened(LEFT_PANEL_STORAGE_KEY, false),
+  )
+  const [rightOpened, setRightOpened] = useState(() =>
+    readStoredPanelOpened(RIGHT_PANEL_STORAGE_KEY, true),
+  )
   const [editorValue, setEditorValue] = useState(INITIAL_EDITOR_VALUE)
   const [commits, setCommits] = useState<Array<TextCommit>>([])
   const [selectedRevisionId, setSelectedRevisionId] =
@@ -576,6 +608,16 @@ function Workbench() {
     setSelectedRevisionId(WORKING_REVISION_ID)
   }
 
+  function setLeftOpenedPersisted(value: boolean) {
+    setLeftOpened(value)
+    writeStoredPanelOpened(LEFT_PANEL_STORAGE_KEY, value)
+  }
+
+  function setRightOpenedPersisted(value: boolean) {
+    setRightOpened(value)
+    writeStoredPanelOpened(RIGHT_PANEL_STORAGE_KEY, value)
+  }
+
   useEffect(() => {
     if (isCompact) {
       setLeftOpened(false)
@@ -801,7 +843,7 @@ function Workbench() {
           <Group gap={6} wrap="nowrap">
             <HeaderIconButton
               label={leftOpened ? 'Hide left sidebar' : 'Show left sidebar'}
-              onClick={() => setLeftOpened((opened) => !opened)}
+              onClick={() => setLeftOpenedPersisted(!leftOpened)}
             >
               {leftOpened ? (
                 <PanelLeftClose size={18} />
@@ -811,7 +853,7 @@ function Workbench() {
             </HeaderIconButton>
             <HeaderIconButton
               label={rightOpened ? 'Hide right sidebar' : 'Show right sidebar'}
-              onClick={() => setRightOpened((opened) => !opened)}
+              onClick={() => setRightOpenedPersisted(!rightOpened)}
             >
               {rightOpened ? (
                 <PanelRightClose size={18} />
@@ -851,7 +893,7 @@ function Workbench() {
             currentText={editorValue}
             selectedRevisionId={selectedRevisionId}
             workingBaseRevisionId={workingBaseRevisionId}
-            onExpand={() => setLeftOpened(true)}
+            onExpand={() => setLeftOpenedPersisted(true)}
             onRestoreCommit={requestCheckout}
             onRestoreRoot={() => requestCheckout(ROOT_REVISION_ID)}
           />
@@ -948,7 +990,7 @@ function Workbench() {
           <TransformsSidebar sections={transformSections} />
         ) : (
           <TransformsRail
-            onExpand={() => setRightOpened(true)}
+            onExpand={() => setRightOpenedPersisted(true)}
             sections={transformSections}
           />
         )}
