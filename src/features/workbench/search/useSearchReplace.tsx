@@ -137,6 +137,29 @@ export function useSearchReplace({
     setFocusRequest({ seq: focusSeqRef.current, target })
   }, [])
 
+  /**
+   * Opens the search panel from outside the editor (toolbar/sidebar buttons).
+   * openSearchPanel prefills the query from the current editor selection, so
+   * callers get selection-as-query behavior for free.
+   */
+  const openPanel = useCallback(
+    (target: 'replace' | 'search') => {
+      const view = editorRef.current?.view
+
+      if (!view) {
+        return
+      }
+
+      if (target === 'replace') {
+        setShowReplace(true)
+      }
+
+      openSearchPanel(view)
+      requestFocus(target)
+    },
+    [editorRef, requestFocus],
+  )
+
   const extensions = useMemo<Array<Extension>>(() => {
     const syncQueryToReact = (query: SearchQuery) => {
       setSearchText(query.search)
@@ -184,7 +207,7 @@ export function useSearchReplace({
       }
     }
 
-    const openPanel = (view: EditorView, withReplace: boolean) => {
+    const openPanelFromKeymap = (view: EditorView, withReplace: boolean) => {
       if (withReplace) {
         setShowReplace(true)
       }
@@ -199,13 +222,13 @@ export function useSearchReplace({
       search({ createPanel, literal: true, top: true }),
       Prec.high(
         keymap.of([
-          { key: 'Mod-f', run: (view) => openPanel(view, false) },
+          { key: 'Mod-f', run: (view) => openPanelFromKeymap(view, false) },
           // Ctrl+H (VS Code style) instead of IntelliJ's Ctrl+R, which would
           // shadow browser reload; Cmd+H hides the app on macOS.
           {
             key: 'Ctrl-h',
             mac: 'Cmd-Alt-f',
-            run: (view) => openPanel(view, true),
+            run: (view) => openPanelFromKeymap(view, true),
           },
           { key: 'Escape', run: closeSearchPanel },
           {
@@ -432,6 +455,7 @@ export function useSearchReplace({
   return {
     editorProps,
     extensions,
+    openPanel,
     panelPortal,
     takePendingReplace,
   }

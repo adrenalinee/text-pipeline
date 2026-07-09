@@ -316,6 +316,7 @@ export function SearchReplacePanel({
           <ActionIcon
             aria-label="Close search"
             color="gray"
+            ml="auto"
             size="sm"
             variant="subtle"
             onClick={onClose}
