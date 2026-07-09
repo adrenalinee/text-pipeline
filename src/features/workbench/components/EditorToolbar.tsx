@@ -13,8 +13,8 @@ import {
   CircleDot,
   Code2,
   FileJson,
+  Search,
   ShieldCheck,
-  TextSearch,
 } from 'lucide-react'
 
 import type { WorkbenchViewMode } from '../types'
@@ -126,28 +126,6 @@ export function EditorToolbar({
             Samples
           </Button>
         </Tooltip>
-        <Tooltip
-          label={
-            activeViewMode === 'source'
-              ? 'Search and replace (Ctrl+F)'
-              : 'Search is available in source mode'
-          }
-          withArrow
-        >
-          <ActionIcon
-            aria-label={
-              activeViewMode === 'source'
-                ? 'Search and replace'
-                : 'Search is available in source mode'
-            }
-            color="gray"
-            disabled={activeViewMode !== 'source'}
-            variant="light"
-            onClick={onOpenSearch}
-          >
-            <TextSearch size={18} />
-          </ActionIcon>
-        </Tooltip>
         <FormatValidationStatus
           result={validationEnabled ? validationResult : null}
         />
@@ -179,6 +157,28 @@ export function EditorToolbar({
             onClick={onToggleValidation}
           >
             <IconShieldCheck size={18} />
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip
+          label={
+            activeViewMode === 'source'
+              ? 'Search and replace (Ctrl+F)'
+              : 'Search is available in source mode'
+          }
+          withArrow
+        >
+          <ActionIcon
+            aria-label={
+              activeViewMode === 'source'
+                ? 'Search and replace'
+                : 'Search is available in source mode'
+            }
+            color="gray"
+            disabled={activeViewMode !== 'source'}
+            variant="light"
+            onClick={onOpenSearch}
+          >
+            <Search size={18} />
           </ActionIcon>
         </Tooltip>
         <Tooltip
