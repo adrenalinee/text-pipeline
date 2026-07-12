@@ -1,4 +1,5 @@
-import { Box, Group, Text } from '@mantine/core'
+import { ActionIcon, Box, Group, Text, Tooltip } from '@mantine/core'
+import { PanelLeftClose } from 'lucide-react'
 
 import {
   getLinearAncestorIds,
@@ -13,6 +14,7 @@ import { SidebarSection } from './SidebarSection'
 type HistorySidebarProps = {
   commits: ReadonlyArray<TextCommit>
   currentText: string
+  onCollapse: () => void
   onRestoreCommit: (commit: TextCommit) => void
   onRestoreRoot: () => void
   selectedRevisionId: string
@@ -22,6 +24,7 @@ type HistorySidebarProps = {
 export function HistorySidebar({
   commits,
   currentText,
+  onCollapse,
   onRestoreCommit,
   onRestoreRoot,
   selectedRevisionId,
@@ -36,7 +39,23 @@ export function HistorySidebar({
   const rootActive = selectedRevisionId === ROOT_REVISION_ID
 
   return (
-    <SidebarSection title="History">
+    <SidebarSection
+      action={
+        <Tooltip label="Collapse history" position="right" withArrow>
+          <ActionIcon
+            aria-label="Collapse history"
+            color="gray"
+            onClick={onCollapse}
+            size="lg"
+            variant="subtle"
+          >
+            <PanelLeftClose size={18} />
+          </ActionIcon>
+        </Tooltip>
+      }
+      actionAlign="left"
+      title="History"
+    >
       <Box className="historyTimeline">
         <Box className="historyRow">
           <TimelineDot active={workingActive} />

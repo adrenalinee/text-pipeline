@@ -64,6 +64,7 @@ describe('HistorySidebar', () => {
         currentText="hello"
         selectedRevisionId="c002"
         workingBaseRevisionId="c002"
+        onCollapse={vi.fn()}
         onRestoreCommit={onRestoreCommit}
         onRestoreRoot={vi.fn()}
       />,
