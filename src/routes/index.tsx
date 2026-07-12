@@ -884,6 +884,7 @@ function Workbench() {
             currentText={editorValue}
             selectedRevisionId={selectedRevisionId}
             workingBaseRevisionId={workingBaseRevisionId}
+            onCollapse={() => setLeftOpenedPersisted(false)}
             onRestoreCommit={requestCheckout}
             onRestoreRoot={() => requestCheckout(ROOT_REVISION_ID)}
           />
@@ -987,7 +988,10 @@ function Workbench() {
         }
       >
         {rightOpened ? (
-          <TransformsSidebar sections={transformSections} />
+          <TransformsSidebar
+            onCollapse={() => setRightOpenedPersisted(false)}
+            sections={transformSections}
+          />
         ) : (
           <TransformsRail
             onExpand={() => setRightOpenedPersisted(true)}
