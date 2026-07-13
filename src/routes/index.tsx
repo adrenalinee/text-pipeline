@@ -9,6 +9,7 @@ import {
   Loader,
   MantineProvider,
   Modal,
+  NumberInput,
   Stack,
   Text,
   Tooltip,
@@ -47,6 +48,7 @@ import { flushSync } from 'react-dom'
 import { EditorToolbar } from '#/features/workbench/components/EditorToolbar'
 import { HistoryRail } from '#/features/workbench/components/HistoryRail'
 import { HistorySidebar } from '#/features/workbench/components/HistorySidebar'
+import { StatusBar } from '#/features/workbench/components/StatusBar'
 import { TransformsRail } from '#/features/workbench/components/TransformsRail'
 import { TransformsSidebar } from '#/features/workbench/components/TransformsSidebar'
 import {
@@ -98,6 +100,12 @@ import {
 import type { FormatValidationResult } from '#/features/workbench/utils/formatValidation'
 import { createSqlLintSource } from '#/features/workbench/utils/formatLinting'
 import {
+  countLines,
+  getLineAndColumn,
+  getOffsetForLineAndColumn,
+  getSelectionStats,
+} from '#/features/workbench/utils/textMetrics'
+import {
   DEFAULT_SQL_DIALECT,
   SQL_DIALECT_OPTIONS,
 } from '#/features/workbench/sqlDialects'
@@ -121,6 +129,20 @@ const RAIL_WIDTH = 48
 
 const LEFT_PANEL_STORAGE_KEY = 'text-pipeline:leftSidebarOpened'
 const RIGHT_PANEL_STORAGE_KEY = 'text-pipeline:rightSidebarOpened'
+
+// The workbench keeps all text in JS strings decoded from the clipboard or
+// keyboard, so the underlying representation is always Unicode. The encoding
+// label is a display hint for how the source is meant to be read/written; it
+// does not re-decode the in-memory text.
+const DEFAULT_ENCODING_LABEL = 'UTF-8'
+const ENCODING_OPTIONS: Array<{ description: string; label: string }> = [
+  { description: 'Unicode, variable width (default)', label: 'UTF-8' },
+  { description: 'Unicode, little-endian 16-bit', label: 'UTF-16 LE' },
+  { description: 'Unicode, big-endian 16-bit', label: 'UTF-16 BE' },
+  { description: '7-bit US-ASCII', label: 'US-ASCII' },
+  { description: 'Latin-1, Western European', label: 'ISO-8859-1' },
+  { description: 'Windows Western European', label: 'Windows-1252' },
+]
 
 function readStoredPanelOpened(key: string, fallback: boolean) {
   if (typeof window === 'undefined') {
@@ -172,6 +194,9 @@ function Workbench() {
   const [syntaxMode, setSyntaxMode] = useState<SyntaxMode>('json')
   const [syntaxModalOpened, setSyntaxModalOpened] = useState(false)
   const [sampleModalOpened, setSampleModalOpened] = useState(false)
+  const [encoding, setEncoding] = useState(DEFAULT_ENCODING_LABEL)
+  const [encodingModalOpened, setEncodingModalOpened] = useState(false)
+  const [goToLineModalOpened, setGoToLineModalOpened] = useState(false)
   const [softWrapEnabled, setSoftWrapEnabled] = useState(true)
   const [validationEnabled, setValidationEnabled] = useState(false)
   const [sqlDialect, setSqlDialect] = useState<SqlDialect>(DEFAULT_SQL_DIALECT)
@@ -180,6 +205,7 @@ function Workbench() {
     from: number
     to: number
   }>({ from: 0, to: 0 })
+  const [cursorOffset, setCursorOffset] = useState(0)
   const [runningTransformLabel, setRunningTransformLabel] = useState<
     string | null
   >(null)
@@ -199,6 +225,12 @@ function Workbench() {
   // Crop relies on a live editor selection, which only exists in source mode.
   const hasEditorSelection =
     viewMode === 'source' && selectionRange.from !== selectionRange.to
+  const totalLineCount = countLines(editorValue)
+  const totalCharCount = editorValue.length
+  const cursorPosition = getLineAndColumn(editorValue, cursorOffset)
+  const selectionStats = hasEditorSelection
+    ? getSelectionStats(editorValue, selectionRange.from, selectionRange.to)
+    : null
   const rootRevision = getRootRevisionSnapshot(commits, INITIAL_TEXT_REVISION)
   const rootText = rootRevision.text
   const rootSyntaxMode = rootRevision.syntaxMode
@@ -585,6 +617,21 @@ function Workbench() {
     markWorkingTextChanged()
   }
 
+  function goToLineColumn(line: number, column: number) {
+    setViewMode('source')
+    const offset = getOffsetForLineAndColumn(editorValue, line, column)
+    const view = editorRef.current?.view
+
+    if (view) {
+      view.dispatch({ selection: { anchor: offset }, scrollIntoView: true })
+      view.focus()
+    }
+
+    setCursorOffset(offset)
+    setSelectionRange({ from: offset, to: offset })
+    setGoToLineModalOpened(false)
+  }
+
   function loadSample(sample: TextSample) {
     markWorkingTextChanged()
     setEditorValue(sample.value)
@@ -827,6 +874,51 @@ function Workbench() {
           </Group>
         </Stack>
       </Modal>
+      <Modal
+        centered
+        opened={goToLineModalOpened}
+        overlayProps={{ backgroundOpacity: 0.45, blur: 1 }}
+        size="sm"
+        title="Go to line"
+        onClose={() => setGoToLineModalOpened(false)}
+      >
+        {goToLineModalOpened && (
+          <GoToLineForm
+            currentColumn={cursorPosition.column}
+            currentLine={cursorPosition.line}
+            maxLine={Math.max(1, totalLineCount)}
+            onCancel={() => setGoToLineModalOpened(false)}
+            onSubmit={goToLineColumn}
+          />
+        )}
+      </Modal>
+      <Modal
+        centered
+        opened={encodingModalOpened}
+        overlayProps={{ backgroundOpacity: 0.45, blur: 1 }}
+        size="sm"
+        title="Encoding"
+        onClose={() => setEncodingModalOpened(false)}
+      >
+        <Stack gap="xs">
+          <Text c="dimmed" size="xs">
+            Text is held in memory as Unicode. This sets the encoding label used
+            when reading or writing the source.
+          </Text>
+          {ENCODING_OPTIONS.map((option) => (
+            <OptionButton
+              active={encoding === option.label}
+              description={option.description}
+              key={option.label}
+              label={option.label}
+              onClick={() => {
+                setEncoding(option.label)
+                setEncodingModalOpened(false)
+              }}
+            />
+          ))}
+        </Stack>
+      </Modal>
 
       <AppShell.Header className="workbenchHeader">
         <Group h="100%" px="sm" justify="space-between" wrap="nowrap">
@@ -906,8 +998,22 @@ function Workbench() {
           <EditorToolbar
             activeViewMode={viewMode}
             canCommitWorkingText={canCommitWorkingText}
-            formatLabel={currentFormat.label}
             softWrapEnabled={softWrapEnabled}
+            viewAvailable={viewAvailable}
+            onCommitWorkingText={commitWorkingText}
+            onOpenSamples={() => setSampleModalOpened(true)}
+            onOpenSearch={() => searchReplace.openPanel('search')}
+            onSetViewMode={setViewMode}
+            onToggleSoftWrap={() => setSoftWrapEnabled((enabled) => !enabled)}
+          />
+          <StatusBar
+            activeViewMode={viewMode}
+            charCount={totalCharCount}
+            cursor={cursorPosition}
+            encoding={encoding}
+            formatLabel={currentFormat.label}
+            lineCount={totalLineCount}
+            selection={selectionStats}
             sqlDialectId={syntaxMode === 'sql' ? sqlDialect.id : undefined}
             sqlDialectOptions={
               syntaxMode === 'sql'
@@ -920,17 +1026,13 @@ function Workbench() {
             validationEnabled={validationEnabled}
             validationAvailable={currentFormat.validation === 'supported'}
             validationResult={validationResult}
-            viewAvailable={viewAvailable}
-            onChooseSyntax={() => setSyntaxModalOpened(true)}
             onChooseSqlDialect={(id) => {
               const found = SQL_DIALECT_OPTIONS.find((d) => d.id === id)
               if (found) setSqlDialect(found)
             }}
-            onCommitWorkingText={commitWorkingText}
-            onOpenSamples={() => setSampleModalOpened(true)}
-            onOpenSearch={() => searchReplace.openPanel('search')}
-            onSetViewMode={setViewMode}
-            onToggleSoftWrap={() => setSoftWrapEnabled((enabled) => !enabled)}
+            onChooseEncoding={() => setEncodingModalOpened(true)}
+            onChooseSyntax={() => setSyntaxModalOpened(true)}
+            onGoToLine={() => setGoToLineModalOpened(true)}
             onToggleValidation={() =>
               setValidationEnabled((enabled) => !enabled)
             }
@@ -961,11 +1063,14 @@ function Workbench() {
               placeholder="any text here"
               onChange={updateEditorValue}
               onStatistics={(statistics) => {
-                const { from, to } = statistics.selectionAsSingle
+                const { from, head, to } = statistics.selectionAsSingle
                 setSelectionRange((current) =>
                   current.from === from && current.to === to
                     ? current
                     : { from, to },
+                )
+                setCursorOffset((current) =>
+                  current === head ? current : head,
                 )
               }}
             />
@@ -1122,6 +1227,94 @@ function SampleOptionButton({
           </Text>
         </Box>
       </Group>
+    </button>
+  )
+}
+
+function GoToLineForm({
+  currentColumn,
+  currentLine,
+  maxLine,
+  onCancel,
+  onSubmit,
+}: {
+  currentColumn: number
+  currentLine: number
+  maxLine: number
+  onCancel: () => void
+  onSubmit: (line: number, column: number) => void
+}) {
+  const [line, setLine] = useState<number | string>(currentLine)
+  const [column, setColumn] = useState<number | string>(currentColumn)
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault()
+        onSubmit(Number(line) || 1, Number(column) || 1)
+      }}
+    >
+      <Stack gap="md">
+        <Text c="dimmed" size="xs">
+          Jump the cursor to a location. Line 1&ndash;{maxLine}.
+        </Text>
+        <Group gap="sm" grow wrap="nowrap">
+          <NumberInput
+            allowDecimal={false}
+            data-autofocus
+            label="Line"
+            max={maxLine}
+            min={1}
+            value={line}
+            onChange={setLine}
+          />
+          <NumberInput
+            allowDecimal={false}
+            label="Column"
+            min={1}
+            value={column}
+            onChange={setColumn}
+          />
+        </Group>
+        <Group justify="flex-end" gap="xs" wrap="nowrap">
+          <Button type="button" variant="default" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit">Go to location</Button>
+        </Group>
+      </Stack>
+    </form>
+  )
+}
+
+function OptionButton({
+  active,
+  description,
+  label,
+  onClick,
+}: {
+  active: boolean
+  description: string
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      aria-pressed={active}
+      className="syntaxOption"
+      data-selected={active || undefined}
+      type="button"
+      onClick={onClick}
+    >
+      <Box className="syntaxOptionText">
+        <Text fw={650} size="sm">
+          {label}
+        </Text>
+        <Text c="dimmed" size="xs">
+          {description}
+        </Text>
+      </Box>
+      {active ? <Check size={16} /> : null}
     </button>
   )
 }

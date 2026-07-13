@@ -78,20 +78,162 @@ button {
   justify-content: flex-end;
 }
 
+.statusBar {
+  min-height: 30px;
+  padding: 3px 8px;
+  gap: 8px;
+  border-bottom: 1px solid
+    light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+  background: light-dark(
+    var(--mantine-color-gray-0),
+    var(--mantine-color-dark-8)
+  );
+  overflow: hidden;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+}
+
+.statusBarGroup {
+  min-width: 0;
+}
+
+.statusBarGroupRight {
+  flex: 0 1 auto;
+  overflow: hidden;
+  color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-gray-4));
+}
+
+/* Shared chip/button used for every interactive status command so the format,
+   location, and encoding controls read as one consistent row. */
+.statusBarButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 4px;
+  color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-gray-3));
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.statusBarButton:hover {
+  background: light-dark(
+    var(--mantine-color-gray-2),
+    var(--mantine-color-dark-5)
+  );
+  color: light-dark(var(--mantine-color-gray-9), var(--mantine-color-gray-1));
+}
+
+.statusBarButton:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.statusBarButton:disabled:hover {
+  background: transparent;
+  color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-gray-3));
+}
+
+.statusBarButtonIcon {
+  flex: 0 0 auto;
+  opacity: 0.85;
+}
+
+.statusBarButtonLabel {
+  font-weight: 600;
+}
+
+.statusBarButtonCaret {
+  flex: 0 0 auto;
+  margin-left: -1px;
+  opacity: 0.55;
+}
+
+.statusBarFormatButton .statusBarButtonLabel {
+  min-width: 34px;
+}
+
+.statusBarMetric {
+  flex: 0 0 auto;
+  padding: 0 6px;
+  color: light-dark(var(--mantine-color-gray-6), var(--mantine-color-gray-5));
+}
+
+.statusBarMetricItem {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.statusBarMetricValue {
+  font-weight: 700;
+  color: light-dark(var(--mantine-color-gray-8), var(--mantine-color-gray-2));
+}
+
+.statusBarMetricUnit {
+  font-size: 11px;
+  color: light-dark(var(--mantine-color-gray-6), var(--mantine-color-gray-5));
+}
+
+.statusBarSelection {
+  flex: 0 0 auto;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: light-dark(var(--mantine-color-blue-8), var(--mantine-color-blue-2));
+  background: light-dark(
+    var(--mantine-color-blue-1),
+    rgba(34, 139, 230, 0.18)
+  );
+}
+
+.statusBarDivider {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 16px;
+  background: light-dark(
+    var(--mantine-color-gray-3),
+    var(--mantine-color-dark-4)
+  );
+}
+
+.statusBarValidation[data-status='valid'] {
+  color: light-dark(var(--mantine-color-green-8), var(--mantine-color-green-4));
+}
+
+.statusBarValidation[data-status='valid']:hover {
+  background: light-dark(
+    var(--mantine-color-green-1),
+    rgba(64, 192, 87, 0.16)
+  );
+  color: light-dark(var(--mantine-color-green-9), var(--mantine-color-green-3));
+}
+
+.statusBarValidation[data-status='invalid'] {
+  color: light-dark(var(--mantine-color-red-8), var(--mantine-color-red-4));
+}
+
+.statusBarValidation[data-status='invalid']:hover {
+  background: light-dark(var(--mantine-color-red-1), rgba(250, 82, 82, 0.16));
+  color: light-dark(var(--mantine-color-red-9), var(--mantine-color-red-3));
+}
+
 .editorCommands {
   flex-shrink: 0;
 }
 
 .viewModeTabs {
   flex: 0 0 auto;
-}
-
-.syntaxButton {
-  min-width: 78px;
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-    'Courier New', monospace;
-  font-weight: 700;
 }
 
 .sampleButton {
@@ -107,44 +249,6 @@ button {
 .commitButton {
   min-width: 86px;
   font-weight: 700;
-}
-
-.validationToggle {
-  min-width: 94px;
-  font-weight: 700;
-}
-
-.validationStatus {
-  width: 128px;
-  min-width: 128px;
-  height: 26px;
-  justify-content: flex-end;
-  color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-gray-3));
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.validationStatus[data-empty] {
-  visibility: hidden;
-}
-
-.validationStatus[data-status='valid'] {
-  color: light-dark(var(--mantine-color-green-7), var(--mantine-color-green-3));
-}
-
-.validationStatus[data-status='invalid'] {
-  color: light-dark(var(--mantine-color-red-7), var(--mantine-color-red-3));
-}
-
-.validationStatusText {
-  min-width: 0;
-  overflow: hidden;
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-    'Courier New', monospace;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .syntaxOption {
@@ -224,7 +328,7 @@ button {
 }
 
 .codeEditor .cm-content {
-  padding: 16px 0;
+  padding: 4px 0 16px;
 }
 
 .codeEditor .cm-line {
@@ -265,7 +369,7 @@ button {
 }
 
 .codeEditorSearchOpen .cm-content {
-  padding-top: calc(16px + var(--search-panel-height, 0px));
+  padding-top: calc(4px + var(--search-panel-height, 0px));
 }
 
 .searchReplacePanel {
@@ -879,21 +983,23 @@ button {
     display: none;
   }
 
-  .validationToggle {
-    width: 34px;
-    min-width: 34px;
+  .statusBar {
+    padding: 3px 6px;
+    gap: 4px;
   }
 
-  .validationToggle .mantine-Button-label {
+  .statusBarButton {
+    padding: 0 6px;
+    gap: 4px;
+  }
+
+  /* Drop the total line/char readout on very narrow screens so the
+     interactive location and validation chips stay reachable. */
+  .statusBarMetric {
     display: none;
   }
 
-  .validationStatus {
-    width: 24px;
-    min-width: 24px;
-  }
-
-  .validationStatusText {
+  .statusBarValidation .statusBarButtonLabel {
     display: none;
   }
 
