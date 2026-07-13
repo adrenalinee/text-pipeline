@@ -78,6 +78,37 @@ button {
   justify-content: flex-end;
 }
 
+.statusBar {
+  min-height: 30px;
+  padding: 4px 12px;
+  gap: 8px;
+  border-bottom: 1px solid
+    light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+  background: light-dark(
+    var(--mantine-color-gray-0),
+    var(--mantine-color-dark-8)
+  );
+  overflow: hidden;
+}
+
+.statusBarFormat {
+  min-width: 0;
+}
+
+.statusBarMetrics {
+  flex: 0 0 auto;
+  min-width: 0;
+  color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-gray-4));
+}
+
+.statusBarItem {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+}
+
 .editorCommands {
   flex-shrink: 0;
 }
@@ -895,6 +926,19 @@ button {
 
   .validationStatusText {
     display: none;
+  }
+
+  .statusBar {
+    padding: 4px 8px;
+    gap: 4px;
+  }
+
+  .statusBarMetrics {
+    gap: 8px !important;
+  }
+
+  .statusBarItem {
+    font-size: 10px;
   }
 
   .viewModeTabs {

@@ -47,6 +47,7 @@ import { flushSync } from 'react-dom'
 import { EditorToolbar } from '#/features/workbench/components/EditorToolbar'
 import { HistoryRail } from '#/features/workbench/components/HistoryRail'
 import { HistorySidebar } from '#/features/workbench/components/HistorySidebar'
+import { StatusBar } from '#/features/workbench/components/StatusBar'
 import { TransformsRail } from '#/features/workbench/components/TransformsRail'
 import { TransformsSidebar } from '#/features/workbench/components/TransformsSidebar'
 import {
@@ -98,6 +99,11 @@ import {
 import type { FormatValidationResult } from '#/features/workbench/utils/formatValidation'
 import { createSqlLintSource } from '#/features/workbench/utils/formatLinting'
 import {
+  countLines,
+  getLineAndColumn,
+  getSelectionStats,
+} from '#/features/workbench/utils/textMetrics'
+import {
   DEFAULT_SQL_DIALECT,
   SQL_DIALECT_OPTIONS,
 } from '#/features/workbench/sqlDialects'
@@ -121,6 +127,10 @@ const RAIL_WIDTH = 48
 
 const LEFT_PANEL_STORAGE_KEY = 'text-pipeline:leftSidebarOpened'
 const RIGHT_PANEL_STORAGE_KEY = 'text-pipeline:rightSidebarOpened'
+
+// The workbench keeps all text in JS strings decoded from the clipboard or
+// keyboard, so the effective encoding is always UTF-8.
+const TEXT_ENCODING_LABEL = 'UTF-8'
 
 function readStoredPanelOpened(key: string, fallback: boolean) {
   if (typeof window === 'undefined') {
@@ -180,6 +190,7 @@ function Workbench() {
     from: number
     to: number
   }>({ from: 0, to: 0 })
+  const [cursorOffset, setCursorOffset] = useState(0)
   const [runningTransformLabel, setRunningTransformLabel] = useState<
     string | null
   >(null)
@@ -199,6 +210,12 @@ function Workbench() {
   // Crop relies on a live editor selection, which only exists in source mode.
   const hasEditorSelection =
     viewMode === 'source' && selectionRange.from !== selectionRange.to
+  const totalLineCount = countLines(editorValue)
+  const totalCharCount = editorValue.length
+  const cursorPosition = getLineAndColumn(editorValue, cursorOffset)
+  const selectionStats = hasEditorSelection
+    ? getSelectionStats(editorValue, selectionRange.from, selectionRange.to)
+    : null
   const rootRevision = getRootRevisionSnapshot(commits, INITIAL_TEXT_REVISION)
   const rootText = rootRevision.text
   const rootSyntaxMode = rootRevision.syntaxMode
@@ -906,8 +923,22 @@ function Workbench() {
           <EditorToolbar
             activeViewMode={viewMode}
             canCommitWorkingText={canCommitWorkingText}
-            formatLabel={currentFormat.label}
             softWrapEnabled={softWrapEnabled}
+            viewAvailable={viewAvailable}
+            onCommitWorkingText={commitWorkingText}
+            onOpenSamples={() => setSampleModalOpened(true)}
+            onOpenSearch={() => searchReplace.openPanel('search')}
+            onSetViewMode={setViewMode}
+            onToggleSoftWrap={() => setSoftWrapEnabled((enabled) => !enabled)}
+          />
+          <StatusBar
+            activeViewMode={viewMode}
+            charCount={totalCharCount}
+            cursor={cursorPosition}
+            encoding={TEXT_ENCODING_LABEL}
+            formatLabel={currentFormat.label}
+            lineCount={totalLineCount}
+            selection={selectionStats}
             sqlDialectId={syntaxMode === 'sql' ? sqlDialect.id : undefined}
             sqlDialectOptions={
               syntaxMode === 'sql'
@@ -920,17 +951,11 @@ function Workbench() {
             validationEnabled={validationEnabled}
             validationAvailable={currentFormat.validation === 'supported'}
             validationResult={validationResult}
-            viewAvailable={viewAvailable}
-            onChooseSyntax={() => setSyntaxModalOpened(true)}
             onChooseSqlDialect={(id) => {
               const found = SQL_DIALECT_OPTIONS.find((d) => d.id === id)
               if (found) setSqlDialect(found)
             }}
-            onCommitWorkingText={commitWorkingText}
-            onOpenSamples={() => setSampleModalOpened(true)}
-            onOpenSearch={() => searchReplace.openPanel('search')}
-            onSetViewMode={setViewMode}
-            onToggleSoftWrap={() => setSoftWrapEnabled((enabled) => !enabled)}
+            onChooseSyntax={() => setSyntaxModalOpened(true)}
             onToggleValidation={() =>
               setValidationEnabled((enabled) => !enabled)
             }
@@ -961,11 +986,14 @@ function Workbench() {
               placeholder="any text here"
               onChange={updateEditorValue}
               onStatistics={(statistics) => {
-                const { from, to } = statistics.selectionAsSingle
+                const { from, head, to } = statistics.selectionAsSingle
                 setSelectionRange((current) =>
                   current.from === from && current.to === to
                     ? current
                     : { from, to },
+                )
+                setCursorOffset((current) =>
+                  current === head ? current : head,
                 )
               }}
             />
