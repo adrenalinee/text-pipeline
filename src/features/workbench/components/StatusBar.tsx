@@ -1,6 +1,15 @@
-import { ActionIcon, Button, Group, Select, Text, Tooltip } from '@mantine/core'
-import { CircleAlert, CircleCheck, Code2, ShieldCheck } from 'lucide-react'
-import { IconShieldCheck } from '@tabler/icons-react'
+import { Group, Select, Text, Tooltip, UnstyledButton } from '@mantine/core'
+import {
+  ChevronDown,
+  CircleAlert,
+  CircleCheck,
+  Code2,
+  FileCode2,
+  MapPin,
+  ShieldCheck,
+  ShieldQuestion,
+  TextSelect,
+} from 'lucide-react'
 
 import type { WorkbenchViewMode } from '../types'
 import type { FormatValidationResult } from '../utils/formatValidation'
@@ -22,8 +31,10 @@ export function StatusBar({
   encoding,
   formatLabel,
   lineCount,
+  onChooseEncoding,
   onChooseSqlDialect,
   onChooseSyntax,
+  onGoToLine,
   onToggleValidation,
   selection,
   sqlDialectId,
@@ -38,8 +49,10 @@ export function StatusBar({
   encoding: string
   formatLabel: string
   lineCount: number
+  onChooseEncoding: () => void
   onChooseSqlDialect?: (id: string) => void
   onChooseSyntax: () => void
+  onGoToLine: () => void
   onToggleValidation: () => void
   selection: StatusBarSelectionInfo | null
   sqlDialectId?: string
@@ -48,21 +61,21 @@ export function StatusBar({
   validationEnabled: boolean
   validationResult: FormatValidationResult | null
 }) {
+  const isSource = activeViewMode === 'source'
+
   return (
     <Group className="statusBar" justify="space-between" wrap="nowrap">
-      <Group className="statusBarFormat" gap={6} wrap="nowrap">
-        <Tooltip label="Choose text format" withArrow>
-          <Button
-            aria-label="Choose text format"
-            className="syntaxButton"
-            color="gray"
-            leftSection={<Code2 size={14} />}
-            size="xs"
-            variant="light"
+      <Group className="statusBarGroup statusBarGroupLeft" gap={4} wrap="nowrap">
+        <Tooltip label="Change format and syntax highlighting" withArrow>
+          <UnstyledButton
+            aria-label="Change format and syntax highlighting"
+            className="statusBarButton statusBarFormatButton"
             onClick={onChooseSyntax}
           >
-            {formatLabel}
-          </Button>
+            <Code2 className="statusBarButtonIcon" size={14} />
+            <span className="statusBarButtonLabel">{formatLabel}</span>
+            <ChevronDown className="statusBarButtonCaret" size={12} />
+          </UnstyledButton>
         </Tooltip>
         {sqlDialectOptions && sqlDialectId && onChooseSqlDialect && (
           <Select
@@ -78,120 +91,154 @@ export function StatusBar({
             }}
           />
         )}
-        <FormatValidationStatus
-          result={validationEnabled ? validationResult : null}
-        />
+      </Group>
+
+      <Group
+        className="statusBarGroup statusBarGroupRight"
+        gap={4}
+        wrap="nowrap"
+      >
         <Tooltip
-          label={
-            !validationAvailable
-              ? 'Validation is not available for this format'
-              : validationEnabled
-                ? 'Disable format validation'
-                : 'Enable format validation'
-          }
+          label={`${lineCount} line${lineCount === 1 ? '' : 's'}, ${charCount} character${charCount === 1 ? '' : 's'} total`}
           withArrow
         >
-          <ActionIcon
-            aria-label={
-              !validationAvailable
-                ? 'Validation is not available for this format'
-                : validationEnabled
-                  ? 'Disable format validation'
-                  : 'Enable format validation'
-            }
-            aria-pressed={validationEnabled}
-            color={getValidationColor(validationResult)}
-            disabled={!validationAvailable}
-            variant={validationEnabled ? 'filled' : 'light'}
-            onClick={onToggleValidation}
-          >
-            <IconShieldCheck size={18} />
-          </ActionIcon>
+          <Group className="statusBarMetric" gap={10} wrap="nowrap">
+            <span className="statusBarMetricItem">
+              <span className="statusBarMetricValue">{lineCount}</span>
+              <span className="statusBarMetricUnit">
+                {lineCount === 1 ? 'line' : 'lines'}
+              </span>
+            </span>
+            <span className="statusBarMetricItem">
+              <span className="statusBarMetricValue">{charCount}</span>
+              <span className="statusBarMetricUnit">
+                {charCount === 1 ? 'char' : 'chars'}
+              </span>
+            </span>
+          </Group>
         </Tooltip>
-      </Group>
-      <Group className="statusBarMetrics" gap="md" wrap="nowrap">
-        {activeViewMode === 'source' && (
-          <Text className="statusBarItem" size="xs">
-            Ln {cursor.line}, Col {cursor.column}
-          </Text>
-        )}
+
         {selection && (
-          <Text className="statusBarItem" size="xs">
-            Selected {selection.lineCount} ln, {selection.charCount} ch
-          </Text>
+          <Tooltip
+            label={`Selected ${selection.charCount} character${
+              selection.charCount === 1 ? '' : 's'
+            } across ${selection.lineCount} line${
+              selection.lineCount === 1 ? '' : 's'
+            }`}
+            withArrow
+          >
+            <Group className="statusBarSelection" gap={6} wrap="nowrap">
+              <TextSelect size={13} />
+              <span>
+                {selection.charCount} chars
+                {selection.lineCount > 1
+                  ? `, ${selection.lineCount} lines`
+                  : ''}
+              </span>
+            </Group>
+          </Tooltip>
         )}
-        <Text className="statusBarItem" size="xs">
-          {lineCount} lines, {charCount} chars
-        </Text>
-        <Text className="statusBarItem" size="xs">
-          {encoding}
-        </Text>
+
+        <span className="statusBarDivider" aria-hidden="true" />
+
+        {isSource && (
+          <Tooltip label="Go to line and column" withArrow>
+            <UnstyledButton
+              aria-label="Go to line and column"
+              className="statusBarButton"
+              onClick={onGoToLine}
+            >
+              <MapPin className="statusBarButtonIcon" size={13} />
+              <span className="statusBarButtonLabel">
+                {cursor.line}:{cursor.column}
+              </span>
+            </UnstyledButton>
+          </Tooltip>
+        )}
+
+        <Tooltip label="Change encoding" withArrow>
+          <UnstyledButton
+            aria-label="Change encoding"
+            className="statusBarButton"
+            onClick={onChooseEncoding}
+          >
+            <FileCode2 className="statusBarButtonIcon" size={13} />
+            <span className="statusBarButtonLabel">{encoding}</span>
+          </UnstyledButton>
+        </Tooltip>
+
+        <span className="statusBarDivider" aria-hidden="true" />
+
+        <ValidationStatusButton
+          available={validationAvailable}
+          enabled={validationEnabled}
+          result={validationEnabled ? validationResult : null}
+          onToggle={onToggleValidation}
+        />
       </Group>
     </Group>
   )
 }
 
-function FormatValidationStatus({
+function ValidationStatusButton({
+  available,
+  enabled,
+  onToggle,
   result,
 }: {
+  available: boolean
+  enabled: boolean
+  onToggle: () => void
   result: FormatValidationResult | null
 }) {
-  if (!result) {
-    return (
-      <Group
-        aria-hidden="true"
-        className="validationStatus"
-        data-empty
-        gap={4}
-        wrap="nowrap"
-      >
-        <ShieldCheck size={13} />
-        <Text className="validationStatusText" size="xs">
-          Validation
-        </Text>
-      </Group>
-    )
-  }
+  const tooltip = !available
+    ? 'Validation is not available for this format'
+    : enabled
+      ? (result?.message ?? 'Disable format validation')
+      : 'Enable format validation'
 
-  const isValid = result.status === 'valid'
-  const isInvalid = result.status === 'invalid'
-  const icon = isInvalid ? (
-    <CircleAlert size={13} />
-  ) : isValid ? (
-    <CircleCheck size={13} />
-  ) : (
-    <ShieldCheck size={13} />
-  )
+  const status = !available
+    ? 'unavailable'
+    : !enabled
+      ? 'off'
+      : (result?.status ?? 'pending')
+
+  const label = !available
+    ? 'Validation'
+    : !enabled
+      ? 'Validate'
+      : status === 'valid'
+        ? 'Valid'
+        : status === 'invalid'
+          ? 'Invalid'
+          : (result?.title ?? 'Validating')
+
+  const icon =
+    status === 'valid' ? (
+      <CircleCheck size={13} />
+    ) : status === 'invalid' ? (
+      <CircleAlert size={13} />
+    ) : status === 'unavailable' ? (
+      <ShieldQuestion size={13} />
+    ) : (
+      <ShieldCheck size={13} />
+    )
 
   return (
-    <Tooltip label={result.message} withArrow>
-      <Group
-        className="validationStatus"
-        data-status={result.status}
-        gap={4}
-        wrap="nowrap"
+    <Tooltip label={tooltip} withArrow>
+      <UnstyledButton
+        aria-label={tooltip}
+        aria-pressed={available ? enabled : undefined}
+        className="statusBarButton statusBarValidation"
+        data-status={status}
+        disabled={!available}
+        onClick={available ? onToggle : undefined}
       >
         {icon}
-        <Text className="validationStatusText" size="xs">
-          {result.title}
+        <Text className="statusBarButtonLabel" span>
+          {label}
         </Text>
-      </Group>
+      </UnstyledButton>
     </Tooltip>
   )
-}
-
-function getValidationColor(result: FormatValidationResult | null) {
-  if (!result) {
-    return 'gray'
-  }
-
-  if (result.status === 'invalid') {
-    return 'red'
-  }
-
-  if (result.status === 'valid') {
-    return 'green'
-  }
-
-  return 'gray'
 }

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { getLineAndColumn, getSelectionStats } from './textMetrics'
+import {
+  getLineAndColumn,
+  getOffsetForLineAndColumn,
+  getSelectionStats,
+} from './textMetrics'
 
 describe('getLineAndColumn', () => {
   it('returns line 1, column 1 for an empty document', () => {
@@ -16,6 +20,31 @@ describe('getLineAndColumn', () => {
 
   it('clamps an offset past the end of the text', () => {
     expect(getLineAndColumn('abc', 99)).toEqual({ column: 4, line: 1 })
+  })
+})
+
+describe('getOffsetForLineAndColumn', () => {
+  it('returns offset 0 for line 1, column 1', () => {
+    expect(getOffsetForLineAndColumn('one\ntwo', 1, 1)).toBe(0)
+  })
+
+  it('finds the offset of a column on a later line', () => {
+    expect(getOffsetForLineAndColumn('one\ntwo\nthree', 3, 2)).toBe(9)
+  })
+
+  it('is the inverse of getLineAndColumn', () => {
+    const text = 'alpha\r\nbeta\ngamma'
+    const offset = 12
+    const { line, column } = getLineAndColumn(text, offset)
+    expect(getOffsetForLineAndColumn(text, line, column)).toBe(offset)
+  })
+
+  it('clamps a column past the end of the line', () => {
+    expect(getOffsetForLineAndColumn('abc\ndef', 1, 99)).toBe(3)
+  })
+
+  it('clamps a line past the end of the document', () => {
+    expect(getOffsetForLineAndColumn('abc\ndef', 99, 1)).toBe(4)
   })
 })
 
