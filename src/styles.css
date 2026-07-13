@@ -328,7 +328,7 @@ button {
 }
 
 .codeEditor .cm-content {
-  padding: 16px 0;
+  padding: 4px 0 16px;
 }
 
 .codeEditor .cm-line {
@@ -369,7 +369,7 @@ button {
 }
 
 .codeEditorSearchOpen .cm-content {
-  padding-top: calc(16px + var(--search-panel-height, 0px));
+  padding-top: calc(4px + var(--search-panel-height, 0px));
 }
 
 .searchReplacePanel {
