@@ -49,6 +49,7 @@
     "@tanstack/react-start": "latest",
     "@tanstack/router-plugin": "^1.132.0",
     "@uiw/react-codemirror": "^4.25.10",
+    "@vercel/analytics": "^2.0.1",
     "js-yaml": "^4.1.1",
     "lucide-react": "^0.545.0",
     "mantine-datatable": "^9.2.2",
