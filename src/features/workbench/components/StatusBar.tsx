@@ -65,7 +65,21 @@ export function StatusBar({
 
   return (
     <Group className="statusBar" justify="space-between" wrap="nowrap">
-      <Group className="statusBarGroup statusBarGroupLeft" gap={4} wrap="nowrap">
+      <Group
+        className="statusBarGroup statusBarGroupLeft"
+        gap={4}
+        wrap="nowrap"
+      >
+        <Tooltip label="Change encoding" withArrow>
+          <UnstyledButton
+            aria-label="Change encoding"
+            className="statusBarButton"
+            onClick={onChooseEncoding}
+          >
+            <FileCode2 className="statusBarButtonIcon" size={13} />
+            <span className="statusBarButtonLabel">{encoding}</span>
+          </UnstyledButton>
+        </Tooltip>
         <Tooltip label="Change format and syntax highlighting" withArrow>
           <UnstyledButton
             aria-label="Change format and syntax highlighting"
@@ -74,7 +88,7 @@ export function StatusBar({
           >
             <Code2 className="statusBarButtonIcon" size={14} />
             <span className="statusBarButtonLabel">{formatLabel}</span>
-            <ChevronDown className="statusBarButtonCaret" size={12} />
+            {/*<ChevronDown className="statusBarButtonCaret" size={12} />*/}
           </UnstyledButton>
         </Tooltip>
         {sqlDialectOptions && sqlDialectId && onChooseSqlDialect && (
@@ -156,16 +170,16 @@ export function StatusBar({
           </Tooltip>
         )}
 
-        <Tooltip label="Change encoding" withArrow>
-          <UnstyledButton
-            aria-label="Change encoding"
-            className="statusBarButton"
-            onClick={onChooseEncoding}
-          >
-            <FileCode2 className="statusBarButtonIcon" size={13} />
-            <span className="statusBarButtonLabel">{encoding}</span>
-          </UnstyledButton>
-        </Tooltip>
+        {/*<Tooltip label="Change encoding" withArrow>*/}
+        {/*  <UnstyledButton*/}
+        {/*    aria-label="Change encoding"*/}
+        {/*    className="statusBarButton"*/}
+        {/*    onClick={onChooseEncoding}*/}
+        {/*  >*/}
+        {/*    <FileCode2 className="statusBarButtonIcon" size={13} />*/}
+        {/*    <span className="statusBarButtonLabel">{encoding}</span>*/}
+        {/*  </UnstyledButton>*/}
+        {/*</Tooltip>*/}
 
         <span className="statusBarDivider" aria-hidden="true" />
 
@@ -235,7 +249,7 @@ function ValidationStatusButton({
         onClick={available ? onToggle : undefined}
       >
         {icon}
-        <Text className="statusBarButtonLabel" span>
+        <Text className="statusBarButtonLabel" size="sm" span>
           {label}
         </Text>
       </UnstyledButton>
