@@ -928,7 +928,7 @@ function Workbench() {
               Text Pipeline
             </Text>
             <Badge className="workbenchBadge" variant="light" size="xs">
-              Workbench
+              Alpha
             </Badge>
           </Group>
 
