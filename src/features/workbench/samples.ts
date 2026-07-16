@@ -212,4 +212,43 @@ ORDER BY total DESC
 LIMIT 10;
 `,
   },
+  {
+    description: 'Signed access token (header.payload.signature)',
+    id: 'jwt-access-token',
+    label: 'Access token JWT',
+    syntaxMode: 'jwt',
+    value: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c`,
+  },
+  {
+    description: 'Newline-delimited transform log records',
+    id: 'ndjson-request-log',
+    label: 'Transform log NDJSON',
+    syntaxMode: 'ndjson',
+    value: `{"ts":"2026-06-07T14:22:08Z","level":"info","transform":"json-format","durationMs":42}
+{"ts":"2026-06-07T14:22:09Z","level":"warn","transform":"yaml-to-json","durationMs":18}
+{"ts":"2026-06-07T14:22:10Z","level":"error","transform":"html-minify","durationMs":73,"error":"parse"}
+`,
+  },
+  {
+    description: 'Query with variables and a reusable fragment',
+    id: 'graphql-user-query',
+    label: 'Pipeline run GraphQL',
+    syntaxMode: 'graphql',
+    value: `query PipelineRun($id: ID!) {
+  pipelineRun(id: $id) {
+    id
+    status
+    steps {
+      ...StepFields
+    }
+  }
+}
+
+fragment StepFields on TransformStep {
+  transform
+  durationMs
+  outputFormat
+}
+`,
+  },
 ] satisfies ReadonlyArray<TextSample>

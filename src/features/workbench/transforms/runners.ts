@@ -1,9 +1,15 @@
-import { dump, load } from 'js-yaml'
-import { parseFragment, serialize } from 'parse5'
 import type { DefaultTreeAdapterTypes, ParserError } from 'parse5'
-import { parse as parseToml, stringify as stringifyToml } from 'smol-toml'
 
 import type { TransformRunnerMap } from '../types'
+import { decodeBase64Url } from '../utils/formatValidation'
+
+// Heavy parsers/serializers (js-yaml, parse5, smol-toml, graphql) are loaded
+// through dynamic import() so they only enter the bundle when a transform that
+// needs them actually runs. import() results are cached by the runtime, so
+// repeated transforms do not re-download the module.
+const loadYaml = () => import('js-yaml')
+const loadParse5 = () => import('parse5')
+const loadSmolToml = () => import('smol-toml')
 
 export const TRANSFORM_RUNNERS: TransformRunnerMap = {
   'base64-decode': (input) => ({
@@ -14,6 +20,14 @@ export const TRANSFORM_RUNNERS: TransformRunnerMap = {
     output: encodeBase64(input),
     outputFormat: 'plain',
   }),
+  'graphql-format': async (input) => ({
+    output: await formatGraphql(input),
+    outputFormat: 'graphql',
+  }),
+  'graphql-minify': async (input) => ({
+    output: await minifyGraphql(input),
+    outputFormat: 'graphql',
+  }),
   'html-compact': (input) => ({
     output: compactHtml(input),
     outputFormat: 'html',
@@ -22,8 +36,8 @@ export const TRANSFORM_RUNNERS: TransformRunnerMap = {
     output: await formatHtml(input),
     outputFormat: 'html',
   }),
-  'html-minify': (input) => ({
-    output: minifyHtml(input),
+  'html-minify': async (input) => ({
+    output: await minifyHtml(input),
     outputFormat: 'html',
   }),
   'sql-format': async (input) => ({
@@ -42,20 +56,32 @@ export const TRANSFORM_RUNNERS: TransformRunnerMap = {
     output: JSON.stringify(JSON.parse(input)),
     outputFormat: 'json',
   }),
-  'json-to-toml': (input) => ({
-    output: stringifyTomlDocument(JSON.parse(input)),
+  'json-to-ndjson': (input) => ({
+    output: jsonToNdjson(input),
+    outputFormat: 'ndjson',
+  }),
+  'json-to-toml': async (input) => ({
+    output: await stringifyTomlDocument(JSON.parse(input)),
     outputFormat: 'toml',
   }),
-  'json-to-yaml': (input) => ({
-    output: stringifyYaml(JSON.parse(input)),
+  'json-to-yaml': async (input) => ({
+    output: await stringifyYaml(JSON.parse(input)),
     outputFormat: 'yaml',
   }),
-  'toml-to-json': (input) => ({
-    output: stringifyJson(parseToml(input)),
+  'jwt-decode': (input) => ({
+    output: decodeJwt(input),
     outputFormat: 'json',
   }),
-  'toml-to-yaml': (input) => ({
-    output: stringifyYaml(parseToml(input)),
+  'ndjson-to-json': (input) => ({
+    output: ndjsonToJson(input),
+    outputFormat: 'json',
+  }),
+  'toml-to-json': async (input) => ({
+    output: stringifyJson(await parseTomlInput(input)),
+    outputFormat: 'json',
+  }),
+  'toml-to-yaml': async (input) => ({
+    output: await stringifyYaml(await parseTomlInput(input)),
     outputFormat: 'yaml',
   }),
   'url-decode': (input) => ({
@@ -66,14 +92,104 @@ export const TRANSFORM_RUNNERS: TransformRunnerMap = {
     output: encodeURIComponent(input),
     outputFormat: 'plain',
   }),
-  'yaml-to-json': (input) => ({
-    output: stringifyJson(load(input)),
+  'yaml-to-json': async (input) => ({
+    output: stringifyJson(await parseYamlInput(input)),
     outputFormat: 'json',
   }),
-  'yaml-to-toml': (input) => ({
-    output: stringifyTomlDocument(load(input)),
+  'yaml-to-toml': async (input) => ({
+    output: await stringifyTomlDocument(await parseYamlInput(input)),
     outputFormat: 'toml',
   }),
+}
+
+async function parseYamlInput(input: string): Promise<unknown> {
+  const { load } = await loadYaml()
+
+  return load(input)
+}
+
+async function parseTomlInput(input: string): Promise<unknown> {
+  const { parse } = await loadSmolToml()
+
+  return parse(input)
+}
+
+async function formatGraphql(input: string): Promise<string> {
+  const { parse, print } = await import('graphql')
+
+  return print(parse(input))
+}
+
+async function minifyGraphql(input: string): Promise<string> {
+  const { stripIgnoredCharacters } = await import('graphql')
+
+  return stripIgnoredCharacters(input)
+}
+
+// JWS compact decode: header + payload become JSON, the signature stays raw.
+// The signature is not verified because no key is available in the browser.
+function decodeJwt(input: string): string {
+  const segments = input.trim().split('.')
+
+  if (segments.length !== 3) {
+    throw new Error(
+      `JWT must have 3 dot-separated segments but found ${segments.length}.`,
+    )
+  }
+
+  return JSON.stringify(
+    {
+      header: parseJwtSegment(segments[0], 'header'),
+      payload: parseJwtSegment(segments[1], 'payload'),
+      signature: segments[2],
+    },
+    null,
+    2,
+  )
+}
+
+function parseJwtSegment(segment: string, label: string): unknown {
+  let decoded: string
+
+  try {
+    decoded = decodeBase64Url(segment)
+  } catch {
+    throw new Error(`JWT ${label} is not valid base64url.`)
+  }
+
+  try {
+    return JSON.parse(decoded)
+  } catch {
+    throw new Error(`JWT ${label} is not valid JSON.`)
+  }
+}
+
+function ndjsonToJson(input: string): string {
+  const records: Array<unknown> = []
+
+  input.split(/\r\n|\r|\n/).forEach((line, index) => {
+    if (line.trim().length === 0) {
+      return
+    }
+
+    try {
+      records.push(JSON.parse(line))
+    } catch {
+      throw new Error(`NDJSON line ${index + 1} is not valid JSON.`)
+    }
+  })
+
+  return JSON.stringify(records, null, 2)
+}
+
+function jsonToNdjson(input: string): string {
+  const parsed = JSON.parse(input)
+
+  if (!Array.isArray(parsed)) {
+    throw new Error('JSON to NDJSON requires a top-level array.')
+  }
+
+  return parsed.map((entry) => JSON.stringify(entry)).join('\n')
 }
 
 function encodeBase64(input: string) {
@@ -276,7 +392,8 @@ function getNextNonWhitespace(input: string, fromIndex: number) {
   return null
 }
 
-function minifyHtml(input: string) {
+async function minifyHtml(input: string): Promise<string> {
+  const { parseFragment, serialize } = await loadParse5()
   const errors: Array<ParserError> = []
   const fragment = parseFragment(input, {
     onParseError: (error) => errors.push(error),
@@ -424,14 +541,18 @@ function stringifyJson(value: unknown) {
   return JSON.stringify(toJsonValue(value ?? null, 'root'), null, 2)
 }
 
-function stringifyYaml(value: unknown) {
+async function stringifyYaml(value: unknown): Promise<string> {
+  const { dump } = await loadYaml()
+
   return dump(value === undefined ? null : value, { noRefs: true })
 }
 
-function stringifyTomlDocument(value: unknown) {
+async function stringifyTomlDocument(value: unknown): Promise<string> {
   assertTomlDocumentValue(value)
 
-  return stringifyToml(value)
+  const { stringify } = await loadSmolToml()
+
+  return stringify(value)
 }
 
 function assertTomlDocumentValue(value: unknown) {

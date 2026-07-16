@@ -134,6 +134,18 @@ npm 스크립트도 동작할 수 있지만, `npm install`은 `package-lock.json
 - 파일 경로 별칭은 `#/*`와 `@/*`가 `src/*`를 가리킨다.
 - TypeScript strict 설정과 unused 검사에 맞춰 코드를 작성한다.
 
+## 번들 크기와 동적 로딩
+
+워크벤치는 한 페이지에서 여러 포맷을 다룬다. 모든 포맷의 언어 모드, 파서, 포매터 라이브러리를 초기 번들에 넣으면 포맷을 추가할수록 첫 로딩이 무거워진다. 따라서 포맷별 실행 코드는 초기에 로딩하지 않고, 사용자가 그 포맷을 실제로 활성화할 때 동적으로 로딩하는 것을 기본 원칙으로 한다.
+
+- 초기 번들에는 포맷 레지스트리의 메타데이터(id, label, description, 지원 여부 플래그)만 남긴다.
+- 포맷별로 무거운 의존성(CodeMirror 언어 모드, validation/lint 파서, 포매터)은 정적 `import`가 아니라 `import()` 동적 로딩으로 불러온다.
+- 한 번 로딩한 모듈은 캐시해서 재로딩하지 않는다. `let modulePromise: Promise<T> | null` 패턴을 참고한다(`utils/formatValidation.ts`의 `loadSqlParser`).
+- 동적 로딩이 이미 적용된 예: `sql-formatter`, `prettier/standalone`, `node-sql-parser`.
+- 아직 초기 번들에 정적으로 포함된 부분: 각 포맷의 CodeMirror 언어 모드(`formats.tsx` 상단 import)와 `js-yaml` / `parse5` / `smol-toml` 계열 파서. 신규 작업과 리팩터링은 이들을 동적 로딩으로 옮기는 방향을 따른다.
+- CodeMirror 확장은 동기적으로 주입되므로, 언어 모드를 동적 로딩하려면 확장 로더를 async로 만들고 `Compartment` reconfigure로 나중에 주입한다. `validateFormat`은 이미 async이므로 내부에서 `import()` 하면 된다.
+- 새 라이브러리를 추가하면 `yarn run build`의 청크 출력으로 초기 번들에 들어갔는지 확인한다. 포맷 전용 코드는 별도 청크로 분리되어야 한다.
+
 ## 포맷 추가 체크리스트
 
 새 포맷은 기능 하나가 아니라 capability 세트로 추가한다. 포맷을 추가할 때 다음 항목을 함께 점검한다.
@@ -147,6 +159,7 @@ npm 스크립트도 동작할 수 있지만, `npm install`은 `package-lock.json
 - 필요한 transform runner와 실패 메시지
 - 가능한 경우 view mode 컴포넌트
 - 라우트/toolbar/icon 표시가 새 포맷을 자연스럽게 보여주는지 확인
+- 무거운 언어 모드/파서/포매터를 동적 로딩(`import()`)으로 붙였는지, 초기 번들에 정적으로 새지 않는지 확인
 - unit test: registry, transform filtering, runner, validation/lint, view security 또는 unavailable view
 
 ## HTML 보안 결정

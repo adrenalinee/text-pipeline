@@ -9,9 +9,12 @@ export type TransformDefinitionSection = {
 const FORMAT_SECTION_TITLES: Record<SyntaxMode, string> = {
   csv: 'CSV transforms',
   diff: 'Diff transforms',
+  graphql: 'GraphQL transforms',
   html: 'HTML transforms',
   json: 'JSON transforms',
+  jwt: 'JWT transforms',
   markdown: 'Markdown transforms',
+  ndjson: 'NDJSON transforms',
   plain: 'Text transforms',
   sql: 'SQL transforms',
   toml: 'TOML transforms',

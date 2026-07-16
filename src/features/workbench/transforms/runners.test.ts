@@ -179,6 +179,70 @@ describe('transform runners', () => {
       'JSON output does not support non-finite numbers at root.metric.',
     )
   })
+
+  it('decodes a JWT into header, payload, and signature JSON', async () => {
+    const { output, outputFormat } = await runTransform(
+      'jwt-decode',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c',
+    )
+
+    expect(outputFormat).toBe('json')
+
+    const decoded = JSON.parse(output)
+
+    expect(decoded.header).toEqual({ alg: 'HS256', typ: 'JWT' })
+    expect(decoded.payload).toMatchObject({ name: 'John Doe', sub: '1234567890' })
+    expect(decoded.signature).toBe(
+      'SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c',
+    )
+  })
+
+  it('rejects JWT decode when the token does not have three segments', async () => {
+    await expect(runTransform('jwt-decode', 'header.payload')).rejects.toThrow(
+      'JWT must have 3 dot-separated segments but found 2.',
+    )
+  })
+
+  it('parses NDJSON into a pretty printed JSON array', async () => {
+    expect(await runTransform('ndjson-to-json', '{"a":1}\n{"b":2}\n')).toEqual({
+      output: '[\n  {\n    "a": 1\n  },\n  {\n    "b": 2\n  }\n]',
+      outputFormat: 'json',
+    })
+  })
+
+  it('serializes a JSON array into NDJSON lines', async () => {
+    expect(await runTransform('json-to-ndjson', '[{"a":1},{"b":2}]')).toEqual({
+      output: '{"a":1}\n{"b":2}',
+      outputFormat: 'ndjson',
+    })
+  })
+
+  it('rejects JSON to NDJSON when the JSON is not an array', async () => {
+    await expect(runTransform('json-to-ndjson', '{"a":1}')).rejects.toThrow(
+      'JSON to NDJSON requires a top-level array.',
+    )
+  })
+
+  it('formats a GraphQL document', async () => {
+    expect(await runTransform('graphql-format', 'query{user{id name}}')).toEqual(
+      {
+        output: '{\n  user {\n    id\n    name\n  }\n}',
+        outputFormat: 'graphql',
+      },
+    )
+  })
+
+  it('minifies a GraphQL document', async () => {
+    expect(
+      await runTransform(
+        'graphql-minify',
+        'query {\n  user {\n    id\n    name\n  }\n}\n',
+      ),
+    ).toEqual({
+      output: 'query{user{id name}}',
+      outputFormat: 'graphql',
+    })
+  })
 })
 
 async function runTransform(id: TransformId, input: string) {

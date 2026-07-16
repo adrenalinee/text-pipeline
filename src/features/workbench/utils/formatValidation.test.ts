@@ -139,4 +139,46 @@ describe('format validation', () => {
     expect(result.status).toBe('invalid')
     expect(result.message).toContain('unterminated')
   })
+
+  it('accepts a structurally valid JWT', async () => {
+    const result = await validateFormat(
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c',
+      'jwt',
+    )
+
+    expect(result).toMatchObject({ status: 'valid', title: 'Valid JWT' })
+  })
+
+  it('reports a JWT that does not have three segments', async () => {
+    const result = await validateFormat('header.payload', 'jwt')
+
+    expect(result.status).toBe('invalid')
+    expect(result.message).toContain('3 dot-separated segments')
+  })
+
+  it('accepts NDJSON where every non-empty line is JSON', async () => {
+    const result = await validateFormat('{"a":1}\n{"b":2}\n', 'ndjson')
+
+    expect(result).toMatchObject({ status: 'valid', title: 'Valid NDJSON' })
+  })
+
+  it('reports the NDJSON line that is not valid JSON', async () => {
+    const result = await validateFormat('{"a":1}\n{"b":\n', 'ndjson')
+
+    expect(result.status).toBe('invalid')
+    expect(result.issue?.line).toBe(2)
+  })
+
+  it('accepts a valid GraphQL document', async () => {
+    const result = await validateFormat('{ user { id name } }', 'graphql')
+
+    expect(result).toMatchObject({ status: 'valid', title: 'Valid GraphQL' })
+  })
+
+  it('reports a GraphQL syntax error with a line', async () => {
+    const result = await validateFormat('{ user( }', 'graphql')
+
+    expect(result.status).toBe('invalid')
+    expect(result.issue?.line).toBe(1)
+  })
 })
