@@ -78,8 +78,8 @@ export function EditorToolbar({
               softWrapEnabled ? 'Disable soft wrap' : 'Enable soft wrap'
             }
             aria-pressed={softWrapEnabled}
-            color="dark"
-            variant={softWrapEnabled ? 'filled' : 'light'}
+            color="gray"
+            variant={softWrapEnabled ? 'filled' : 'subtle'}
             onClick={onToggleSoftWrap}
           >
             {softWrapEnabled ? (
@@ -105,7 +105,7 @@ export function EditorToolbar({
             }
             color="gray"
             disabled={activeViewMode !== 'source'}
-            variant="light"
+            variant="subtle"
             onClick={onOpenSearch}
           >
             <Search size={18} />

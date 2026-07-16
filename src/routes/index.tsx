@@ -115,6 +115,7 @@ import {
 } from '#/features/workbench/sqlDialects'
 import type { SqlDialect } from '#/features/workbench/sqlDialects'
 import { FormatViewPanel } from '#/features/workbench/views/FormatViewPanel'
+import { theme } from '#/theme.ts'
 
 export const Route = createFileRoute('/')({
   ssr: false,
@@ -175,7 +176,9 @@ function writeStoredPanelOpened(key: string, value: boolean) {
 
 function Home() {
   return (
-    <MantineProvider defaultColorScheme="dark">
+    <MantineProvider
+      theme={theme}
+    >
       <Notifications position="bottom-center" />
       <Workbench />
     </MantineProvider>

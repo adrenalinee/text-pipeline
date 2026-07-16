@@ -1,6 +1,6 @@
-import { Group, Select, Text, Tooltip, UnstyledButton } from '@mantine/core'
+import { Button, Group, Select, Text, Tooltip, UnstyledButton } from '@mantine/core'
 import {
-  ChevronDown,
+  ChevronsUpDown,
   CircleAlert,
   CircleCheck,
   Code2,
@@ -71,25 +71,32 @@ export function StatusBar({
         wrap="nowrap"
       >
         <Tooltip label="Change encoding" withArrow>
-          <UnstyledButton
-            aria-label="Change encoding"
-            className="statusBarButton"
+          <Button
+            variant="default"
             onClick={onChooseEncoding}
+            leftSection={
+              <FileCode2 className="statusBarButtonIcon" size={13} />
+            }
+            rightSection={
+              <ChevronsUpDown className="statusBarButtonIcon" size={12} />
+            }
+            aria-label="Change encoding"
           >
-            <FileCode2 className="statusBarButtonIcon" size={13} />
-            <span className="statusBarButtonLabel">{encoding}</span>
-          </UnstyledButton>
+            {encoding}
+          </Button>
         </Tooltip>
         <Tooltip label="Change format and syntax highlighting" withArrow>
-          <UnstyledButton
+          <Button
+            variant="default"
+            leftSection={<Code2 className="statusBarButtonIcon" size={14} />}
+            rightSection={
+              <ChevronsUpDown className="statusBarButtonIcon" size={12} />
+            }
             aria-label="Change format and syntax highlighting"
-            className="statusBarButton statusBarFormatButton"
             onClick={onChooseSyntax}
           >
-            <Code2 className="statusBarButtonIcon" size={14} />
-            <span className="statusBarButtonLabel">{formatLabel}</span>
-            {/*<ChevronDown className="statusBarButtonCaret" size={12} />*/}
-          </UnstyledButton>
+            {formatLabel}
+          </Button>
         </Tooltip>
         {sqlDialectOptions && sqlDialectId && onChooseSqlDialect && (
           <Select
@@ -157,29 +164,16 @@ export function StatusBar({
 
         {isSource && (
           <Tooltip label="Go to line and column" withArrow>
-            <UnstyledButton
+            <Button
+              variant="default"
+              leftSection={<MapPin className="statusBarButtonIcon" size={13} />}
               aria-label="Go to line and column"
-              className="statusBarButton"
               onClick={onGoToLine}
             >
-              <MapPin className="statusBarButtonIcon" size={13} />
-              <span className="statusBarButtonLabel">
-                {cursor.line}:{cursor.column}
-              </span>
-            </UnstyledButton>
+              {cursor.line}:{cursor.column}
+            </Button>
           </Tooltip>
         )}
-
-        {/*<Tooltip label="Change encoding" withArrow>*/}
-        {/*  <UnstyledButton*/}
-        {/*    aria-label="Change encoding"*/}
-        {/*    className="statusBarButton"*/}
-        {/*    onClick={onChooseEncoding}*/}
-        {/*  >*/}
-        {/*    <FileCode2 className="statusBarButtonIcon" size={13} />*/}
-        {/*    <span className="statusBarButtonLabel">{encoding}</span>*/}
-        {/*  </UnstyledButton>*/}
-        {/*</Tooltip>*/}
 
         <span className="statusBarDivider" aria-hidden="true" />
 
