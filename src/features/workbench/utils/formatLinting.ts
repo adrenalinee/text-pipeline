@@ -1,17 +1,16 @@
-import { jsonParseLinter } from '@codemirror/lang-json'
 import type { Diagnostic, LintSource } from '@codemirror/lint'
 import type { Text } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
-import { load } from 'js-yaml'
-import { parseFragment } from 'parse5'
 import type { ParserError } from 'parse5'
-import { parse as parseToml } from 'smol-toml'
 
 import type { SyntaxMode } from '../types'
 import {
   formatHtmlParseError,
   getCsvError,
+  getGraphqlError,
   getHtmlErrorIssue,
+  getJwtError,
+  getNdjsonError,
   getSqlError,
   getTomlErrorIssue,
   getXmlError,
@@ -19,21 +18,27 @@ import {
 } from './formatValidation'
 import type { FormatSyntaxError } from './formatValidation'
 
-export function getFormatLintSource(syntaxMode: SyntaxMode): LintSource | null {
+// Lint sources are resolved on demand so their parser packages (js-yaml,
+// parse5, smol-toml, graphql, the JSON language) stay out of the initial
+// bundle until a format that needs them is linted.
+export async function loadFormatLintSource(
+  syntaxMode: SyntaxMode,
+): Promise<LintSource | null> {
   if (syntaxMode === 'json') {
+    const { jsonParseLinter } = await import('@codemirror/lang-json')
     return jsonParseLinter()
   }
 
   if (syntaxMode === 'html') {
-    return htmlLintSource
+    return loadHtmlLintSource()
   }
 
   if (syntaxMode === 'yaml') {
-    return yamlLintSource
+    return loadYamlLintSource()
   }
 
   if (syntaxMode === 'toml') {
-    return tomlLintSource
+    return loadTomlLintSource()
   }
 
   if (syntaxMode === 'xml') {
@@ -44,8 +49,16 @@ export function getFormatLintSource(syntaxMode: SyntaxMode): LintSource | null {
     return csvLintSource
   }
 
-  if (syntaxMode === 'sql') {
-    return sqlLintSource
+  if (syntaxMode === 'graphql') {
+    return graphqlLintSource
+  }
+
+  if (syntaxMode === 'ndjson') {
+    return ndjsonLintSource
+  }
+
+  if (syntaxMode === 'jwt') {
+    return jwtLintSource
   }
 
   return null
@@ -57,6 +70,19 @@ const xmlLintSource: LintSource = (view) =>
 const csvLintSource: LintSource = (view) =>
   toSyntaxDiagnostics(getCsvError(view.state.doc.toString()), 'CSV', view)
 
+const jwtLintSource: LintSource = (view) =>
+  toSyntaxDiagnostics(getJwtError(view.state.doc.toString()), 'JWT', view)
+
+const ndjsonLintSource: LintSource = (view) =>
+  toSyntaxDiagnostics(getNdjsonError(view.state.doc.toString()), 'NDJSON', view)
+
+const graphqlLintSource: LintSource = async (view) =>
+  toSyntaxDiagnostics(
+    await getGraphqlError(view.state.doc.toString()),
+    'GraphQL',
+    view,
+  )
+
 export function createSqlLintSource(database: string): LintSource {
   return async (view) =>
     toSyntaxDiagnostics(
@@ -64,6 +90,70 @@ export function createSqlLintSource(database: string): LintSource {
       'SQL',
       view,
     )
+}
+
+async function loadYamlLintSource(): Promise<LintSource> {
+  const { load } = await import('js-yaml')
+
+  return (view) => {
+    try {
+      load(view.state.doc.toString())
+      return []
+    } catch (error) {
+      return [
+        createDiagnostic({
+          error,
+          fallbackMessage: 'YAML syntax is invalid.',
+          from: getYamlErrorIssue(error),
+          source: 'YAML',
+          view,
+        }),
+      ]
+    }
+  }
+}
+
+async function loadTomlLintSource(): Promise<LintSource> {
+  const { parse: parseToml } = await import('smol-toml')
+
+  return (view) => {
+    try {
+      parseToml(view.state.doc.toString())
+      return []
+    } catch (error) {
+      return [
+        createDiagnostic({
+          error,
+          fallbackMessage: 'TOML syntax is invalid.',
+          from: getTomlErrorIssue(error),
+          source: 'TOML',
+          view,
+        }),
+      ]
+    }
+  }
+}
+
+async function loadHtmlLintSource(): Promise<LintSource> {
+  const { parseFragment } = await import('parse5')
+
+  return (view) => {
+    const errors: Array<ParserError> = []
+
+    parseFragment(view.state.doc.toString(), {
+      onParseError: (error) => errors.push(error),
+    })
+
+    return errors.map((error) =>
+      createDiagnostic({
+        error,
+        fallbackMessage: `HTML parse error: ${formatHtmlParseError(error.code)}.`,
+        from: getHtmlErrorIssue(error),
+        source: 'HTML',
+        view,
+      }),
+    )
+  }
 }
 
 function toSyntaxDiagnostics(
@@ -84,60 +174,6 @@ function toSyntaxDiagnostics(
       view,
     }),
   ]
-}
-
-const yamlLintSource: LintSource = (view) => {
-  try {
-    load(view.state.doc.toString())
-    return []
-  } catch (error) {
-    return [createYamlDiagnostic(error, view)]
-  }
-}
-
-const tomlLintSource: LintSource = (view) => {
-  try {
-    parseToml(view.state.doc.toString())
-    return []
-  } catch (error) {
-    return [
-      createDiagnostic({
-        error,
-        fallbackMessage: 'TOML syntax is invalid.',
-        from: getTomlErrorIssue(error),
-        source: 'TOML',
-        view,
-      }),
-    ]
-  }
-}
-
-const htmlLintSource: LintSource = (view) => {
-  const errors: Array<ParserError> = []
-
-  parseFragment(view.state.doc.toString(), {
-    onParseError: (error) => errors.push(error),
-  })
-
-  return errors.map((error) =>
-    createDiagnostic({
-      error,
-      fallbackMessage: `HTML parse error: ${formatHtmlParseError(error.code)}.`,
-      from: getHtmlErrorIssue(error),
-      source: 'HTML',
-      view,
-    }),
-  )
-}
-
-function createYamlDiagnostic(error: unknown, view: EditorView): Diagnostic {
-  return createDiagnostic({
-    error,
-    fallbackMessage: 'YAML syntax is invalid.',
-    from: getYamlErrorIssue(error),
-    source: 'YAML',
-    view,
-  })
 }
 
 function createDiagnostic({

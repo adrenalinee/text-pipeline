@@ -6,9 +6,12 @@ export type SyntaxMode =
   | 'plain'
   | 'csv'
   | 'diff'
+  | 'graphql'
   | 'html'
   | 'json'
+  | 'jwt'
   | 'markdown'
+  | 'ndjson'
   | 'sql'
   | 'toml'
   | 'xml'
@@ -32,15 +35,20 @@ export type TransformId =
   | 'base64-decode'
   | 'base64-encode'
   | 'crop-selection'
+  | 'graphql-format'
+  | 'graphql-minify'
   | 'html-compact'
   | 'html-format'
   | 'html-minify'
   | 'json-format'
   | 'json-minify'
+  | 'json-to-ndjson'
   | 'json-to-toml'
   | 'json-to-yaml'
   | 'json-validate'
   | 'jsonpath-query'
+  | 'jwt-decode'
+  | 'ndjson-to-json'
   | 'sql-format'
   | 'sql-minify'
   | 'toml-to-json'
@@ -115,10 +123,13 @@ export type FormatViewDefinition = {
 export type FormatCapability = {
   defaultViewId?: FormatViewId
   description: string
-  getEditorExtensions: () => Array<Extension>
+  // Editor extensions (CodeMirror language modes) are loaded on demand so their
+  // packages stay out of the initial bundle until the format is activated.
+  loadEditorExtensions: () => Promise<Array<Extension>>
   id: SyntaxMode
   label: string
-  lintSource?: LintSource
+  // Lint sources are loaded lazily too; the loader pulls in any parser it needs.
+  loadLintSource?: () => Promise<LintSource | null>
   renderPolicy?: FormatRenderPolicy
   renderSecurity?: FormatRenderSecurity
   sampleIds: ReadonlyArray<string>

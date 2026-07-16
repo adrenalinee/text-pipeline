@@ -19,6 +19,8 @@ import {
 import { useMediaQuery } from '@mantine/hooks'
 import { Notifications, notifications } from '@mantine/notifications'
 import { linter, lintGutter } from '@codemirror/lint'
+import type { LintSource } from '@codemirror/lint'
+import type { Extension } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { oneDark } from '@codemirror/theme-one-dark'
 import CodeMirror from '@uiw/react-codemirror'
@@ -31,6 +33,7 @@ import {
   Crop,
   FileJson,
   FileText,
+  KeyRound,
   ListTree,
   Link,
   Moon,
@@ -39,6 +42,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Replace,
+  Share2,
   Sun,
   Workflow,
 } from 'lucide-react'
@@ -251,30 +255,52 @@ function Workbench() {
     editorRef,
     onReplaceCommit: commitReplace,
   })
-  const editorExtensions = useMemo(() => {
-    const syntaxExtensions = currentFormat.getEditorExtensions()
+  const [editorExtensions, setEditorExtensions] = useState<Array<Extension>>([])
 
-    let lintSource = validationEnabled
-      ? (currentFormat.lintSource ?? null)
-      : null
+  useEffect(() => {
+    let cancelled = false
 
-    if (validationEnabled && syntaxMode === 'sql') {
-      lintSource = sqlDialect.parserDatabase
-        ? createSqlLintSource(sqlDialect.parserDatabase)
-        : null
+    async function loadEditorExtensions() {
+      // Load the format's language mode (and lint source) on demand so each
+      // format's CodeMirror package stays out of the initial bundle.
+      const syntaxExtensions = await currentFormat.loadEditorExtensions()
+
+      let lintSource: LintSource | null = null
+
+      if (validationEnabled) {
+        if (syntaxMode === 'sql') {
+          lintSource = sqlDialect.parserDatabase
+            ? createSqlLintSource(sqlDialect.parserDatabase)
+            : null
+        } else if (currentFormat.loadLintSource) {
+          lintSource = await currentFormat.loadLintSource()
+        }
+      }
+
+      if (cancelled) {
+        return
+      }
+
+      const lintExtensions = lintSource
+        ? [lintGutter(), linter(lintSource, { delay: 250 })]
+        : []
+      const wrappingExtensions = softWrapEnabled
+        ? [EditorView.lineWrapping]
+        : []
+
+      setEditorExtensions([
+        ...syntaxExtensions,
+        ...lintExtensions,
+        ...wrappingExtensions,
+        ...searchReplace.extensions,
+      ])
     }
 
-    const lintExtensions = lintSource
-      ? [lintGutter(), linter(lintSource, { delay: 250 })]
-      : []
-    const wrappingExtensions = softWrapEnabled ? [EditorView.lineWrapping] : []
+    void loadEditorExtensions()
 
-    return [
-      ...syntaxExtensions,
-      ...lintExtensions,
-      ...wrappingExtensions,
-      ...searchReplace.extensions,
-    ]
+    return () => {
+      cancelled = true
+    }
   }, [
     currentFormat,
     softWrapEnabled,
@@ -1359,6 +1385,18 @@ function SyntaxOptionButton({
 function SyntaxIcon({ value }: { value: SyntaxMode }) {
   if (value === 'json') {
     return <Braces size={18} />
+  }
+
+  if (value === 'jwt') {
+    return <KeyRound size={18} />
+  }
+
+  if (value === 'ndjson') {
+    return <FileJson size={18} />
+  }
+
+  if (value === 'graphql') {
+    return <Share2 size={18} />
   }
 
   if (value === 'yaml') {

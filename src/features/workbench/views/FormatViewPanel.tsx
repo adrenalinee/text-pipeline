@@ -1,5 +1,6 @@
-import { Box, Group, Text } from '@mantine/core'
+import { Box, Group, Loader, Text } from '@mantine/core'
 import { EyeOff } from 'lucide-react'
+import { Suspense } from 'react'
 
 import type {
   FormatCapability,
@@ -37,7 +38,18 @@ export function FormatViewPanel({
         </Box>
       </Group>
       <Box className="formatViewBody">
-        {view.render({ syntaxMode: format.id, value })}
+        <Suspense
+          fallback={
+            <Group gap="xs" p="md" wrap="nowrap">
+              <Loader size="sm" />
+              <Text c="dimmed" size="sm">
+                Loading view…
+              </Text>
+            </Group>
+          }
+        >
+          {view.render({ syntaxMode: format.id, value })}
+        </Suspense>
       </Box>
     </Box>
   )

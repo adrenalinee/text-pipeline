@@ -12,9 +12,12 @@ describe('FORMAT_DEFINITIONS', () => {
     expect(FORMAT_OPTIONS.map((format) => format.id).sort()).toEqual([
       'csv',
       'diff',
+      'graphql',
       'html',
       'json',
+      'jwt',
       'markdown',
+      'ndjson',
       'plain',
       'sql',
       'toml',
@@ -24,9 +27,12 @@ describe('FORMAT_DEFINITIONS', () => {
     expect(FORMAT_OPTIONS.map((format) => format.label).sort()).toEqual([
       'CSV',
       'Diff',
+      'GraphQL',
       'HTML',
       'JSON',
+      'JWT',
       'Markdown',
+      'NDJSON',
       'Plain text',
       'SQL',
       'TOML',
@@ -63,6 +69,24 @@ describe('FORMAT_DEFINITIONS', () => {
       'json-format',
     )
     expect(FORMAT_DEFINITIONS.markdown.transformIds).toContain('url-encode')
+  })
+
+  it('registers the lazily loaded JWT, NDJSON, and GraphQL formats', () => {
+    expect(FORMAT_DEFINITIONS.jwt.transformIds).toContain('jwt-decode')
+    expect(FORMAT_DEFINITIONS.jwt.validation).toBe('supported')
+    expect(FORMAT_DEFINITIONS.ndjson.transformIds).toContain('ndjson-to-json')
+    expect(FORMAT_DEFINITIONS.json.transformIds).toContain('json-to-ndjson')
+    expect(FORMAT_DEFINITIONS.graphql.transformIds).toContain('graphql-format')
+    expect(FORMAT_DEFINITIONS.graphql.transformIds).toContain('graphql-minify')
+    expect(FORMAT_DEFINITIONS.graphql.validation).toBe('supported')
+  })
+
+  it('resolves editor extensions on demand for every format', async () => {
+    for (const format of FORMAT_OPTIONS) {
+      const extensions = await format.loadEditorExtensions()
+
+      expect(Array.isArray(extensions)).toBe(true)
+    }
   })
 })
 

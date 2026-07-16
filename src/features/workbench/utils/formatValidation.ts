@@ -1,8 +1,5 @@
-import { load } from 'js-yaml'
 import type { Parser } from 'node-sql-parser'
-import { parseFragment } from 'parse5'
 import type { ParserError } from 'parse5'
-import { parse as parseToml } from 'smol-toml'
 
 import type { SyntaxMode } from '../types'
 
@@ -75,6 +72,18 @@ export async function validateFormat(
     return validateSql(value)
   }
 
+  if (syntaxMode === 'jwt') {
+    return validateJwt(value)
+  }
+
+  if (syntaxMode === 'ndjson') {
+    return validateNdjson(value)
+  }
+
+  if (syntaxMode === 'graphql') {
+    return validateGraphql(value)
+  }
+
   return unsupportedValidationResult(
     UNVALIDATED_FORMAT_LABELS[syntaxMode] ?? 'This format',
   )
@@ -88,7 +97,8 @@ function unsupportedValidationResult(format: string): FormatValidationResult {
   }
 }
 
-function validateHtml(value: string): FormatValidationResult {
+async function validateHtml(value: string): Promise<FormatValidationResult> {
+  const { parseFragment } = await import('parse5')
   const errors: Array<ParserError> = []
 
   parseFragment(value, {
@@ -143,7 +153,9 @@ function validateJson(value: string): FormatValidationResult {
   }
 }
 
-function validateYaml(value: string): FormatValidationResult {
+async function validateYaml(value: string): Promise<FormatValidationResult> {
+  const { load } = await import('js-yaml')
+
   try {
     load(value)
 
@@ -169,7 +181,9 @@ function validateYaml(value: string): FormatValidationResult {
   }
 }
 
-function validateToml(value: string): FormatValidationResult {
+async function validateToml(value: string): Promise<FormatValidationResult> {
+  const { parse: parseToml } = await import('smol-toml')
+
   try {
     parseToml(value)
 
@@ -598,7 +612,7 @@ function formatInvalidMessage(
 }
 
 function formatInvalidTitle(
-  format: 'CSV' | 'HTML' | 'JSON' | 'SQL' | 'TOML' | 'XML' | 'YAML',
+  format: string,
   issue: FormatValidationIssue | undefined,
 ) {
   return issue ? `${format} line ${issue.line}` : `Invalid ${format}`
@@ -606,4 +620,189 @@ function formatInvalidTitle(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
+}
+
+function validateJwt(value: string): FormatValidationResult {
+  const error = getJwtError(value)
+
+  if (!error) {
+    return {
+      message: 'JWT structure is valid. The signature is not verified here.',
+      status: 'valid',
+      title: 'Valid JWT',
+    }
+  }
+
+  return {
+    issue: error.issue,
+    message: formatInvalidMessage(error.message, error.issue),
+    status: 'invalid',
+    title: formatInvalidTitle('JWT', error.issue),
+  }
+}
+
+// Structural JWS check: three dot-separated base64url segments whose header and
+// payload decode to valid JSON. The signature is not verified (no key here).
+export function getJwtError(value: string): FormatSyntaxError | null {
+  const token = value.trim()
+
+  if (token.length === 0) {
+    return null
+  }
+
+  const segments = token.split('.')
+
+  if (segments.length !== 3) {
+    return {
+      message: `JWT must have 3 dot-separated segments but found ${segments.length}.`,
+    }
+  }
+
+  if (!isDecodableJwtJson(segments[0])) {
+    return { message: 'JWT header is not valid base64url-encoded JSON.' }
+  }
+
+  if (!isDecodableJwtJson(segments[1])) {
+    return { message: 'JWT payload is not valid base64url-encoded JSON.' }
+  }
+
+  return null
+}
+
+function isDecodableJwtJson(segment: string): boolean {
+  try {
+    JSON.parse(decodeBase64Url(segment))
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function decodeBase64Url(segment: string): string {
+  const normalized = segment.replace(/-/g, '+').replace(/_/g, '/')
+  const padLength = (4 - (normalized.length % 4)) % 4
+  const padded = normalized + '='.repeat(padLength)
+  const binary = atob(padded)
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
+
+  return new TextDecoder().decode(bytes)
+}
+
+function validateNdjson(value: string): FormatValidationResult {
+  const error = getNdjsonError(value)
+
+  if (!error) {
+    return {
+      message: 'No NDJSON syntax errors found. Every non-empty line is JSON.',
+      status: 'valid',
+      title: 'Valid NDJSON',
+    }
+  }
+
+  return {
+    issue: error.issue,
+    message: formatInvalidMessage(error.message, error.issue),
+    status: 'invalid',
+    title: formatInvalidTitle('NDJSON', error.issue),
+  }
+}
+
+// Newline-delimited JSON: each non-empty line must be a standalone JSON value.
+export function getNdjsonError(value: string): FormatSyntaxError | null {
+  if (value.trim().length === 0) {
+    return null
+  }
+
+  const lines = value.split(/\r\n|\r|\n/)
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]
+
+    if (line.trim().length === 0) {
+      continue
+    }
+
+    try {
+      JSON.parse(line)
+    } catch (error) {
+      const inner =
+        error instanceof Error ? getJsonErrorIssue(error.message, line) : undefined
+
+      return {
+        issue: { column: inner?.column ?? 1, line: index + 1 },
+        message: `NDJSON line ${index + 1} is not valid JSON.`,
+      }
+    }
+  }
+
+  return null
+}
+
+async function validateGraphql(value: string): Promise<FormatValidationResult> {
+  const error = await getGraphqlError(value)
+
+  if (!error) {
+    return {
+      message: 'No GraphQL syntax errors found.',
+      status: 'valid',
+      title: 'Valid GraphQL',
+    }
+  }
+
+  return {
+    issue: error.issue,
+    message: formatInvalidMessage(error.message, error.issue),
+    status: 'invalid',
+    title: formatInvalidTitle('GraphQL', error.issue),
+  }
+}
+
+// GraphQL document syntax check via the reference parser, loaded on demand.
+export async function getGraphqlError(
+  value: string,
+): Promise<FormatSyntaxError | null> {
+  if (value.trim().length === 0) {
+    return null
+  }
+
+  const { parse } = await import('graphql')
+
+  try {
+    parse(value)
+    return null
+  } catch (error) {
+    return {
+      issue: getGraphqlErrorIssue(error),
+      message: buildGraphqlErrorMessage(error),
+    }
+  }
+}
+
+function getGraphqlErrorIssue(error: unknown): FormatValidationIssue | undefined {
+  if (!isRecord(error) || !Array.isArray(error.locations)) {
+    return undefined
+  }
+
+  const location = error.locations[0]
+
+  if (!isRecord(location)) {
+    return undefined
+  }
+
+  const { column, line } = location
+
+  if (typeof line !== 'number' || typeof column !== 'number') {
+    return undefined
+  }
+
+  return { column, line }
+}
+
+function buildGraphqlErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : ''
+  const cleaned = message.replace(/^Syntax Error:\s*/i, '').split('\n')[0]
+
+  return cleaned
+    ? `GraphQL parse error: ${cleaned.trim()}`
+    : 'GraphQL syntax is invalid.'
 }
