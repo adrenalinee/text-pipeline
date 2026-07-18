@@ -1027,11 +1027,16 @@ function Workbench() {
           <EditorToolbar
             activeViewMode={viewMode}
             canCommitWorkingText={canCommitWorkingText}
+            searchPanelOpen={searchReplace.isOpen}
             softWrapEnabled={softWrapEnabled}
             viewAvailable={viewAvailable}
             onCommitWorkingText={commitWorkingText}
             onOpenSamples={() => setSampleModalOpened(true)}
-            onOpenSearch={() => searchReplace.openPanel('search')}
+            onOpenSearch={() =>
+              searchReplace.isOpen
+                ? searchReplace.closePanel()
+                : searchReplace.openPanel('search')
+            }
             onSetViewMode={setViewMode}
             onToggleSoftWrap={() => setSoftWrapEnabled((enabled) => !enabled)}
           />

@@ -391,14 +391,14 @@ export function useSearchReplace({
     }
   }
 
-  function handleClose() {
-    const view = getView()
+  const closePanel = useCallback(() => {
+    const view = editorRef.current?.view
 
     if (view) {
       closeSearchPanel(view)
       view.focus()
     }
-  }
+  }, [editorRef])
 
   const queryValid = isPatternValid(searchText, regexp)
 
@@ -415,7 +415,7 @@ export function useSearchReplace({
           searchText={searchText}
           showReplace={showReplace}
           onCaseSensitiveChange={setCaseSensitive}
-          onClose={handleClose}
+          onClose={closePanel}
           onFindNext={() => {
             const view = getView()
             if (view) {
@@ -453,8 +453,10 @@ export function useSearchReplace({
   }
 
   return {
+    closePanel,
     editorProps,
     extensions,
+    isOpen: panelDom !== null,
     openPanel,
     panelPortal,
     takePendingReplace,

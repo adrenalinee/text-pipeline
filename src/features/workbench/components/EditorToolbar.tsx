@@ -23,6 +23,7 @@ export function EditorToolbar({
   onOpenSearch,
   onSetViewMode,
   onToggleSoftWrap,
+  searchPanelOpen,
   softWrapEnabled,
   viewAvailable,
 }: {
@@ -33,6 +34,7 @@ export function EditorToolbar({
   onOpenSearch: () => void
   onSetViewMode: (mode: WorkbenchViewMode) => void
   onToggleSoftWrap: () => void
+  searchPanelOpen: boolean
   softWrapEnabled: boolean
   viewAvailable: boolean
 }) {
@@ -78,7 +80,7 @@ export function EditorToolbar({
               softWrapEnabled ? 'Disable soft wrap' : 'Enable soft wrap'
             }
             aria-pressed={softWrapEnabled}
-            color="gray"
+            color="dark"
             variant={softWrapEnabled ? 'filled' : 'subtle'}
             onClick={onToggleSoftWrap}
           >
@@ -91,21 +93,26 @@ export function EditorToolbar({
         </Tooltip>
         <Tooltip
           label={
-            activeViewMode === 'source'
-              ? 'Search and replace (Ctrl+F)'
-              : 'Search is available in source mode'
+            activeViewMode !== 'source'
+              ? 'Search is available in source mode'
+              : searchPanelOpen
+                ? 'Close search'
+                : 'Search and replace (Ctrl+F)'
           }
           withArrow
         >
           <ActionIcon
             aria-label={
-              activeViewMode === 'source'
-                ? 'Search and replace'
-                : 'Search is available in source mode'
+              activeViewMode !== 'source'
+                ? 'Search is available in source mode'
+                : searchPanelOpen
+                  ? 'Close search'
+                  : 'Search and replace'
             }
-            color="gray"
+            aria-pressed={searchPanelOpen}
+            color="dark"
             disabled={activeViewMode !== 'source'}
-            variant="subtle"
+            variant={searchPanelOpen ? 'filled' : 'subtle'}
             onClick={onOpenSearch}
           >
             <Search size={18} />
