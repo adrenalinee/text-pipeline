@@ -32,6 +32,11 @@ const StructuredTreeView = lazy(() =>
     default: module.StructuredTreeView,
   })),
 )
+const DiffPatchView = lazy(() =>
+  import('./views/DiffPatchView').then((module) => ({
+    default: module.DiffPatchView,
+  })),
+)
 
 const JSON_TRANSFORMS = [
   'json-format',
@@ -83,6 +88,13 @@ const GENERAL_TRANSFORMS = [
 
 export const FORMAT_VIEWS = [
   {
+    description: 'Inspect patch hunks with old and new line numbers',
+    id: 'diff-patch',
+    label: 'Patch view',
+    render: ({ value }) => <DiffPatchView value={value} />,
+    supportedFormats: ['diff'],
+  },
+  {
     description: 'Preview static HTML in a restricted iframe',
     id: 'html-preview',
     label: 'Sandboxed preview',
@@ -128,6 +140,7 @@ export const FORMAT_DEFINITIONS = {
     viewIds: [],
   },
   diff: {
+    defaultViewId: 'diff-patch',
     description: 'Unified diff and patch output',
     loadEditorExtensions: async () => {
       const [{ StreamLanguage }, { diff }] = await Promise.all([
@@ -139,11 +152,11 @@ export const FORMAT_DEFINITIONS = {
     id: 'diff',
     label: 'Diff',
     renderPolicy: 'explicit',
-    renderSecurity: 'source-only',
+    renderSecurity: 'sanitized',
     sampleIds: ['diff-pipeline-config'],
     transformIds: [...GENERAL_TRANSFORMS],
     validation: 'unsupported',
-    viewIds: [],
+    viewIds: ['diff-patch'],
   },
   graphql: {
     description: 'Queries, mutations, and schema definitions',

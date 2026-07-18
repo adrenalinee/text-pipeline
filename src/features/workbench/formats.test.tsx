@@ -41,7 +41,8 @@ describe('FORMAT_DEFINITIONS', () => {
     ])
   })
 
-  it('exposes default visual views for HTML, JSON, YAML, and Markdown', () => {
+  it('exposes default visual views for supported formats', () => {
+    expect(getFormatDefinition('diff').defaultViewId).toBe('diff-patch')
     expect(getFormatDefinition('html').defaultViewId).toBe('html-preview')
     expect(getFormatDefinition('json').defaultViewId).toBe('structured-tree')
     expect(getFormatDefinition('yaml').defaultViewId).toBe('structured-tree')
@@ -92,6 +93,9 @@ describe('FORMAT_DEFINITIONS', () => {
 
 describe('FORMAT_VIEWS', () => {
   it('declares supported formats for each visual view', () => {
+    expect(
+      FORMAT_VIEWS.find((view) => view.id === 'diff-patch')?.supportedFormats,
+    ).toEqual(['diff'])
     expect(
       FORMAT_VIEWS.find((view) => view.id === 'html-preview')?.supportedFormats,
     ).toEqual(['html'])
