@@ -1,4 +1,5 @@
-import { Button, type MantineThemeOverride } from '@mantine/core'
+import { Button } from '@mantine/core'
+import type { MantineThemeOverride } from '@mantine/core'
 
 export const theme = {
   components: {

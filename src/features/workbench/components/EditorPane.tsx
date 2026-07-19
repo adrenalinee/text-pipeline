@@ -1,0 +1,426 @@
+import {
+  Badge,
+  Box,
+  Button,
+  Group,
+  Modal,
+  NumberInput,
+  Stack,
+  Text,
+} from '@mantine/core'
+import { oneDark } from '@codemirror/theme-one-dark'
+import CodeMirror from '@uiw/react-codemirror'
+import {
+  Braces,
+  Check,
+  Code2,
+  FileJson,
+  FileText,
+  KeyRound,
+  Share2,
+} from 'lucide-react'
+import { useState } from 'react'
+
+import { FORMAT_DEFINITIONS, FORMAT_OPTIONS, FORMAT_VIEWS } from '../formats'
+import { TEXT_SAMPLES } from '../samples'
+import type { TextSample } from '../samples'
+import type { SyntaxMode } from '../types'
+import { ENCODING_OPTIONS } from '../useEditorSession'
+import type { EditorSession } from '../useEditorSession'
+import { FormatViewPanel } from '../views/FormatViewPanel'
+import { EditorToolbar } from './EditorToolbar'
+import { StatusBar } from './StatusBar'
+
+export function EditorPane({
+  allowCommit,
+  allowView,
+  canCommitWorkingText,
+  editorTitle,
+  isActive,
+  isDark,
+  onActivate,
+  onCommitWorkingText,
+  session,
+}: {
+  allowCommit: boolean
+  allowView: boolean
+  canCommitWorkingText: boolean
+  editorTitle: string
+  isActive: boolean
+  isDark: boolean
+  onActivate: () => void
+  onCommitWorkingText?: () => void
+  session: EditorSession
+}) {
+  const activeViewMode = allowView ? session.viewMode : 'source'
+
+  return (
+    <Box
+      className="editorPane"
+      data-active={isActive || undefined}
+      data-editor-id={session.id}
+      onFocusCapture={onActivate}
+      onPointerDownCapture={onActivate}
+    >
+      <EditorDialogs session={session} />
+      <Box className="editorPanel">
+        <EditorToolbar
+          activeViewMode={activeViewMode}
+          canCommitWorkingText={canCommitWorkingText}
+          editorTitle={editorTitle}
+          searchPanelOpen={session.searchReplace.isOpen}
+          showCommit={allowCommit}
+          showViewMode={allowView}
+          softWrapEnabled={session.softWrapEnabled}
+          viewAvailable={session.viewAvailable}
+          onCommitWorkingText={onCommitWorkingText}
+          onOpenSamples={() => session.setSampleModalOpened(true)}
+          onOpenSearch={() =>
+            session.searchReplace.isOpen
+              ? session.searchReplace.closePanel()
+              : session.searchReplace.openPanel('search')
+          }
+          onSetViewMode={session.setViewMode}
+          onToggleSoftWrap={() =>
+            session.setSoftWrapEnabled((enabled) => !enabled)
+          }
+        />
+        <StatusBar
+          activeViewMode={activeViewMode}
+          charCount={session.charCount}
+          cursor={session.cursorPosition}
+          encoding={session.encoding}
+          formatLabel={session.currentFormat.label}
+          lineCount={session.lineCount}
+          selection={session.selectionStats}
+          sqlDialectId={
+            session.syntaxMode === 'sql' ? session.sqlDialect.id : undefined
+          }
+          sqlDialectOptions={
+            session.syntaxMode === 'sql'
+              ? session.sqlDialectOptions.map((dialect) => ({
+                  label: dialect.label,
+                  value: dialect.id,
+                }))
+              : undefined
+          }
+          validationEnabled={session.validationEnabled}
+          validationAvailable={session.currentFormat.validation === 'supported'}
+          validationResult={session.validationResult}
+          onChooseSqlDialect={(id) => {
+            const dialect = session.sqlDialectOptions.find(
+              (option) => option.id === id,
+            )
+            if (dialect) session.setSqlDialect(dialect)
+          }}
+          onChooseEncoding={() => session.setEncodingModalOpened(true)}
+          onChooseSyntax={() => session.setSyntaxModalOpened(true)}
+          onGoToLine={() => session.setGoToLineModalOpened(true)}
+          onToggleValidation={() =>
+            session.setValidationEnabled((enabled) => !enabled)
+          }
+        />
+        {activeViewMode === 'source' ? (
+          <CodeMirror
+            ref={session.editorRef}
+            aria-label={
+              session.id === 'main' ? 'Text editor' : 'Secondary text editor'
+            }
+            className={[
+              session.softWrapEnabled
+                ? 'codeEditor'
+                : 'codeEditor codeEditorNoWrap',
+              session.searchReplace.editorProps.className,
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            style={session.searchReplace.editorProps.style}
+            basicSetup={{
+              bracketMatching: true,
+              closeBrackets: true,
+              foldGutter: true,
+              highlightActiveLine: true,
+              highlightActiveLineGutter: true,
+              lineNumbers: true,
+            }}
+            extensions={session.editorExtensions}
+            height="100%"
+            placeholder="any text here"
+            theme={isDark ? oneDark : 'light'}
+            value={session.value}
+            onChange={session.updateValue}
+            onStatistics={session.updateStatistics}
+          />
+        ) : (
+          <FormatViewPanel
+            format={session.currentFormat}
+            value={session.value}
+            views={FORMAT_VIEWS}
+          />
+        )}
+        {session.searchReplace.panelPortal}
+      </Box>
+    </Box>
+  )
+}
+
+function EditorDialogs({ session }: { session: EditorSession }) {
+  return (
+    <>
+      <Modal
+        centered
+        opened={session.syntaxModalOpened}
+        overlayProps={{ backgroundOpacity: 0.45, blur: 1 }}
+        size="sm"
+        title="Text format"
+        onClose={() => session.setSyntaxModalOpened(false)}
+      >
+        <Stack gap="xs">
+          {FORMAT_OPTIONS.map((option) => (
+            <SyntaxOptionButton
+              active={session.syntaxMode === option.id}
+              description={option.description}
+              key={option.id}
+              label={option.label}
+              value={option.id}
+              onClick={() => session.chooseSyntax(option.id)}
+            />
+          ))}
+        </Stack>
+      </Modal>
+      <Modal
+        centered
+        opened={session.sampleModalOpened}
+        overlayProps={{ backgroundOpacity: 0.45, blur: 1 }}
+        size="lg"
+        title="Sample data"
+        onClose={() => session.setSampleModalOpened(false)}
+      >
+        <Stack gap="xs">
+          {TEXT_SAMPLES.map((sample) => (
+            <SampleOptionButton
+              key={sample.id}
+              sample={sample}
+              onClick={() => session.loadSample(sample)}
+            />
+          ))}
+        </Stack>
+      </Modal>
+      <Modal
+        centered
+        opened={session.goToLineModalOpened}
+        overlayProps={{ backgroundOpacity: 0.45, blur: 1 }}
+        size="sm"
+        title="Go to line"
+        onClose={() => session.setGoToLineModalOpened(false)}
+      >
+        {session.goToLineModalOpened ? (
+          <GoToLineForm
+            currentColumn={session.cursorPosition.column}
+            currentLine={session.cursorPosition.line}
+            maxLine={Math.max(1, session.lineCount)}
+            onCancel={() => session.setGoToLineModalOpened(false)}
+            onSubmit={session.goToLineColumn}
+          />
+        ) : null}
+      </Modal>
+      <Modal
+        centered
+        opened={session.encodingModalOpened}
+        overlayProps={{ backgroundOpacity: 0.45, blur: 1 }}
+        size="sm"
+        title="Encoding"
+        onClose={() => session.setEncodingModalOpened(false)}
+      >
+        <Stack gap="xs">
+          <Text c="dimmed" size="xs">
+            Text is held in memory as Unicode. This sets the encoding label used
+            when reading or writing the source.
+          </Text>
+          {ENCODING_OPTIONS.map((option) => (
+            <OptionButton
+              active={session.encoding === option.label}
+              description={option.description}
+              key={option.label}
+              label={option.label}
+              onClick={() => {
+                session.setEncoding(option.label)
+                session.setEncodingModalOpened(false)
+              }}
+            />
+          ))}
+        </Stack>
+      </Modal>
+    </>
+  )
+}
+
+function SampleOptionButton({
+  onClick,
+  sample,
+}: {
+  onClick: () => void
+  sample: TextSample
+}) {
+  return (
+    <button
+      aria-label={`Load ${sample.label}`}
+      className="syntaxOption sampleOption"
+      type="button"
+      onClick={onClick}
+    >
+      <Group className="syntaxOptionMain" gap="sm" wrap="nowrap">
+        <SyntaxIcon value={sample.syntaxMode} />
+        <Box className="syntaxOptionText">
+          <Group gap="xs" wrap="nowrap">
+            <Text fw={650} size="sm">
+              {sample.label}
+            </Text>
+            <Badge className="sampleFormatBadge" size="xs" variant="light">
+              {FORMAT_DEFINITIONS[sample.syntaxMode].label}
+            </Badge>
+          </Group>
+          <Text c="dimmed" size="xs">
+            {sample.description}
+          </Text>
+        </Box>
+      </Group>
+    </button>
+  )
+}
+
+function GoToLineForm({
+  currentColumn,
+  currentLine,
+  maxLine,
+  onCancel,
+  onSubmit,
+}: {
+  currentColumn: number
+  currentLine: number
+  maxLine: number
+  onCancel: () => void
+  onSubmit: (line: number, column: number) => void
+}) {
+  const [line, setLine] = useState<number | string>(currentLine)
+  const [column, setColumn] = useState<number | string>(currentColumn)
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault()
+        onSubmit(Number(line) || 1, Number(column) || 1)
+      }}
+    >
+      <Stack gap="md">
+        <Text c="dimmed" size="xs">
+          Jump the cursor to a location. Line 1&ndash;{maxLine}.
+        </Text>
+        <Group gap="sm" grow wrap="nowrap">
+          <NumberInput
+            allowDecimal={false}
+            data-autofocus
+            label="Line"
+            max={maxLine}
+            min={1}
+            value={line}
+            onChange={setLine}
+          />
+          <NumberInput
+            allowDecimal={false}
+            label="Column"
+            min={1}
+            value={column}
+            onChange={setColumn}
+          />
+        </Group>
+        <Group justify="flex-end" gap="xs" wrap="nowrap">
+          <Button type="button" variant="default" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit">Go to location</Button>
+        </Group>
+      </Stack>
+    </form>
+  )
+}
+
+function OptionButton({
+  active,
+  description,
+  label,
+  onClick,
+}: {
+  active: boolean
+  description: string
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      aria-pressed={active}
+      className="syntaxOption"
+      data-selected={active || undefined}
+      type="button"
+      onClick={onClick}
+    >
+      <Box className="syntaxOptionText">
+        <Text fw={650} size="sm">
+          {label}
+        </Text>
+        <Text c="dimmed" size="xs">
+          {description}
+        </Text>
+      </Box>
+      {active ? <Check size={16} /> : null}
+    </button>
+  )
+}
+
+function SyntaxOptionButton({
+  active,
+  description,
+  label,
+  onClick,
+  value,
+}: {
+  active: boolean
+  description: string
+  label: string
+  onClick: () => void
+  value: SyntaxMode
+}) {
+  return (
+    <button
+      aria-pressed={active}
+      className="syntaxOption"
+      data-selected={active || undefined}
+      type="button"
+      onClick={onClick}
+    >
+      <Group className="syntaxOptionMain" gap="sm" wrap="nowrap">
+        <SyntaxIcon value={value} />
+        <Box className="syntaxOptionText">
+          <Text fw={650} size="sm">
+            {label}
+          </Text>
+          <Text c="dimmed" size="xs">
+            {description}
+          </Text>
+        </Box>
+      </Group>
+      {active ? <Check size={16} /> : null}
+    </button>
+  )
+}
+
+function SyntaxIcon({ value }: { value: SyntaxMode }) {
+  if (value === 'json') return <Braces size={18} />
+  if (value === 'jwt') return <KeyRound size={18} />
+  if (value === 'ndjson') return <FileJson size={18} />
+  if (value === 'graphql') return <Share2 size={18} />
+  if (value === 'yaml' || value === 'xml' || value === 'sql') {
+    return <Code2 size={18} />
+  }
+  return <FileText size={18} />
+}

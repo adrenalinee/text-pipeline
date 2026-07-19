@@ -18,6 +18,7 @@ import {
 export function EditorToolbar({
   activeViewMode,
   canCommitWorkingText,
+  editorTitle,
   onCommitWorkingText,
   onOpenSamples,
   onOpenSearch,
@@ -25,16 +26,21 @@ export function EditorToolbar({
   onToggleSoftWrap,
   searchPanelOpen,
   softWrapEnabled,
+  showCommit,
+  showViewMode,
   viewAvailable,
 }: {
   activeViewMode: WorkbenchViewMode
   canCommitWorkingText: boolean
-  onCommitWorkingText: () => void
+  editorTitle: string
+  onCommitWorkingText?: () => void
   onOpenSamples: () => void
   onOpenSearch: () => void
   onSetViewMode: (mode: WorkbenchViewMode) => void
   onToggleSoftWrap: () => void
   searchPanelOpen: boolean
+  showCommit: boolean
+  showViewMode: boolean
   softWrapEnabled: boolean
   viewAvailable: boolean
 }) {
@@ -42,20 +48,22 @@ export function EditorToolbar({
     <Group className="editorToolbar" justify="space-between" wrap="nowrap">
       <Group gap="xs" wrap="nowrap">
         <CircleDot size={14} />
-        <Text fw={600} size="sm">
-          Text Editor
+        <Text className="editorPaneTitle" fw={600} size="sm">
+          {editorTitle}
         </Text>
-        <SegmentedControl
-          aria-label="Editor view mode"
-          className="viewModeTabs"
-          data={[
-            { label: 'Source', value: 'source' },
-            { disabled: !viewAvailable, label: 'View', value: 'view' },
-          ]}
-          size="xs"
-          value={activeViewMode}
-          onChange={(value) => onSetViewMode(value)}
-        />
+        {showViewMode ? (
+          <SegmentedControl
+            aria-label="Editor view mode"
+            className="viewModeTabs"
+            data={[
+              { label: 'Source', value: 'source' },
+              { disabled: !viewAvailable, label: 'View', value: 'view' },
+            ]}
+            size="xs"
+            value={activeViewMode}
+            onChange={(value) => onSetViewMode(value)}
+          />
+        ) : null}
       </Group>
       <Group className="editorToolbarActions" gap={6} wrap="nowrap">
         <Tooltip label="Choose sample data" withArrow>
@@ -118,24 +126,26 @@ export function EditorToolbar({
             <Search size={18} />
           </ActionIcon>
         </Tooltip>
-        <Tooltip
-          label={
-            canCommitWorkingText
-              ? 'Commit current editor text'
-              : 'No editor changes to commit'
-          }
-          withArrow
-        >
-          <ActionIcon
-            aria-label="Commit current editor text"
-            color={canCommitWorkingText ? 'green' : 'gray'}
-            disabled={!canCommitWorkingText}
-            variant={canCommitWorkingText ? 'filled' : 'light'}
-            onClick={onCommitWorkingText}
+        {showCommit ? (
+          <Tooltip
+            label={
+              canCommitWorkingText
+                ? 'Commit current editor text'
+                : 'No editor changes to commit'
+            }
+            withArrow
           >
-            <IconGitCommit size={18} />
-          </ActionIcon>
-        </Tooltip>
+            <ActionIcon
+              aria-label="Commit current editor text"
+              color={canCommitWorkingText ? 'green' : 'gray'}
+              disabled={!canCommitWorkingText}
+              variant={canCommitWorkingText ? 'filled' : 'light'}
+              onClick={onCommitWorkingText}
+            >
+              <IconGitCommit size={18} />
+            </ActionIcon>
+          </Tooltip>
+        ) : null}
       </Group>
     </Group>
   )

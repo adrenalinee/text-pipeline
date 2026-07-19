@@ -61,7 +61,7 @@ export function useSearchReplace({
   onReplaceCommit,
 }: {
   editorRef: RefObject<ReactCodeMirrorRef | null>
-  onReplaceCommit: (session: ReplaceSession) => void
+  onReplaceCommit?: (session: ReplaceSession) => void
 }) {
   const [panelDom, setPanelDom] = useState<HTMLElement | null>(null)
   const [showReplace, setShowReplace] = useState(false)
@@ -109,7 +109,11 @@ export function useSearchReplace({
   const flushPendingReplace = useCallback(() => {
     const session = takePendingReplace()
 
-    if (session && session.beforeText !== session.afterText) {
+    if (
+      session &&
+      session.beforeText !== session.afterText &&
+      onReplaceCommitRef.current
+    ) {
       onReplaceCommitRef.current(session)
     }
   }, [takePendingReplace])

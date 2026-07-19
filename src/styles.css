@@ -54,10 +54,90 @@ button {
   );
 }
 
+.editorWorkspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  height: calc(100vh - 44px);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editorWorkspace[data-split] {
+  grid-template-columns:
+    minmax(0, calc(var(--editor-split-ratio) - 3px)) 6px
+    minmax(0, calc(100% - var(--editor-split-ratio) - 3px));
+}
+
+.editorWorkspace[data-split][data-compact] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows:
+    minmax(0, calc(var(--editor-split-ratio) - 3px)) 6px
+    minmax(0, calc(100% - var(--editor-split-ratio) - 3px));
+}
+
+.editorPane {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  container-name: editor-pane;
+  container-type: inline-size;
+}
+
+.editorPane[data-active] {
+  box-shadow: inset 0 0 0 1px var(--mantine-color-blue-6);
+  z-index: 1;
+}
+
+.editorSplitSeparator {
+  position: relative;
+  z-index: 2;
+  background: light-dark(
+    var(--mantine-color-gray-2),
+    var(--mantine-color-dark-6)
+  );
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.editorSplitSeparator::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: 2px;
+  border-radius: 2px;
+  background: light-dark(
+    var(--mantine-color-gray-4),
+    var(--mantine-color-dark-3)
+  );
+  content: '';
+}
+
+.editorSplitSeparator:hover,
+.editorSplitSeparator:focus-visible {
+  background: light-dark(
+    var(--mantine-color-blue-1),
+    var(--mantine-color-blue-9)
+  );
+  outline: 0;
+}
+
+.editorWorkspace[data-compact] .editorSplitSeparator {
+  cursor: row-resize;
+}
+
+.editorWorkspace[data-compact] .editorSplitSeparator::after {
+  inset: 2px 0 auto;
+  width: auto;
+  height: 2px;
+}
+
 .editorPanel {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 44px);
+  height: 100%;
   min-width: 0;
 }
 
@@ -76,6 +156,49 @@ button {
   flex: 0 0 auto;
   min-width: 0;
   justify-content: flex-end;
+}
+
+@container editor-pane (max-width: 520px) {
+  .editorPaneTitle {
+    display: none;
+  }
+
+  .sampleButton {
+    width: 34px;
+    min-width: 34px;
+  }
+
+  .sampleButton .mantine-Button-label {
+    display: none;
+  }
+
+  .statusBarMetric {
+    display: none;
+  }
+}
+
+@container editor-pane (max-width: 380px) {
+  .editorToolbar {
+    padding-inline: 8px;
+  }
+
+  .editorToolbarActions {
+    gap: 4px;
+  }
+
+  .statusBar {
+    padding-inline: 5px;
+    gap: 3px;
+  }
+
+  .statusBarButton {
+    padding-inline: 5px;
+  }
+
+  .statusBarValidation .statusBarButtonLabel,
+  .statusBarSelection {
+    display: none;
+  }
 }
 
 .statusBar {
@@ -191,10 +314,7 @@ button {
   font-weight: 600;
   white-space: nowrap;
   color: light-dark(var(--mantine-color-blue-8), var(--mantine-color-blue-2));
-  background: light-dark(
-    var(--mantine-color-blue-1),
-    rgba(34, 139, 230, 0.18)
-  );
+  background: light-dark(var(--mantine-color-blue-1), rgba(34, 139, 230, 0.18));
 }
 
 .statusBarDivider {
@@ -212,10 +332,7 @@ button {
 }
 
 .statusBarValidation[data-status='valid']:hover {
-  background: light-dark(
-    var(--mantine-color-green-1),
-    rgba(64, 192, 87, 0.16)
-  );
+  background: light-dark(var(--mantine-color-green-1), rgba(64, 192, 87, 0.16));
   color: light-dark(var(--mantine-color-green-9), var(--mantine-color-green-3));
 }
 
