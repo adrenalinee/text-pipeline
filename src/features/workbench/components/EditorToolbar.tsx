@@ -18,7 +18,7 @@ import {
 export function EditorToolbar({
   activeViewMode,
   canCommitWorkingText,
-  editorTitle,
+  // editorTitle,
   onCommitWorkingText,
   onOpenSamples,
   onOpenSearch,
@@ -32,7 +32,7 @@ export function EditorToolbar({
 }: {
   activeViewMode: WorkbenchViewMode
   canCommitWorkingText: boolean
-  editorTitle: string
+  // editorTitle: string
   onCommitWorkingText?: () => void
   onOpenSamples: () => void
   onOpenSearch: () => void
@@ -48,9 +48,9 @@ export function EditorToolbar({
     <Group className="editorToolbar" justify="space-between" wrap="nowrap">
       <Group gap="xs" wrap="nowrap">
         <CircleDot size={14} />
-        <Text className="editorPaneTitle" fw={600} size="sm">
+        {/* <Text className="editorPaneTitle" fw={600} size="sm">
           {editorTitle}
-        </Text>
+        </Text> */}
         {showViewMode ? (
           <SegmentedControl
             aria-label="Editor view mode"

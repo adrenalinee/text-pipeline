@@ -35,7 +35,7 @@ export function EditorPane({
   allowCommit,
   allowView,
   canCommitWorkingText,
-  editorTitle,
+  // editorTitle,
   isActive,
   isDark,
   onActivate,
@@ -45,7 +45,7 @@ export function EditorPane({
   allowCommit: boolean
   allowView: boolean
   canCommitWorkingText: boolean
-  editorTitle: string
+  // editorTitle: string
   isActive: boolean
   isDark: boolean
   onActivate: () => void
@@ -67,7 +67,7 @@ export function EditorPane({
         <EditorToolbar
           activeViewMode={activeViewMode}
           canCommitWorkingText={canCommitWorkingText}
-          editorTitle={editorTitle}
+          // editorTitle={editorTitle}
           searchPanelOpen={session.searchReplace.isOpen}
           showCommit={allowCommit}
           showViewMode={allowView}

@@ -1,4 +1,4 @@
-import { Box } from '@mantine/core'
+import { Box, Paper } from '@mantine/core'
 import type { KeyboardEvent, PointerEvent, ReactNode } from 'react'
 import { useRef } from 'react'
 
@@ -87,7 +87,9 @@ export function SplitEditorWorkspace({
             }}
             onPointerMove={updateFromPointer}
           />
-          {sub}
+          <Paper m="xs" shadow="sm">
+            {sub}
+          </Paper>
         </>
       ) : null}
     </Box>

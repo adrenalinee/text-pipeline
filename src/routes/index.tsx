@@ -837,7 +837,7 @@ function Workbench() {
               allowCommit
               allowView
               canCommitWorkingText={canCommitWorkingText}
-              editorTitle="Main Editor"
+              // editorTitle="Main Editor"
               isActive={activeEditorId === 'main'}
               isDark={isDark}
               session={mainSession}
@@ -850,7 +850,7 @@ function Workbench() {
               allowCommit={false}
               allowView={false}
               canCommitWorkingText={false}
-              editorTitle="Sub Editor"
+              // editorTitle="Sub Editor"
               isActive={activeEditorId === 'sub'}
               isDark={isDark}
               session={subSession}
