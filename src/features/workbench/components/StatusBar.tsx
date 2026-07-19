@@ -70,6 +70,13 @@ export function StatusBar({
         gap={4}
         wrap="nowrap"
       >
+        <ValidationStatusButton
+          available={validationAvailable}
+          enabled={validationEnabled}
+          result={validationEnabled ? validationResult : null}
+          onToggle={onToggleValidation}
+        />
+        <span className="statusBarDivider" aria-hidden="true" />
         <Tooltip label="Change encoding" withArrow>
           <Button
             variant="default"
@@ -174,15 +181,6 @@ export function StatusBar({
             </Button>
           </Tooltip>
         )}
-
-        <span className="statusBarDivider" aria-hidden="true" />
-
-        <ValidationStatusButton
-          available={validationAvailable}
-          enabled={validationEnabled}
-          result={validationEnabled ? validationResult : null}
-          onToggle={onToggleValidation}
-        />
       </Group>
     </Group>
   )

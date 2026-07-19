@@ -9,7 +9,6 @@ import {
   Loader,
   MantineProvider,
   Modal,
-  NumberInput,
   Stack,
   Text,
   Tooltip,
@@ -18,22 +17,13 @@ import {
 } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { Notifications, notifications } from '@mantine/notifications'
-import { linter, lintGutter } from '@codemirror/lint'
-import type { LintSource } from '@codemirror/lint'
-import type { Extension } from '@codemirror/state'
-import { EditorView } from '@codemirror/view'
-import { oneDark } from '@codemirror/theme-one-dark'
-import CodeMirror from '@uiw/react-codemirror'
-import type { ReactCodeMirrorRef } from '@uiw/react-codemirror'
 import {
   Binary,
   Braces,
-  Check,
   Code2,
+  Columns2,
   Crop,
   FileJson,
-  FileText,
-  KeyRound,
   ListTree,
   Link,
   Moon,
@@ -42,25 +32,18 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Replace,
-  Share2,
   Sun,
   Workflow,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 
-import { EditorToolbar } from '#/features/workbench/components/EditorToolbar'
+import { EditorPane } from '#/features/workbench/components/EditorPane'
 import { HistoryRail } from '#/features/workbench/components/HistoryRail'
 import { HistorySidebar } from '#/features/workbench/components/HistorySidebar'
-import { StatusBar } from '#/features/workbench/components/StatusBar'
+import { SplitEditorWorkspace } from '#/features/workbench/components/SplitEditorWorkspace'
 import { TransformsRail } from '#/features/workbench/components/TransformsRail'
 import { TransformsSidebar } from '#/features/workbench/components/TransformsSidebar'
-import {
-  FORMAT_DEFINITIONS,
-  FORMAT_OPTIONS,
-  FORMAT_VIEWS,
-  getFormatDefinition,
-} from '#/features/workbench/formats'
 import {
   appendCommit,
   createTextCommit,
@@ -73,10 +56,7 @@ import {
   WORKING_REVISION_ID,
 } from '#/features/workbench/history'
 import type { TextRevisionSnapshot } from '#/features/workbench/history'
-import { useSearchReplace } from '#/features/workbench/search/useSearchReplace'
 import type { ReplaceSession } from '#/features/workbench/search/useSearchReplace'
-import { TEXT_SAMPLES } from '#/features/workbench/samples'
-import type { TextSample } from '#/features/workbench/samples'
 import type {
   SyntaxMode,
   TextCommit,
@@ -84,7 +64,6 @@ import type {
   TransformActionSection,
   TransformDefinition,
   TransformRunner,
-  WorkbenchViewMode,
 } from '#/features/workbench/types'
 import { TRANSFORM_DEFINITIONS } from '#/features/workbench/transforms/definitions'
 import { getTransformSections } from '#/features/workbench/transforms/filterTransforms'
@@ -97,24 +76,11 @@ import {
   TRANSFORM_RUNNERS,
 } from '#/features/workbench/transforms/runners'
 import { cropToSelection } from '#/features/workbench/transforms/cropSelection'
-import {
-  validateFormat,
-  validateSqlDialect,
-} from '#/features/workbench/utils/formatValidation'
-import type { FormatValidationResult } from '#/features/workbench/utils/formatValidation'
-import { createSqlLintSource } from '#/features/workbench/utils/formatLinting'
-import {
-  countLines,
-  getLineAndColumn,
-  getOffsetForLineAndColumn,
-  getSelectionStats,
-} from '#/features/workbench/utils/textMetrics'
-import {
-  DEFAULT_SQL_DIALECT,
-  SQL_DIALECT_OPTIONS,
-} from '#/features/workbench/sqlDialects'
-import type { SqlDialect } from '#/features/workbench/sqlDialects'
-import { FormatViewPanel } from '#/features/workbench/views/FormatViewPanel'
+import { useEditorSession } from '#/features/workbench/useEditorSession'
+import type {
+  EditorId,
+  EditorSession,
+} from '#/features/workbench/useEditorSession'
 import { theme } from '#/theme.ts'
 
 export const Route = createFileRoute('/')({
@@ -134,20 +100,7 @@ const RAIL_WIDTH = 48
 
 const LEFT_PANEL_STORAGE_KEY = 'text-pipeline:leftSidebarOpened'
 const RIGHT_PANEL_STORAGE_KEY = 'text-pipeline:rightSidebarOpened'
-
-// The workbench keeps all text in JS strings decoded from the clipboard or
-// keyboard, so the underlying representation is always Unicode. The encoding
-// label is a display hint for how the source is meant to be read/written; it
-// does not re-decode the in-memory text.
-const DEFAULT_ENCODING_LABEL = 'UTF-8'
-const ENCODING_OPTIONS: Array<{ description: string; label: string }> = [
-  { description: 'Unicode, variable width (default)', label: 'UTF-8' },
-  { description: 'Unicode, little-endian 16-bit', label: 'UTF-16 LE' },
-  { description: 'Unicode, big-endian 16-bit', label: 'UTF-16 BE' },
-  { description: '7-bit US-ASCII', label: 'US-ASCII' },
-  { description: 'Latin-1, Western European', label: 'ISO-8859-1' },
-  { description: 'Windows Western European', label: 'Windows-1252' },
-]
+const SPLIT_RATIO_STORAGE_KEY = 'text-pipeline:editorSplitRatio'
 
 function readStoredPanelOpened(key: string, fallback: boolean) {
   if (typeof window === 'undefined') {
@@ -174,11 +127,28 @@ function writeStoredPanelOpened(key: string, value: boolean) {
   }
 }
 
+function readStoredSplitRatio() {
+  if (typeof window === 'undefined') return 50
+
+  try {
+    const stored = Number(window.localStorage.getItem(SPLIT_RATIO_STORAGE_KEY))
+    return Number.isFinite(stored) && stored >= 20 && stored <= 80 ? stored : 50
+  } catch {
+    return 50
+  }
+}
+
+function writeStoredSplitRatio(value: number) {
+  try {
+    window.localStorage.setItem(SPLIT_RATIO_STORAGE_KEY, String(value))
+  } catch {
+    // Ignore storage failures (private mode, quota, disabled storage).
+  }
+}
+
 function Home() {
   return (
-    <MantineProvider
-      theme={theme}
-    >
+    <MantineProvider theme={theme}>
       <Notifications position="bottom-center" />
       <Workbench />
     </MantineProvider>
@@ -192,27 +162,14 @@ function Workbench() {
   const [rightOpened, setRightOpened] = useState(() =>
     readStoredPanelOpened(RIGHT_PANEL_STORAGE_KEY, true),
   )
-  const [editorValue, setEditorValue] = useState(INITIAL_EDITOR_VALUE)
   const [commits, setCommits] = useState<Array<TextCommit>>([])
   const [selectedRevisionId, setSelectedRevisionId] =
     useState(WORKING_REVISION_ID)
   const [workingBaseRevisionId, setWorkingBaseRevisionId] =
     useState(ROOT_REVISION_ID)
-  const [syntaxMode, setSyntaxMode] = useState<SyntaxMode>('json')
-  const [syntaxModalOpened, setSyntaxModalOpened] = useState(false)
-  const [sampleModalOpened, setSampleModalOpened] = useState(false)
-  const [encoding, setEncoding] = useState(DEFAULT_ENCODING_LABEL)
-  const [encodingModalOpened, setEncodingModalOpened] = useState(false)
-  const [goToLineModalOpened, setGoToLineModalOpened] = useState(false)
-  const [softWrapEnabled, setSoftWrapEnabled] = useState(true)
-  const [validationEnabled, setValidationEnabled] = useState(false)
-  const [sqlDialect, setSqlDialect] = useState<SqlDialect>(DEFAULT_SQL_DIALECT)
-  const [viewMode, setViewMode] = useState<WorkbenchViewMode>('source')
-  const [selectionRange, setSelectionRange] = useState<{
-    from: number
-    to: number
-  }>({ from: 0, to: 0 })
-  const [cursorOffset, setCursorOffset] = useState(0)
+  const [activeEditorId, setActiveEditorId] = useState<EditorId>('main')
+  const [splitEnabled, setSplitEnabled] = useState(false)
+  const [splitRatio, setSplitRatio] = useState(readStoredSplitRatio)
   const [runningTransformLabel, setRunningTransformLabel] = useState<
     string | null
   >(null)
@@ -220,24 +177,26 @@ function Workbench() {
     TextCommit | typeof ROOT_REVISION_ID | null
   >(null)
   const commitSeqRef = useRef(0)
-  const editorRef = useRef<ReactCodeMirrorRef>(null)
   const { setColorScheme } = useMantineColorScheme()
   const isCompact = useMediaQuery('(max-width: 48em)')
   const computedColorScheme = useComputedColorScheme('dark', {
     getInitialValueInEffect: true,
   })
   const isDark = computedColorScheme === 'dark'
-  const currentFormat = getFormatDefinition(syntaxMode)
-  const viewAvailable = currentFormat.viewIds.length > 0
-  // Crop relies on a live editor selection, which only exists in source mode.
-  const hasEditorSelection =
-    viewMode === 'source' && selectionRange.from !== selectionRange.to
-  const totalLineCount = countLines(editorValue)
-  const totalCharCount = editorValue.length
-  const cursorPosition = getLineAndColumn(editorValue, cursorOffset)
-  const selectionStats = hasEditorSelection
-    ? getSelectionStats(editorValue, selectionRange.from, selectionRange.to)
-    : null
+  const mainSession = useEditorSession({
+    id: 'main',
+    initialSyntaxMode: INITIAL_TEXT_REVISION.syntaxMode,
+    initialValue: INITIAL_TEXT_REVISION.text,
+    onManualChange: markWorkingTextChanged,
+    onReplaceCommit: commitReplace,
+  })
+  const subSession = useEditorSession({
+    id: 'sub',
+    initialSyntaxMode: 'json',
+    initialValue: '',
+  })
+  const activeSession =
+    activeEditorId === 'sub' && splitEnabled ? subSession : mainSession
   const rootRevision = getRootRevisionSnapshot(commits, INITIAL_TEXT_REVISION)
   const rootText = rootRevision.text
   const rootSyntaxMode = rootRevision.syntaxMode
@@ -252,98 +211,8 @@ function Workbench() {
   )
   const canCommitWorkingText = hasRevisionTextChanged(
     workingBaseRevision,
-    editorValue,
+    mainSession.value,
   )
-  const searchReplace = useSearchReplace({
-    editorRef,
-    onReplaceCommit: commitReplace,
-  })
-  const [editorExtensions, setEditorExtensions] = useState<Array<Extension>>([])
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function loadEditorExtensions() {
-      // Load the format's language mode (and lint source) on demand so each
-      // format's CodeMirror package stays out of the initial bundle.
-      const syntaxExtensions = await currentFormat.loadEditorExtensions()
-
-      let lintSource: LintSource | null = null
-
-      if (validationEnabled) {
-        if (syntaxMode === 'sql') {
-          lintSource = sqlDialect.parserDatabase
-            ? createSqlLintSource(sqlDialect.parserDatabase)
-            : null
-        } else if (currentFormat.loadLintSource) {
-          lintSource = await currentFormat.loadLintSource()
-        }
-      }
-
-      if (cancelled) {
-        return
-      }
-
-      const lintExtensions = lintSource
-        ? [lintGutter(), linter(lintSource, { delay: 250 })]
-        : []
-      const wrappingExtensions = softWrapEnabled
-        ? [EditorView.lineWrapping]
-        : []
-
-      setEditorExtensions([
-        ...syntaxExtensions,
-        ...lintExtensions,
-        ...wrappingExtensions,
-        ...searchReplace.extensions,
-      ])
-    }
-
-    void loadEditorExtensions()
-
-    return () => {
-      cancelled = true
-    }
-  }, [
-    currentFormat,
-    softWrapEnabled,
-    validationEnabled,
-    syntaxMode,
-    sqlDialect,
-    searchReplace.extensions,
-  ])
-  const [validationResult, setValidationResult] =
-    useState<FormatValidationResult | null>(null)
-
-  useEffect(() => {
-    if (!(validationEnabled && currentFormat.validation === 'supported')) {
-      setValidationResult(null)
-      return
-    }
-
-    let cancelled = false
-
-    const validate =
-      syntaxMode === 'sql'
-        ? validateSqlDialect(editorValue, sqlDialect.parserDatabase)
-        : validateFormat(editorValue, syntaxMode)
-
-    void validate.then((result) => {
-      if (!cancelled) {
-        setValidationResult(result)
-      }
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [
-    currentFormat.validation,
-    editorValue,
-    syntaxMode,
-    validationEnabled,
-    sqlDialect,
-  ])
 
   function allocateCommitId() {
     commitSeqRef.current += 1
@@ -358,7 +227,7 @@ function Workbench() {
     )
       ? createWorkingSnapshotCommit({
           baseRevision: workingBaseRevision,
-          currentSyntaxMode: syntaxMode,
+          currentSyntaxMode: mainSession.syntaxMode,
           currentText: beforeText,
           description: 'Saved working text before replace.',
           id: allocateCommitId(),
@@ -368,9 +237,9 @@ function Workbench() {
       : null
     const commitId = allocateCommitId()
     const replaceCommit = createTextCommit({
-      afterSyntaxMode: syntaxMode,
+      afterSyntaxMode: mainSession.syntaxMode,
       afterText,
-      beforeSyntaxMode: syntaxMode,
+      beforeSyntaxMode: mainSession.syntaxMode,
       beforeText,
       description: `Replaced ${occurrences} occurrence${
         occurrences === 1 ? '' : 's'
@@ -392,7 +261,7 @@ function Workbench() {
     // The editor may already hold newer manual edits when the session is
     // flushed by a non-replace change; keep those as working text.
     setSelectedRevisionId(
-      editorValue === afterText ? commitId : WORKING_REVISION_ID,
+      mainSession.value === afterText ? commitId : WORKING_REVISION_ID,
     )
 
     notifications.show({
@@ -401,14 +270,14 @@ function Workbench() {
       title: 'Commit created',
     })
 
-    return { id: commitId, syntaxMode, text: afterText }
+    return { id: commitId, syntaxMode: mainSession.syntaxMode, text: afterText }
   }
 
   function flushPendingReplaceCommits(): {
     baseRevision: TextRevisionSnapshot
     didCommit: boolean
   } {
-    const session = searchReplace.takePendingReplace()
+    const session = mainSession.searchReplace.takePendingReplace()
 
     if (!session || session.beforeText === session.afterText) {
       return { baseRevision: workingBaseRevision, didCommit: false }
@@ -418,28 +287,31 @@ function Workbench() {
   }
 
   async function runTransform(
+    targetSession: EditorSession,
     definition: TransformDefinition,
     runner: TransformRunner,
   ) {
-    const { baseRevision } = flushPendingReplaceCommits()
-    const beforeText = editorValue
-    const beforeSyntaxMode = syntaxMode
-    const workingSnapshotCommit = hasRevisionTextChanged(
-      baseRevision,
-      beforeText,
-    )
-      ? createWorkingSnapshotCommit({
-          baseRevision,
-          currentSyntaxMode: beforeSyntaxMode,
-          currentText: beforeText,
-          description: 'Saved working text before transform.',
-          id: allocateCommitId(),
-          timestamp: formatCommitTimestamp(new Date()),
-          title: 'Manual edit',
-        })
+    const isMain = targetSession.id === 'main'
+    const beforeText = targetSession.value
+    const beforeSyntaxMode = targetSession.syntaxMode
+    const baseRevision = isMain
+      ? flushPendingReplaceCommits().baseRevision
       : null
-    const transformParentId = workingSnapshotCommit?.id ?? baseRevision.id
-    const transformCommitId = allocateCommitId()
+    const workingSnapshotCommit =
+      baseRevision && hasRevisionTextChanged(baseRevision, beforeText)
+        ? createWorkingSnapshotCommit({
+            baseRevision,
+            currentSyntaxMode: beforeSyntaxMode,
+            currentText: beforeText,
+            description: 'Saved working text before transform.',
+            id: allocateCommitId(),
+            timestamp: formatCommitTimestamp(new Date()),
+            title: 'Manual edit',
+          })
+        : null
+    const transformParentId =
+      workingSnapshotCommit?.id ?? baseRevision?.id ?? ROOT_REVISION_ID
+    const transformCommitId = isMain ? allocateCommitId() : null
     const shouldShowProgress = shouldShowTransformProgress(
       definition,
       beforeText,
@@ -465,16 +337,26 @@ function Workbench() {
       const afterSyntaxMode =
         result.outputFormat ?? definition.outputFormat ?? beforeSyntaxMode
 
-      commitTransform({
-        afterText: result.output,
-        afterSyntaxMode,
-        beforeText,
-        beforeSyntaxMode,
-        description: definition.description,
-        id: transformCommitId,
-        parentId: transformParentId,
-        title: definition.label,
-      })
+      if (isMain && transformCommitId) {
+        commitTransform({
+          afterText: result.output,
+          afterSyntaxMode,
+          beforeText,
+          beforeSyntaxMode,
+          description: definition.description,
+          id: transformCommitId,
+          parentId: transformParentId,
+          title: definition.label,
+        })
+      } else {
+        applyUncommittedTransform({
+          afterText: result.output,
+          afterSyntaxMode,
+          beforeText,
+          targetSession,
+          title: definition.label,
+        })
+      }
     } catch (error) {
       notifications.show({
         color: 'red',
@@ -490,6 +372,37 @@ function Workbench() {
         setRunningTransformLabel(null)
       }
     }
+  }
+
+  function applyUncommittedTransform({
+    afterText,
+    afterSyntaxMode,
+    beforeText,
+    targetSession,
+    title,
+  }: {
+    afterText: string
+    afterSyntaxMode: SyntaxMode
+    beforeText: string
+    targetSession: EditorSession
+    title: string
+  }) {
+    if (afterText === beforeText) {
+      notifications.show({
+        color: 'blue',
+        message: 'The transform did not change the text.',
+        title: 'No changes applied',
+      })
+      return
+    }
+
+    targetSession.setValue(afterText)
+    targetSession.setSyntaxMode(afterSyntaxMode)
+    notifications.show({
+      color: 'green',
+      message: `${title} updated the sub editor without creating history.`,
+      title: 'Transform applied',
+    })
   }
 
   function commitTransform({
@@ -532,8 +445,8 @@ function Workbench() {
       title,
     })
 
-    setEditorValue(afterText)
-    setSyntaxMode(afterSyntaxMode)
+    mainSession.setValue(afterText)
+    mainSession.setSyntaxMode(afterSyntaxMode)
     setSelectedRevisionId(id)
     setWorkingBaseRevisionId(id)
     setCommits((currentCommits) => appendCommit(currentCommits, commit))
@@ -548,7 +461,7 @@ function Workbench() {
   function commitWorkingText() {
     const { baseRevision, didCommit } = flushPendingReplaceCommits()
 
-    if (!hasRevisionTextChanged(baseRevision, editorValue)) {
+    if (!hasRevisionTextChanged(baseRevision, mainSession.value)) {
       // A flushed replace session already produced its own commit toast.
       if (!didCommit) {
         notifications.show({
@@ -562,8 +475,8 @@ function Workbench() {
 
     const commit = createWorkingSnapshotCommit({
       baseRevision,
-      currentSyntaxMode: syntaxMode,
-      currentText: editorValue,
+      currentSyntaxMode: mainSession.syntaxMode,
+      currentText: mainSession.value,
       description: 'Saved current editor text.',
       id: allocateCommitId(),
       timestamp: formatCommitTimestamp(new Date()),
@@ -586,10 +499,10 @@ function Workbench() {
   }
 
   function restoreCommit(commit: TextCommit) {
-    setEditorValue(commit.afterText)
+    mainSession.setValue(commit.afterText)
     setSelectedRevisionId(commit.id)
     setWorkingBaseRevisionId(commit.id)
-    setSyntaxMode(commit.afterSyntaxMode)
+    mainSession.setSyntaxMode(commit.afterSyntaxMode)
     notifications.show({
       color: 'blue',
       message: `${commit.id} is now loaded in the editor.`,
@@ -598,10 +511,10 @@ function Workbench() {
   }
 
   function restoreRootText() {
-    setEditorValue(rootText)
+    mainSession.setValue(rootText)
     setSelectedRevisionId(ROOT_REVISION_ID)
     setWorkingBaseRevisionId(ROOT_REVISION_ID)
-    setSyntaxMode(rootSyntaxMode)
+    mainSession.setSyntaxMode(rootSyntaxMode)
     notifications.show({
       color: 'blue',
       message: 'Root input is now loaded in the editor.',
@@ -612,7 +525,7 @@ function Workbench() {
   function performCheckout(target: TextCommit | typeof ROOT_REVISION_ID) {
     // Checkout discards uncommitted working text (after the warning modal),
     // and any replace session pending inside it is discarded the same way.
-    searchReplace.takePendingReplace()
+    mainSession.searchReplace.takePendingReplace()
 
     if (target === ROOT_REVISION_ID) {
       restoreRootText()
@@ -622,6 +535,7 @@ function Workbench() {
   }
 
   function requestCheckout(target: TextCommit | typeof ROOT_REVISION_ID) {
+    setActiveEditorId('main')
     // Checking out a different revision throws away uncommitted working text,
     // so warn before discarding it.
     if (canCommitWorkingText) {
@@ -639,40 +553,6 @@ function Workbench() {
     if (target !== null) {
       performCheckout(target)
     }
-  }
-
-  function updateEditorValue(value: string) {
-    setEditorValue(value)
-    markWorkingTextChanged()
-  }
-
-  function goToLineColumn(line: number, column: number) {
-    setViewMode('source')
-    const offset = getOffsetForLineAndColumn(editorValue, line, column)
-    const view = editorRef.current?.view
-
-    if (view) {
-      view.dispatch({ selection: { anchor: offset }, scrollIntoView: true })
-      view.focus()
-    }
-
-    setCursorOffset(offset)
-    setSelectionRange({ from: offset, to: offset })
-    setGoToLineModalOpened(false)
-  }
-
-  function loadSample(sample: TextSample) {
-    markWorkingTextChanged()
-    setEditorValue(sample.value)
-    setSyntaxMode(sample.syntaxMode)
-    setSampleModalOpened(false)
-    setViewMode('source')
-
-    notifications.show({
-      color: 'blue',
-      message: `${sample.label} is now loaded in the editor.`,
-      title: 'Sample loaded',
-    })
   }
 
   function markWorkingTextChanged() {
@@ -694,6 +574,19 @@ function Workbench() {
     writeStoredPanelOpened(RIGHT_PANEL_STORAGE_KEY, value)
   }
 
+  function setSplitRatioPersisted(value: number) {
+    setSplitRatio(value)
+    writeStoredSplitRatio(value)
+  }
+
+  function toggleSplitEditor() {
+    if (splitEnabled) {
+      subSession.searchReplace.closePanel()
+      setActiveEditorId('main')
+    }
+    setSplitEnabled((enabled) => !enabled)
+  }
+
   useEffect(() => {
     if (isCompact) {
       setLeftOpened(false)
@@ -703,9 +596,9 @@ function Workbench() {
 
   const transformSections: Array<TransformActionSection> = getTransformSections(
     TRANSFORM_DEFINITIONS.filter((definition) =>
-      currentFormat.transformIds.includes(definition.id),
+      activeSession.currentFormat.transformIds.includes(definition.id),
     ),
-    syntaxMode,
+    activeSession.syntaxMode,
   )
     .map((section) => {
       const actions = section.transforms.flatMap(
@@ -714,22 +607,22 @@ function Workbench() {
             const cropRunner: TransformRunner = (input) => ({
               output: cropToSelection(
                 input,
-                selectionRange.from,
-                selectionRange.to,
+                activeSession.selectionRange.from,
+                activeSession.selectionRange.to,
               ),
             })
 
             return [
               {
-                description: hasEditorSelection
+                description: activeSession.hasEditorSelection
                   ? definition.description
                   : 'Select text in the editor first',
-                disabled: !hasEditorSelection,
+                disabled: !activeSession.hasEditorSelection,
                 icon: getTransformIcon(definition.id),
                 id: definition.id,
                 label: definition.label,
                 onClick: () => {
-                  void runTransform(definition, cropRunner)
+                  void runTransform(activeSession, definition, cropRunner)
                 },
               } satisfies TransformAction,
             ]
@@ -746,7 +639,7 @@ function Workbench() {
               ? (input) =>
                   formatSqlWithDialect(
                     input,
-                    sqlDialect.formatterLanguage,
+                    activeSession.sqlDialect.formatterLanguage,
                   ).then((output) => ({ output, outputFormat: 'sql' as const }))
               : runner
 
@@ -757,7 +650,7 @@ function Workbench() {
               id: definition.id,
               label: definition.label,
               onClick: () => {
-                void runTransform(definition, effectiveRunner)
+                void runTransform(activeSession, definition, effectiveRunner)
               },
             } satisfies TransformAction,
           ]
@@ -766,14 +659,14 @@ function Workbench() {
 
       if (section.id === 'general') {
         const replaceAction: TransformAction = {
-          description: hasEditorSelection
+          description: activeSession.hasEditorSelection
             ? 'Search for the selected text and replace it'
             : 'Select text in the editor first',
-          disabled: !hasEditorSelection,
+          disabled: !activeSession.hasEditorSelection,
           icon: <Replace size={16} />,
           id: 'search-replace',
           label: 'Replace',
-          onClick: () => searchReplace.openPanel('replace'),
+          onClick: () => activeSession.searchReplace.openPanel('replace'),
         }
         const cropIndex = actions.findIndex(
           (action) => action.id === 'crop-selection',
@@ -807,56 +700,6 @@ function Workbench() {
       withBorder
       className="workbenchShell"
     >
-      <Modal
-        centered
-        opened={syntaxModalOpened}
-        overlayProps={{ backgroundOpacity: 0.45, blur: 1 }}
-        size="sm"
-        title="Text format"
-        onClose={() => setSyntaxModalOpened(false)}
-      >
-        <Stack gap="xs">
-          {FORMAT_OPTIONS.map((option) => (
-            <SyntaxOptionButton
-              active={syntaxMode === option.id}
-              description={option.description}
-              key={option.id}
-              label={option.label}
-              value={option.id}
-              onClick={() => {
-                if (option.id !== syntaxMode) {
-                  markWorkingTextChanged()
-                }
-                setSyntaxMode(option.id)
-                setViewMode(
-                  FORMAT_DEFINITIONS[option.id].viewIds.length > 0
-                    ? viewMode
-                    : 'source',
-                )
-                setSyntaxModalOpened(false)
-              }}
-            />
-          ))}
-        </Stack>
-      </Modal>
-      <Modal
-        centered
-        opened={sampleModalOpened}
-        overlayProps={{ backgroundOpacity: 0.45, blur: 1 }}
-        size="lg"
-        title="Sample data"
-        onClose={() => setSampleModalOpened(false)}
-      >
-        <Stack gap="xs">
-          {TEXT_SAMPLES.map((sample) => (
-            <SampleOptionButton
-              key={sample.id}
-              sample={sample}
-              onClick={() => loadSample(sample)}
-            />
-          ))}
-        </Stack>
-      </Modal>
       <Modal
         centered
         closeOnClickOutside={false}
@@ -903,52 +746,6 @@ function Workbench() {
           </Group>
         </Stack>
       </Modal>
-      <Modal
-        centered
-        opened={goToLineModalOpened}
-        overlayProps={{ backgroundOpacity: 0.45, blur: 1 }}
-        size="sm"
-        title="Go to line"
-        onClose={() => setGoToLineModalOpened(false)}
-      >
-        {goToLineModalOpened && (
-          <GoToLineForm
-            currentColumn={cursorPosition.column}
-            currentLine={cursorPosition.line}
-            maxLine={Math.max(1, totalLineCount)}
-            onCancel={() => setGoToLineModalOpened(false)}
-            onSubmit={goToLineColumn}
-          />
-        )}
-      </Modal>
-      <Modal
-        centered
-        opened={encodingModalOpened}
-        overlayProps={{ backgroundOpacity: 0.45, blur: 1 }}
-        size="sm"
-        title="Encoding"
-        onClose={() => setEncodingModalOpened(false)}
-      >
-        <Stack gap="xs">
-          <Text c="dimmed" size="xs">
-            Text is held in memory as Unicode. This sets the encoding label used
-            when reading or writing the source.
-          </Text>
-          {ENCODING_OPTIONS.map((option) => (
-            <OptionButton
-              active={encoding === option.label}
-              description={option.description}
-              key={option.label}
-              label={option.label}
-              onClick={() => {
-                setEncoding(option.label)
-                setEncodingModalOpened(false)
-              }}
-            />
-          ))}
-        </Stack>
-      </Modal>
-
       <AppShell.Header className="workbenchHeader">
         <Group h="100%" px="sm" justify="space-between" wrap="nowrap">
           <Group gap="xs" wrap="nowrap">
@@ -962,6 +759,13 @@ function Workbench() {
           </Group>
 
           <Group gap={6} wrap="nowrap">
+            <HeaderIconButton
+              label={splitEnabled ? 'Close split editor' : 'Split editor'}
+              pressed={splitEnabled}
+              onClick={toggleSplitEditor}
+            >
+              <Columns2 size={18} />
+            </HeaderIconButton>
             <HeaderIconButton
               label={leftOpened ? 'Hide left sidebar' : 'Show left sidebar'}
               onClick={() => setLeftOpenedPersisted(!leftOpened)}
@@ -1002,7 +806,7 @@ function Workbench() {
         {leftOpened ? (
           <HistorySidebar
             commits={commits}
-            currentText={editorValue}
+            currentText={mainSession.value}
             selectedRevisionId={selectedRevisionId}
             workingBaseRevisionId={workingBaseRevisionId}
             onCollapse={() => setLeftOpenedPersisted(false)}
@@ -1012,7 +816,7 @@ function Workbench() {
         ) : (
           <HistoryRail
             commits={commits}
-            currentText={editorValue}
+            currentText={mainSession.value}
             selectedRevisionId={selectedRevisionId}
             workingBaseRevisionId={workingBaseRevisionId}
             onExpand={() => setLeftOpenedPersisted(true)}
@@ -1023,100 +827,37 @@ function Workbench() {
       </AppShell.Navbar>
 
       <AppShell.Main className="workbenchMain">
-        <Box className="editorPanel">
-          <EditorToolbar
-            activeViewMode={viewMode}
-            canCommitWorkingText={canCommitWorkingText}
-            searchPanelOpen={searchReplace.isOpen}
-            softWrapEnabled={softWrapEnabled}
-            viewAvailable={viewAvailable}
-            onCommitWorkingText={commitWorkingText}
-            onOpenSamples={() => setSampleModalOpened(true)}
-            onOpenSearch={() =>
-              searchReplace.isOpen
-                ? searchReplace.closePanel()
-                : searchReplace.openPanel('search')
-            }
-            onSetViewMode={setViewMode}
-            onToggleSoftWrap={() => setSoftWrapEnabled((enabled) => !enabled)}
-          />
-          <StatusBar
-            activeViewMode={viewMode}
-            charCount={totalCharCount}
-            cursor={cursorPosition}
-            encoding={encoding}
-            formatLabel={currentFormat.label}
-            lineCount={totalLineCount}
-            selection={selectionStats}
-            sqlDialectId={syntaxMode === 'sql' ? sqlDialect.id : undefined}
-            sqlDialectOptions={
-              syntaxMode === 'sql'
-                ? SQL_DIALECT_OPTIONS.map((d) => ({
-                    label: d.label,
-                    value: d.id,
-                  }))
-                : undefined
-            }
-            validationEnabled={validationEnabled}
-            validationAvailable={currentFormat.validation === 'supported'}
-            validationResult={validationResult}
-            onChooseSqlDialect={(id) => {
-              const found = SQL_DIALECT_OPTIONS.find((d) => d.id === id)
-              if (found) setSqlDialect(found)
-            }}
-            onChooseEncoding={() => setEncodingModalOpened(true)}
-            onChooseSyntax={() => setSyntaxModalOpened(true)}
-            onGoToLine={() => setGoToLineModalOpened(true)}
-            onToggleValidation={() =>
-              setValidationEnabled((enabled) => !enabled)
-            }
-          />
-          {viewMode === 'source' ? (
-            <CodeMirror
-              ref={editorRef}
-              aria-label="Text editor"
-              className={[
-                softWrapEnabled ? 'codeEditor' : 'codeEditor codeEditorNoWrap',
-                searchReplace.editorProps.className,
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              style={searchReplace.editorProps.style}
-              basicSetup={{
-                bracketMatching: true,
-                closeBrackets: true,
-                foldGutter: true,
-                highlightActiveLine: true,
-                highlightActiveLineGutter: true,
-                lineNumbers: true,
-              }}
-              extensions={editorExtensions}
-              height="100%"
-              theme={isDark ? oneDark : 'light'}
-              value={editorValue}
-              placeholder="any text here"
-              onChange={updateEditorValue}
-              onStatistics={(statistics) => {
-                const { from, head, to } = statistics.selectionAsSingle
-                setSelectionRange((current) =>
-                  current.from === from && current.to === to
-                    ? current
-                    : { from, to },
-                )
-                setCursorOffset((current) =>
-                  current === head ? current : head,
-                )
-              }}
+        <SplitEditorWorkspace
+          compact={isCompact === true}
+          ratio={splitRatio}
+          split={splitEnabled}
+          onRatioChange={setSplitRatioPersisted}
+          main={
+            <EditorPane
+              allowCommit
+              allowView
+              canCommitWorkingText={canCommitWorkingText}
+              // editorTitle="Main Editor"
+              isActive={activeEditorId === 'main'}
+              isDark={isDark}
+              session={mainSession}
+              onActivate={() => setActiveEditorId('main')}
+              onCommitWorkingText={commitWorkingText}
             />
-          ) : (
-            <FormatViewPanel
-              format={currentFormat}
-              value={editorValue}
-              views={FORMAT_VIEWS}
+          }
+          sub={
+            <EditorPane
+              allowCommit={false}
+              allowView={false}
+              canCommitWorkingText={false}
+              // editorTitle="Sub Editor"
+              isActive={activeEditorId === 'sub'}
+              isDark={isDark}
+              session={subSession}
+              onActivate={() => setActiveEditorId('sub')}
             />
-          )}
-          {searchReplace.panelPortal}
-        </Box>
+          }
+        />
       </AppShell.Main>
 
       <AppShell.Aside
@@ -1231,217 +972,25 @@ function getTransformProgressTimestamp() {
   return performance.now()
 }
 
-function SampleOptionButton({
-  onClick,
-  sample,
-}: {
-  onClick: () => void
-  sample: TextSample
-}) {
-  return (
-    <button
-      aria-label={`Load ${sample.label}`}
-      className="syntaxOption sampleOption"
-      type="button"
-      onClick={onClick}
-    >
-      <Group className="syntaxOptionMain" gap="sm" wrap="nowrap">
-        <SyntaxIcon value={sample.syntaxMode} />
-        <Box className="syntaxOptionText">
-          <Group gap="xs" wrap="nowrap">
-            <Text fw={650} size="sm">
-              {sample.label}
-            </Text>
-            <Badge className="sampleFormatBadge" size="xs" variant="light">
-              {FORMAT_DEFINITIONS[sample.syntaxMode].label}
-            </Badge>
-          </Group>
-          <Text c="dimmed" size="xs">
-            {sample.description}
-          </Text>
-        </Box>
-      </Group>
-    </button>
-  )
-}
-
-function GoToLineForm({
-  currentColumn,
-  currentLine,
-  maxLine,
-  onCancel,
-  onSubmit,
-}: {
-  currentColumn: number
-  currentLine: number
-  maxLine: number
-  onCancel: () => void
-  onSubmit: (line: number, column: number) => void
-}) {
-  const [line, setLine] = useState<number | string>(currentLine)
-  const [column, setColumn] = useState<number | string>(currentColumn)
-
-  return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault()
-        onSubmit(Number(line) || 1, Number(column) || 1)
-      }}
-    >
-      <Stack gap="md">
-        <Text c="dimmed" size="xs">
-          Jump the cursor to a location. Line 1&ndash;{maxLine}.
-        </Text>
-        <Group gap="sm" grow wrap="nowrap">
-          <NumberInput
-            allowDecimal={false}
-            data-autofocus
-            label="Line"
-            max={maxLine}
-            min={1}
-            value={line}
-            onChange={setLine}
-          />
-          <NumberInput
-            allowDecimal={false}
-            label="Column"
-            min={1}
-            value={column}
-            onChange={setColumn}
-          />
-        </Group>
-        <Group justify="flex-end" gap="xs" wrap="nowrap">
-          <Button type="button" variant="default" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit">Go to location</Button>
-        </Group>
-      </Stack>
-    </form>
-  )
-}
-
-function OptionButton({
-  active,
-  description,
-  label,
-  onClick,
-}: {
-  active: boolean
-  description: string
-  label: string
-  onClick: () => void
-}) {
-  return (
-    <button
-      aria-pressed={active}
-      className="syntaxOption"
-      data-selected={active || undefined}
-      type="button"
-      onClick={onClick}
-    >
-      <Box className="syntaxOptionText">
-        <Text fw={650} size="sm">
-          {label}
-        </Text>
-        <Text c="dimmed" size="xs">
-          {description}
-        </Text>
-      </Box>
-      {active ? <Check size={16} /> : null}
-    </button>
-  )
-}
-
-function SyntaxOptionButton({
-  active,
-  description,
-  label,
-  onClick,
-  value,
-}: {
-  active: boolean
-  description: string
-  label: string
-  onClick: () => void
-  value: SyntaxMode
-}) {
-  return (
-    <button
-      aria-pressed={active}
-      className="syntaxOption"
-      data-selected={active || undefined}
-      type="button"
-      onClick={onClick}
-    >
-      <Group className="syntaxOptionMain" gap="sm" wrap="nowrap">
-        <SyntaxIcon value={value} />
-        <Box className="syntaxOptionText">
-          <Text fw={650} size="sm">
-            {label}
-          </Text>
-          <Text c="dimmed" size="xs">
-            {description}
-          </Text>
-        </Box>
-      </Group>
-      {active ? <Check size={16} /> : null}
-    </button>
-  )
-}
-
-function SyntaxIcon({ value }: { value: SyntaxMode }) {
-  if (value === 'json') {
-    return <Braces size={18} />
-  }
-
-  if (value === 'jwt') {
-    return <KeyRound size={18} />
-  }
-
-  if (value === 'ndjson') {
-    return <FileJson size={18} />
-  }
-
-  if (value === 'graphql') {
-    return <Share2 size={18} />
-  }
-
-  if (value === 'yaml') {
-    return <Code2 size={18} />
-  }
-
-  if (value === 'markdown') {
-    return <FileText size={18} />
-  }
-
-  if (value === 'toml') {
-    return <FileText size={18} />
-  }
-
-  if (value === 'xml' || value === 'sql') {
-    return <Code2 size={18} />
-  }
-
-  return <FileText size={18} />
-}
-
 function HeaderIconButton({
   children,
   label,
   onClick,
+  pressed,
 }: {
   children: React.ReactNode
   label: string
   onClick: () => void
+  pressed?: boolean
 }) {
   return (
     <Tooltip label={label} withArrow>
       <ActionIcon
         aria-label={label}
+        aria-pressed={pressed}
+        color={pressed ? 'blue' : 'gray'}
         size="lg"
-        variant="subtle"
-        color="gray"
+        variant={pressed ? 'light' : 'subtle'}
         onClick={onClick}
       >
         {children}

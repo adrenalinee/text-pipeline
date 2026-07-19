@@ -24,6 +24,7 @@ export type FormatRenderPolicy = 'automatic' | 'explicit'
 export type FormatRenderSecurity = 'sanitized' | 'sandboxed' | 'source-only'
 
 export type FormatViewId =
+  | 'diff-patch'
   | 'html-preview'
   | 'markdown-document'
   | 'structured-tree'
