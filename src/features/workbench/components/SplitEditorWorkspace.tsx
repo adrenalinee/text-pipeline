@@ -87,9 +87,9 @@ export function SplitEditorWorkspace({
             }}
             onPointerMove={updateFromPointer}
           />
-          <Paper m="xs" shadow="sm">
+          {/* <Paper m="xs" shadow="sm"> */}
             {sub}
-          </Paper>
+          {/* </Paper> */}
         </>
       ) : null}
     </Box>
