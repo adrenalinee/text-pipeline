@@ -61,7 +61,7 @@ export function StatusBar({
   validationEnabled: boolean
   validationResult: FormatValidationResult | null
 }) {
-  const isSource = activeViewMode === 'source'
+  if (activeViewMode !== 'source') return null
 
   return (
     <Group className="statusBar" justify="space-between" wrap="nowrap">
@@ -169,18 +169,16 @@ export function StatusBar({
 
         <span className="statusBarDivider" aria-hidden="true" />
 
-        {isSource && (
-          <Tooltip label="Go to line and column" withArrow>
-            <Button
-              variant="default"
-              leftSection={<MapPin className="statusBarButtonIcon" size={13} />}
-              aria-label="Go to line and column"
-              onClick={onGoToLine}
-            >
-              {cursor.line}:{cursor.column}
-            </Button>
-          </Tooltip>
-        )}
+        <Tooltip label="Go to line and column" withArrow>
+          <Button
+            variant="default"
+            leftSection={<MapPin className="statusBarButtonIcon" size={13} />}
+            aria-label="Go to line and column"
+            onClick={onGoToLine}
+          >
+            {cursor.line}:{cursor.column}
+          </Button>
+        </Tooltip>
       </Group>
     </Group>
   )
