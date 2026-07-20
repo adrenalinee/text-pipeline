@@ -66,6 +66,21 @@ describe('buildReplaceAllChanges', () => {
     expect(applyChanges(state, changes)).toBe('1:a;2:b')
   })
 
+  it('replaces escaped newline text with actual line breaks in regexp mode', () => {
+    const state = makeState('first\\nsecond\\nthird')
+    const query = makeQuery({
+      regexp: true,
+      replace: '\\n',
+      search: '\\\\n',
+    })
+    const { changes, occurrences } = buildReplaceAllChanges(state, query, {
+      preserveCase: false,
+    })
+
+    expect(occurrences).toBe(2)
+    expect(applyChanges(state, changes)).toBe('first\nsecond\nthird')
+  })
+
   it('respects case sensitivity', () => {
     const state = makeState('foo Foo')
     const query = makeQuery({
@@ -137,6 +152,17 @@ describe('buildSingleReplace', () => {
       from: 0,
       insert: '1:a',
       to: 3,
+    })
+  })
+
+  it('inserts an escaped tab as an actual tab in regexp mode', () => {
+    const state = makeState('a,b', { anchor: 1, head: 2 })
+    const query = makeQuery({ regexp: true, replace: '\\t', search: ',' })
+
+    expect(buildSingleReplace(state, query, { preserveCase: false })).toEqual({
+      from: 1,
+      insert: '\t',
+      to: 2,
     })
   })
 })

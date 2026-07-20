@@ -47,6 +47,18 @@ describe('expandRegExpReplacement', () => {
     expect(expandRegExpReplacement('$2-$1', match)).toBe('123-foo')
   })
 
+  it('expands escaped control characters', () => {
+    expect(expandRegExpReplacement('\\n\\r\\t', match)).toBe('\n\r\t')
+  })
+
+  it('expands an escaped backslash without consuming following text', () => {
+    expect(expandRegExpReplacement('\\\\n', match)).toBe('\\n')
+  })
+
+  it('keeps unsupported escape sequences as typed', () => {
+    expect(expandRegExpReplacement('\\x', match)).toBe('\\x')
+  })
+
   it('expands $& to the whole match', () => {
     expect(expandRegExpReplacement('$&!', match)).toBe('foo123!')
   })
