@@ -116,7 +116,7 @@ describe('StatusBar', () => {
     expect(screen.getByText('5 chars')).toBeTruthy()
   })
 
-  it('hides the cursor position when not in source mode', () => {
+  it('hides the entire status bar when not in source mode', () => {
     renderWith(
       <StatusBar
         activeViewMode="view"
@@ -136,6 +136,9 @@ describe('StatusBar', () => {
     expect(
       screen.queryByRole('button', { name: 'Go to line and column' }),
     ).toBeNull()
+    expect(screen.queryByText('UTF-8')).toBeNull()
+    expect(screen.queryByText('JSON')).toBeNull()
+    expect(screen.queryByText('11')).toBeNull()
   })
 
   it('surfaces validation status as the right-most control', () => {

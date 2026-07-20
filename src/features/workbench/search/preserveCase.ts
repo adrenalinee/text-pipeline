@@ -54,8 +54,9 @@ export function adaptReplacementCase(matchText: string, replacement: string) {
 }
 
 /**
- * Expands `$&`, `$$` and `$1..$n` group references in a regexp replacement,
- * mirroring the (non-exported) replacement expansion of @codemirror/search.
+ * Expands escaped control characters and `$&`, `$$`, `$1..$n` group
+ * references in a regexp replacement, mirroring the (non-exported)
+ * replacement expansion of @codemirror/search.
  * Group references to groups that did not participate expand to an empty
  * string instead of the text "undefined".
  */
@@ -63,7 +64,23 @@ export function expandRegExpReplacement(
   replacement: string,
   match: RegExpMatchArray,
 ) {
-  return replacement.replace(/\$([$&]|\d+)/g, (token, reference: string) => {
+  const unquoted = replacement.replace(
+    /\\([nrt\\])/g,
+    (_, character: string) => {
+      switch (character) {
+        case 'n':
+          return '\n'
+        case 'r':
+          return '\r'
+        case 't':
+          return '\t'
+        default:
+          return '\\'
+      }
+    },
+  )
+
+  return unquoted.replace(/\$([$&]|\d+)/g, (token, reference: string) => {
     if (reference === '&') {
       return match[0]
     }
