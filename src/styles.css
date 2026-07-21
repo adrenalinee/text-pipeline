@@ -182,8 +182,17 @@ button {
     padding-inline: 8px;
   }
 
+  .editorPaneMarker {
+    display: none;
+  }
+
   .editorToolbarActions {
     gap: 4px;
+  }
+
+  .sampleButton {
+    width: 30px;
+    min-width: 30px;
   }
 
   .statusBar {

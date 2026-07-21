@@ -1,27 +1,27 @@
 import {
-  ActionIcon,
-  Button,
-  Group,
-  SegmentedControl,
-  Text,
-  Tooltip,
-} from '@mantine/core'
-import { CircleDot, FileJson, Search } from 'lucide-react'
+    ActionIcon,
+    Button,
+    Group,
+    SegmentedControl,
+    Tooltip
+} from '@mantine/core';
+import { CircleDot, ClipboardPaste, Copy, FileJson, Search } from 'lucide-react';
 
-import type { WorkbenchViewMode } from '../types'
 import {
-  IconGitCommit,
-  IconTextWrap,
-  IconTextWrapDisabled,
-} from '@tabler/icons-react'
+    IconGitCommit,
+    IconTextWrap
+} from '@tabler/icons-react';
+import type { WorkbenchViewMode } from '../types';
 
 export function EditorToolbar({
   activeViewMode,
   canCommitWorkingText,
   // editorTitle,
+  onCopyText,
   onCommitWorkingText,
   onOpenSamples,
   onOpenSearch,
+  onPasteText,
   onSetViewMode,
   onToggleSoftWrap,
   searchPanelOpen,
@@ -33,9 +33,11 @@ export function EditorToolbar({
   activeViewMode: WorkbenchViewMode
   canCommitWorkingText: boolean
   // editorTitle: string
+  onCopyText: () => void
   onCommitWorkingText?: () => void
   onOpenSamples: () => void
   onOpenSearch: () => void
+  onPasteText: () => void
   onSetViewMode: (mode: WorkbenchViewMode) => void
   onToggleSoftWrap: () => void
   searchPanelOpen: boolean
@@ -47,7 +49,7 @@ export function EditorToolbar({
   return (
     <Group className="editorToolbar" justify="space-between" wrap="nowrap">
       <Group gap="xs" wrap="nowrap">
-        <CircleDot size={14} />
+        <CircleDot className="editorPaneMarker" size={14} />
         {/* <Text className="editorPaneTitle" fw={600} size="sm">
           {editorTitle}
         </Text> */}
@@ -69,15 +71,43 @@ export function EditorToolbar({
         <Tooltip label="Choose sample data" withArrow>
           <Button
             aria-label="Choose sample data"
-            className="sampleButton"
+            // className="sampleButton"
+            size="xs"
             color="gray"
             leftSection={<FileJson size={14} />}
-            size="xs"
             variant="light"
             onClick={onOpenSamples}
           >
             Samples
           </Button>
+        </Tooltip>
+        <Tooltip label="Copy selected text, or all text" withArrow>
+          <ActionIcon
+            aria-label="Copy editor text"
+            color="dark"
+            variant="subtle"
+            onClick={onCopyText}
+          >
+            <Copy size={18} />
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip
+          label={
+            activeViewMode === 'source'
+              ? 'Paste at cursor or replace selection'
+              : 'Paste is available in source mode'
+          }
+          withArrow
+        >
+          <ActionIcon
+            aria-label="Paste clipboard text"
+            color="dark"
+            disabled={activeViewMode !== 'source'}
+            variant="subtle"
+            onClick={onPasteText}
+          >
+            <ClipboardPaste size={18} />
+          </ActionIcon>
         </Tooltip>
         <Tooltip
           label={softWrapEnabled ? 'Disable soft wrap' : 'Enable soft wrap'}
@@ -92,11 +122,12 @@ export function EditorToolbar({
             variant={softWrapEnabled ? 'filled' : 'subtle'}
             onClick={onToggleSoftWrap}
           >
-            {softWrapEnabled ? (
+            <IconTextWrap size={18} />
+            {/* {softWrapEnabled ? (
               <IconTextWrapDisabled size={18} />
             ) : (
               <IconTextWrap size={18} />
-            )}
+            )} */}
           </ActionIcon>
         </Tooltip>
         <Tooltip

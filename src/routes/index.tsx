@@ -1,87 +1,83 @@
-import { createFileRoute } from '@tanstack/react-router'
 import {
-  ActionIcon,
-  AppShell,
-  Badge,
-  Box,
-  Button,
-  Group,
-  Loader,
-  MantineProvider,
-  Modal,
-  Stack,
-  Text,
-  Tooltip,
-  useComputedColorScheme,
-  useMantineColorScheme,
-} from '@mantine/core'
-import { useMediaQuery } from '@mantine/hooks'
-import { Notifications, notifications } from '@mantine/notifications'
+    ActionIcon,
+    AppShell,
+    Badge,
+    Box,
+    Button,
+    Group,
+    Loader,
+    MantineProvider,
+    Modal,
+    Stack,
+    Text,
+    Tooltip,
+    useComputedColorScheme,
+    useMantineColorScheme,
+} from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
+import { Notifications, notifications } from '@mantine/notifications';
+import { createFileRoute } from '@tanstack/react-router';
 import {
-  Binary,
-  Braces,
-  Code2,
-  Columns2,
-  Crop,
-  FileJson,
-  ListTree,
-  Link,
-  Moon,
-  PanelLeftClose,
-  PanelLeftOpen,
-  PanelRightClose,
-  PanelRightOpen,
-  Replace,
-  Sun,
-  Workflow,
-} from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { flushSync } from 'react-dom'
+    Binary,
+    Braces,
+    Code2,
+    Columns2,
+    Crop,
+    FileJson,
+    Link,
+    ListTree,
+    Moon,
+    Replace,
+    Sun,
+    Workflow
+} from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 
-import { EditorPane } from '#/features/workbench/components/EditorPane'
-import { HistoryRail } from '#/features/workbench/components/HistoryRail'
-import { HistorySidebar } from '#/features/workbench/components/HistorySidebar'
-import { SplitEditorWorkspace } from '#/features/workbench/components/SplitEditorWorkspace'
-import { TransformsRail } from '#/features/workbench/components/TransformsRail'
-import { TransformsSidebar } from '#/features/workbench/components/TransformsSidebar'
+import { EditorPane } from '#/features/workbench/components/EditorPane';
+import { HistoryRail } from '#/features/workbench/components/HistoryRail';
+import { HistorySidebar } from '#/features/workbench/components/HistorySidebar';
+import { SplitEditorWorkspace } from '#/features/workbench/components/SplitEditorWorkspace';
+import { TransformsRail } from '#/features/workbench/components/TransformsRail';
+import { TransformsSidebar } from '#/features/workbench/components/TransformsSidebar';
+import type { TextRevisionSnapshot } from '#/features/workbench/history';
 import {
-  appendCommit,
-  createTextCommit,
-  createWorkingSnapshotCommit,
-  getNextCommitId,
-  getRevisionSnapshot,
-  getRootRevisionSnapshot,
-  hasRevisionTextChanged,
-  ROOT_REVISION_ID,
-  WORKING_REVISION_ID,
-} from '#/features/workbench/history'
-import type { TextRevisionSnapshot } from '#/features/workbench/history'
-import type { ReplaceSession } from '#/features/workbench/search/useSearchReplace'
+    appendCommit,
+    createTextCommit,
+    createWorkingSnapshotCommit,
+    getNextCommitId,
+    getRevisionSnapshot,
+    getRootRevisionSnapshot,
+    hasRevisionTextChanged,
+    ROOT_REVISION_ID,
+    WORKING_REVISION_ID,
+} from '#/features/workbench/history';
+import type { ReplaceSession } from '#/features/workbench/search/useSearchReplace';
+import { cropToSelection } from '#/features/workbench/transforms/cropSelection';
+import { TRANSFORM_DEFINITIONS } from '#/features/workbench/transforms/definitions';
+import { getTransformSections } from '#/features/workbench/transforms/filterTransforms';
+import {
+    shouldShowTransformProgress,
+    TRANSFORM_PROGRESS_THRESHOLDS,
+} from '#/features/workbench/transforms/progress';
+import {
+    formatSqlWithDialect,
+    TRANSFORM_RUNNERS,
+} from '#/features/workbench/transforms/runners';
 import type {
-  SyntaxMode,
-  TextCommit,
-  TransformAction,
-  TransformActionSection,
-  TransformDefinition,
-  TransformRunner,
-} from '#/features/workbench/types'
-import { TRANSFORM_DEFINITIONS } from '#/features/workbench/transforms/definitions'
-import { getTransformSections } from '#/features/workbench/transforms/filterTransforms'
-import {
-  shouldShowTransformProgress,
-  TRANSFORM_PROGRESS_THRESHOLDS,
-} from '#/features/workbench/transforms/progress'
-import {
-  formatSqlWithDialect,
-  TRANSFORM_RUNNERS,
-} from '#/features/workbench/transforms/runners'
-import { cropToSelection } from '#/features/workbench/transforms/cropSelection'
-import { useEditorSession } from '#/features/workbench/useEditorSession'
+    SyntaxMode,
+    TextCommit,
+    TransformAction,
+    TransformActionSection,
+    TransformDefinition,
+    TransformRunner,
+} from '#/features/workbench/types';
 import type {
-  EditorId,
-  EditorSession,
-} from '#/features/workbench/useEditorSession'
-import { theme } from '#/theme.ts'
+    EditorId,
+    EditorSession,
+} from '#/features/workbench/useEditorSession';
+import { useEditorSession } from '#/features/workbench/useEditorSession';
+import { theme } from '#/theme.ts';
 
 export const Route = createFileRoute('/')({
   ssr: false,
@@ -766,7 +762,7 @@ function Workbench() {
             >
               <Columns2 size={18} />
             </HeaderIconButton>
-            <HeaderIconButton
+            {/* <HeaderIconButton
               label={leftOpened ? 'Hide left sidebar' : 'Show left sidebar'}
               onClick={() => setLeftOpenedPersisted(!leftOpened)}
             >
@@ -785,7 +781,7 @@ function Workbench() {
               ) : (
                 <PanelRightOpen size={18} />
               )}
-            </HeaderIconButton>
+            </HeaderIconButton> */}
             <HeaderIconButton
               label={isDark ? 'Use light theme' : 'Use dark theme'}
               onClick={() => setColorScheme(isDark ? 'light' : 'dark')}

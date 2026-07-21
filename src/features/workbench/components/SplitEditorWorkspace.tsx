@@ -1,6 +1,6 @@
-import { Box, Paper } from '@mantine/core'
-import type { KeyboardEvent, PointerEvent, ReactNode } from 'react'
-import { useRef } from 'react'
+import { Box } from '@mantine/core';
+import type { KeyboardEvent, PointerEvent, ReactNode } from 'react';
+import { useRef } from 'react';
 
 const MIN_RATIO = 20
 const MAX_RATIO = 80

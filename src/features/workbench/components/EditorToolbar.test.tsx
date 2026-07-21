@@ -35,8 +35,10 @@ afterEach(cleanup)
 const commonProps = {
   activeViewMode: 'source' as const,
   canCommitWorkingText: false,
+  onCopyText: vi.fn(),
   onOpenSamples: vi.fn(),
   onOpenSearch: vi.fn(),
+  onPasteText: vi.fn(),
   onSetViewMode: vi.fn(),
   onToggleSoftWrap: vi.fn(),
   searchPanelOpen: false,
@@ -50,17 +52,17 @@ describe('EditorToolbar capabilities', () => {
       <MantineProvider>
         <EditorToolbar
           {...commonProps}
-          editorTitle="Sub Editor"
           showCommit={false}
           showViewMode={false}
         />
       </MantineProvider>,
     )
 
-    expect(screen.getByText('Sub Editor')).toBeTruthy()
     expect(screen.queryByLabelText('Editor view mode')).toBeNull()
     expect(screen.queryByLabelText('Commit current editor text')).toBeNull()
     expect(screen.getByLabelText('Choose sample data')).toBeTruthy()
+    expect(screen.getByLabelText('Copy editor text')).toBeTruthy()
+    expect(screen.getByLabelText('Paste clipboard text')).toBeTruthy()
     expect(screen.getByLabelText('Search and replace')).toBeTruthy()
   })
 
@@ -69,7 +71,6 @@ describe('EditorToolbar capabilities', () => {
       <MantineProvider>
         <EditorToolbar
           {...commonProps}
-          editorTitle="Main Editor"
           showCommit
           showViewMode
           onCommitWorkingText={vi.fn()}
@@ -79,5 +80,21 @@ describe('EditorToolbar capabilities', () => {
 
     expect(screen.getByLabelText('Editor view mode')).toBeTruthy()
     expect(screen.getByLabelText('Commit current editor text')).toBeTruthy()
+  })
+
+  it('disables paste outside source mode while keeping copy available', () => {
+    render(
+      <MantineProvider>
+        <EditorToolbar
+          {...commonProps}
+          activeViewMode="view"
+          showCommit={false}
+          showViewMode
+        />
+      </MantineProvider>,
+    )
+
+    expect(screen.getByLabelText('Copy editor text').disabled).toBe(false)
+    expect(screen.getByLabelText('Paste clipboard text').disabled).toBe(true)
   })
 })

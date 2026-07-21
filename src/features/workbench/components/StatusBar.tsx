@@ -111,7 +111,6 @@ export function StatusBar({
             className="dialectSelect"
             data={sqlDialectOptions}
             maxDropdownHeight={400}
-            size="xs"
             value={sqlDialectId}
             withCheckIcon={false}
             onChange={(value) => {
