@@ -17,6 +17,10 @@ import { createSqlLintSource } from './utils/formatLinting'
 import { validateFormat, validateSqlDialect } from './utils/formatValidation'
 import type { FormatValidationResult } from './utils/formatValidation'
 import {
+  createClipboardPasteEdit,
+  getTextForClipboard,
+} from './utils/editorClipboard'
+import {
   countLines,
   getLineAndColumn,
   getOffsetForLineAndColumn,
@@ -170,6 +174,66 @@ export function useEditorSession({
     setCursorOffset((current) => (current === head ? current : head))
   }
 
+  async function copyText() {
+    try {
+      const view = editorRef.current?.view
+      const documentText = view?.state.doc.toString() ?? value
+      const selection =
+        view?.state.selection.main ??
+        (hasEditorSelection ? selectionRange : { from: 0, to: 0 })
+      const hasSelection = selection.from !== selection.to
+      const text = getTextForClipboard(documentText, selection)
+
+      await navigator.clipboard.writeText(text)
+      notifications.show({
+        color: 'green',
+        message: hasSelection
+          ? 'Selected text copied to clipboard.'
+          : 'Editor text copied to clipboard.',
+        title: 'Copied',
+      })
+    } catch {
+      notifications.show({
+        color: 'red',
+        message: 'Clipboard access is not available in this browser context.',
+        title: 'Copy failed',
+      })
+    }
+  }
+
+  async function pasteText() {
+    try {
+      const view = editorRef.current?.view
+      if (!view) throw new Error('Source editor unavailable')
+
+      const text = await navigator.clipboard.readText()
+      const { from, to } = view.state.selection.main
+      const edit = createClipboardPasteEdit({ from, to }, text)
+
+      view.dispatch({
+        changes: edit.changes,
+        scrollIntoView: true,
+        selection: { anchor: edit.cursor },
+      })
+      view.focus()
+
+      notifications.show({
+        color: 'green',
+        message:
+          from === to
+            ? 'Clipboard text inserted at the cursor.'
+            : 'Selected text replaced with clipboard text.',
+        title: 'Pasted',
+      })
+    } catch {
+      notifications.show({
+        color: 'red',
+        message: 'Clipboard access is not available in this browser context.',
+        title: 'Paste failed',
+      })
+    }
+  }
+
   function chooseSyntax(nextSyntaxMode: SyntaxMode) {
     if (nextSyntaxMode !== syntaxMode) onManualChangeRef.current?.()
     setSyntaxMode(nextSyntaxMode)
@@ -210,6 +274,7 @@ export function useEditorSession({
   return {
     charCount,
     chooseSyntax,
+    copyText,
     currentFormat,
     cursorPosition,
     editorExtensions,
@@ -222,6 +287,7 @@ export function useEditorSession({
     id,
     lineCount,
     loadSample,
+    pasteText,
     sampleModalOpened,
     searchReplace,
     selectionRange,

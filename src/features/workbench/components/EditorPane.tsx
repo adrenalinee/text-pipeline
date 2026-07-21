@@ -74,12 +74,14 @@ export function EditorPane({
           softWrapEnabled={session.softWrapEnabled}
           viewAvailable={session.viewAvailable}
           onCommitWorkingText={onCommitWorkingText}
+          onCopyText={() => void session.copyText()}
           onOpenSamples={() => session.setSampleModalOpened(true)}
           onOpenSearch={() =>
             session.searchReplace.isOpen
               ? session.searchReplace.closePanel()
               : session.searchReplace.openPanel('search')
           }
+          onPasteText={() => void session.pasteText()}
           onSetViewMode={session.setViewMode}
           onToggleSoftWrap={() =>
             session.setSoftWrapEnabled((enabled) => !enabled)
