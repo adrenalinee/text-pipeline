@@ -116,6 +116,28 @@ describe('StatusBar', () => {
     expect(screen.getByText('5 chars')).toBeTruthy()
   })
 
+  it('formats line counts with thousands separators', () => {
+    renderWith(
+      <StatusBar
+        activeViewMode="source"
+        charCount={12345}
+        cursor={{ column: 1, line: 1234 }}
+        encoding="UTF-8"
+        formatLabel="Plain text"
+        lineCount={12345}
+        selection={{ charCount: 5000, lineCount: 1234 }}
+        validationAvailable={false}
+        validationEnabled={false}
+        validationResult={null}
+        {...handlers}
+      />,
+    )
+
+    expect(screen.getByText('12,345')).toBeTruthy()
+    expect(screen.getByText('5000 chars, 1,234 lines')).toBeTruthy()
+    expect(screen.getByText('1234:1')).toBeTruthy()
+  })
+
   it('hides the entire status bar when not in source mode', () => {
     renderWith(
       <StatusBar

@@ -28,8 +28,7 @@ import {
     ListTree,
     Moon,
     Replace,
-    Sun,
-    Workflow
+    Sun
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
@@ -745,7 +744,12 @@ function Workbench() {
       <AppShell.Header className="workbenchHeader">
         <Group h="100%" px="sm" justify="space-between" wrap="nowrap">
           <Group gap="xs" wrap="nowrap">
-            <Workflow size={18} strokeWidth={1.8} />
+            <img
+              alt=""
+              aria-hidden="true"
+              className="workbenchLogo"
+              src="/favicon.svg"
+            />
             <Text fw={650} size="sm">
               Text Pipeline
             </Text>
