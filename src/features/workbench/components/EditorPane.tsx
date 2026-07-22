@@ -73,6 +73,7 @@ export function EditorPane({
           showViewMode={allowView}
           softWrapEnabled={session.softWrapEnabled}
           viewAvailable={session.viewAvailable}
+          whitespaceVisible={session.whitespaceVisible}
           onCommitWorkingText={onCommitWorkingText}
           onCopyText={() => void session.copyText()}
           onOpenSamples={() => session.setSampleModalOpened(true)}
@@ -85,6 +86,9 @@ export function EditorPane({
           onSetViewMode={session.setViewMode}
           onToggleSoftWrap={() =>
             session.setSoftWrapEnabled((enabled) => !enabled)
+          }
+          onToggleWhitespace={() =>
+            session.setWhitespaceVisible((visible) => !visible)
           }
         />
         <StatusBar

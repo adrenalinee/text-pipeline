@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { MantineProvider } from '@mantine/core'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { EditorToolbar } from './EditorToolbar'
@@ -41,9 +41,11 @@ const commonProps = {
   onPasteText: vi.fn(),
   onSetViewMode: vi.fn(),
   onToggleSoftWrap: vi.fn(),
+  onToggleWhitespace: vi.fn(),
   searchPanelOpen: false,
   softWrapEnabled: true,
   viewAvailable: true,
+  whitespaceVisible: false,
 }
 
 describe('EditorToolbar capabilities', () => {
@@ -96,5 +98,31 @@ describe('EditorToolbar capabilities', () => {
 
     expect(screen.getByLabelText('Copy editor text').disabled).toBe(false)
     expect(screen.getByLabelText('Paste clipboard text').disabled).toBe(true)
+  })
+
+  it('shows whitespace state and invokes its toggle', () => {
+    const onToggleWhitespace = vi.fn()
+
+    render(
+      <MantineProvider>
+        <EditorToolbar
+          {...commonProps}
+          onToggleWhitespace={onToggleWhitespace}
+          showCommit={false}
+          showViewMode
+        />
+      </MantineProvider>,
+    )
+
+    const whitespaceToggle = screen.getByLabelText('Show whitespace')
+    const softWrapToggle = screen.getByLabelText('Disable soft wrap')
+    expect(whitespaceToggle.getAttribute('aria-pressed')).toBe('false')
+    expect(
+      whitespaceToggle.compareDocumentPosition(softWrapToggle) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+
+    fireEvent.click(whitespaceToggle)
+    expect(onToggleWhitespace).toHaveBeenCalledOnce()
   })
 })

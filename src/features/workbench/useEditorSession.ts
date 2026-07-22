@@ -1,7 +1,7 @@
 import { linter, lintGutter } from '@codemirror/lint'
 import type { LintSource } from '@codemirror/lint'
 import type { Extension } from '@codemirror/state'
-import { EditorView } from '@codemirror/view'
+import { EditorView, highlightWhitespace } from '@codemirror/view'
 import type { ReactCodeMirrorRef } from '@uiw/react-codemirror'
 import { notifications } from '@mantine/notifications'
 import { useEffect, useRef, useState } from 'react'
@@ -64,6 +64,7 @@ export function useEditorSession({
   const [encodingModalOpened, setEncodingModalOpened] = useState(false)
   const [goToLineModalOpened, setGoToLineModalOpened] = useState(false)
   const [softWrapEnabled, setSoftWrapEnabled] = useState(true)
+  const [whitespaceVisible, setWhitespaceVisible] = useState(false)
   const [validationEnabled, setValidationEnabled] = useState(false)
   const [sqlDialect, setSqlDialect] = useState<SqlDialect>(DEFAULT_SQL_DIALECT)
   const [viewMode, setViewMode] = useState<WorkbenchViewMode>('source')
@@ -113,6 +114,7 @@ export function useEditorSession({
         ...(lintSource
           ? [lintGutter(), linter(lintSource, { delay: 250 })]
           : []),
+        ...(whitespaceVisible ? [highlightWhitespace()] : []),
         ...(softWrapEnabled ? [EditorView.lineWrapping] : []),
         ...searchReplace.extensions,
       ])
@@ -130,6 +132,7 @@ export function useEditorSession({
     sqlDialect,
     syntaxMode,
     validationEnabled,
+    whitespaceVisible,
   ])
 
   useEffect(() => {
@@ -303,6 +306,7 @@ export function useEditorSession({
     setValidationEnabled,
     setValue,
     setViewMode,
+    setWhitespaceVisible,
     softWrapEnabled,
     sqlDialect,
     sqlDialectOptions: SQL_DIALECT_OPTIONS,
@@ -315,6 +319,7 @@ export function useEditorSession({
     value,
     viewAvailable,
     viewMode,
+    whitespaceVisible,
   }
 }
 

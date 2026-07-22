@@ -5,7 +5,14 @@ import {
     SegmentedControl,
     Tooltip
 } from '@mantine/core';
-import { CircleDot, ClipboardPaste, Copy, FileJson, Search } from 'lucide-react';
+import {
+    CircleDot,
+    ClipboardPaste,
+    Copy,
+    FileJson,
+    PilcrowIcon,
+    Search
+} from 'lucide-react';
 
 import {
     IconGitCommit,
@@ -24,11 +31,13 @@ export function EditorToolbar({
   onPasteText,
   onSetViewMode,
   onToggleSoftWrap,
+  onToggleWhitespace,
   searchPanelOpen,
   softWrapEnabled,
   showCommit,
   showViewMode,
   viewAvailable,
+  whitespaceVisible,
 }: {
   activeViewMode: WorkbenchViewMode
   canCommitWorkingText: boolean
@@ -40,11 +49,13 @@ export function EditorToolbar({
   onPasteText: () => void
   onSetViewMode: (mode: WorkbenchViewMode) => void
   onToggleSoftWrap: () => void
+  onToggleWhitespace: () => void
   searchPanelOpen: boolean
   showCommit: boolean
   showViewMode: boolean
   softWrapEnabled: boolean
   viewAvailable: boolean
+  whitespaceVisible: boolean
 }) {
   return (
     <Group className="editorToolbar" justify="space-between" wrap="nowrap">
@@ -71,7 +82,7 @@ export function EditorToolbar({
         <Tooltip label="Choose sample data" withArrow>
           <Button
             aria-label="Choose sample data"
-            // className="sampleButton"
+            className="sampleButton"
             size="xs"
             color="gray"
             leftSection={<FileJson size={14} />}
@@ -107,6 +118,22 @@ export function EditorToolbar({
             onClick={onPasteText}
           >
             <ClipboardPaste size={18} />
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip
+          label={whitespaceVisible ? 'Hide whitespace' : 'Show whitespace'}
+          withArrow
+        >
+          <ActionIcon
+            aria-label={
+              whitespaceVisible ? 'Hide whitespace' : 'Show whitespace'
+            }
+            aria-pressed={whitespaceVisible}
+            color="dark"
+            variant={whitespaceVisible ? 'filled' : 'subtle'}
+            onClick={onToggleWhitespace}
+          >
+            <PilcrowIcon size={18} />
           </ActionIcon>
         </Tooltip>
         <Tooltip
