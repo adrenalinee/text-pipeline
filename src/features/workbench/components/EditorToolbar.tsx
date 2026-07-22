@@ -120,6 +120,7 @@ export function EditorToolbar({
             <ClipboardPaste size={18} />
           </ActionIcon>
         </Tooltip>
+        <span className="statusBarDivider" aria-hidden="true" />
         <Tooltip
           label={whitespaceVisible ? 'Hide whitespace' : 'Show whitespace'}
           withArrow
@@ -185,24 +186,27 @@ export function EditorToolbar({
           </ActionIcon>
         </Tooltip>
         {showCommit ? (
-          <Tooltip
-            label={
-              canCommitWorkingText
-                ? 'Commit current editor text'
-                : 'No editor changes to commit'
-            }
-            withArrow
-          >
-            <ActionIcon
-              aria-label="Commit current editor text"
-              color={canCommitWorkingText ? 'green' : 'gray'}
-              disabled={!canCommitWorkingText}
-              variant={canCommitWorkingText ? 'filled' : 'light'}
-              onClick={onCommitWorkingText}
+          <>
+            <span className="statusBarDivider" aria-hidden="true" />
+            <Tooltip
+              label={
+                canCommitWorkingText
+                  ? 'Commit current editor text'
+                  : 'No editor changes to commit'
+              }
+              withArrow
             >
-              <IconGitCommit size={18} />
-            </ActionIcon>
-          </Tooltip>
+              <ActionIcon
+                aria-label="Commit current editor text"
+                color={canCommitWorkingText ? 'green' : 'gray'}
+                disabled={!canCommitWorkingText}
+                variant={canCommitWorkingText ? 'filled' : 'light'}
+                onClick={onCommitWorkingText}
+              >
+                <IconGitCommit size={18} />
+              </ActionIcon>
+            </Tooltip>
+          </>
         ) : null}
       </Group>
     </Group>
