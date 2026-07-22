@@ -39,6 +39,13 @@ button {
   );
 }
 
+.workbenchLogo {
+  display: block;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+
 .workbenchSidebar {
   background: light-dark(
     var(--mantine-color-gray-0),

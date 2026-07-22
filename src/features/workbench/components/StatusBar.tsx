@@ -14,6 +14,8 @@ import {
 import type { WorkbenchViewMode } from '../types'
 import type { FormatValidationResult } from '../utils/formatValidation'
 
+const integerFormatter = new Intl.NumberFormat('en-US')
+
 export type StatusBarCursorInfo = {
   column: number
   line: number
@@ -62,6 +64,11 @@ export function StatusBar({
   validationResult: FormatValidationResult | null
 }) {
   if (activeViewMode !== 'source') return null
+
+  const formattedLineCount = integerFormatter.format(lineCount)
+  const formattedSelectionLineCount = selection
+    ? integerFormatter.format(selection.lineCount)
+    : null
 
   return (
     <Group className="statusBar" justify="space-between" wrap="nowrap">
@@ -126,12 +133,14 @@ export function StatusBar({
         wrap="nowrap"
       >
         <Tooltip
-          label={`${lineCount} line${lineCount === 1 ? '' : 's'}, ${charCount} character${charCount === 1 ? '' : 's'} total`}
+          label={`${formattedLineCount} line${lineCount === 1 ? '' : 's'}, ${charCount} character${charCount === 1 ? '' : 's'} total`}
           withArrow
         >
           <Group className="statusBarMetric" gap={10} wrap="nowrap">
             <span className="statusBarMetricItem">
-              <span className="statusBarMetricValue">{lineCount}</span>
+              <span className="statusBarMetricValue">
+                {formattedLineCount}
+              </span>
               <span className="statusBarMetricUnit">
                 {lineCount === 1 ? 'line' : 'lines'}
               </span>
@@ -149,7 +158,7 @@ export function StatusBar({
           <Tooltip
             label={`Selected ${selection.charCount} character${
               selection.charCount === 1 ? '' : 's'
-            } across ${selection.lineCount} line${
+            } across ${formattedSelectionLineCount} line${
               selection.lineCount === 1 ? '' : 's'
             }`}
             withArrow
@@ -159,7 +168,7 @@ export function StatusBar({
               <span>
                 {selection.charCount} chars
                 {selection.lineCount > 1
-                  ? `, ${selection.lineCount} lines`
+                  ? `, ${formattedSelectionLineCount} lines`
                   : ''}
               </span>
             </Group>
