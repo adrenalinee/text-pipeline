@@ -33,13 +33,11 @@ beforeAll(() => {
 afterEach(cleanup)
 
 const commonProps = {
-  activeViewMode: 'source' as const,
   canCommitWorkingText: false,
   onCopyText: vi.fn(),
   onOpenSamples: vi.fn(),
   onOpenSearch: vi.fn(),
   onPasteText: vi.fn(),
-  onSetViewMode: vi.fn(),
   onToggleSoftWrap: vi.fn(),
   onToggleWhitespace: vi.fn(),
   searchPanelOpen: false,
@@ -49,18 +47,16 @@ const commonProps = {
 }
 
 describe('EditorToolbar capabilities', () => {
-  it('omits view mode and commit controls from the sub editor', () => {
+  it('omits commit controls from the sub editor', () => {
     render(
       <MantineProvider>
         <EditorToolbar
           {...commonProps}
           showCommit={false}
-          showViewMode={false}
         />
       </MantineProvider>,
     )
 
-    expect(screen.queryByLabelText('Editor view mode')).toBeNull()
     expect(screen.queryByLabelText('Commit current editor text')).toBeNull()
     expect(screen.getByLabelText('Choose sample data')).toBeTruthy()
     expect(screen.getByLabelText('Copy editor text')).toBeTruthy()
@@ -68,36 +64,38 @@ describe('EditorToolbar capabilities', () => {
     expect(screen.getByLabelText('Search and replace')).toBeTruthy()
   })
 
-  it('keeps view mode and commit controls in the main editor', () => {
+  it('keeps commit controls and pane labels in the main editor', () => {
     render(
       <MantineProvider>
         <EditorToolbar
           {...commonProps}
+          paneLabel="Base · Left"
           showCommit
-          showViewMode
           onCommitWorkingText={vi.fn()}
         />
       </MantineProvider>,
     )
 
-    expect(screen.getByLabelText('Editor view mode')).toBeTruthy()
+    expect(screen.getByText('Base · Left')).toBeTruthy()
     expect(screen.getByLabelText('Commit current editor text')).toBeTruthy()
   })
 
-  it('disables paste outside source mode while keeping copy available', () => {
+  it('keeps clipboard controls available in source editors', () => {
     render(
       <MantineProvider>
         <EditorToolbar
           {...commonProps}
-          activeViewMode="view"
           showCommit={false}
-          showViewMode
         />
       </MantineProvider>,
     )
 
-    expect(screen.getByLabelText('Copy editor text').disabled).toBe(false)
-    expect(screen.getByLabelText('Paste clipboard text').disabled).toBe(true)
+    expect(
+      screen.getByLabelText('Copy editor text').hasAttribute('disabled'),
+    ).toBe(false)
+    expect(
+      screen.getByLabelText('Paste clipboard text').hasAttribute('disabled'),
+    ).toBe(false)
   })
 
   it('shows whitespace state and invokes its toggle', () => {
@@ -109,7 +107,6 @@ describe('EditorToolbar capabilities', () => {
           {...commonProps}
           onToggleWhitespace={onToggleWhitespace}
           showCommit={false}
-          showViewMode
         />
       </MantineProvider>,
     )

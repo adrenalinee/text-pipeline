@@ -61,13 +61,125 @@ button {
   );
 }
 
-.editorWorkspace {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+.workspaceFrame {
+  display: flex;
+  flex-direction: column;
   height: calc(100vh - 44px);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+.workspaceModeBar {
+  flex: 0 0 auto;
+  min-height: 42px;
+  padding: 5px 10px;
+  border-bottom: 1px solid
+    light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+  background: light-dark(
+    var(--mantine-color-gray-0),
+    var(--mantine-color-dark-7)
+  );
+}
+
+.workspaceModeActions {
+  min-width: 0;
+}
+
+.workspaceLoadingState {
+  flex: 1;
+  min-height: 0;
+}
+
+.editorWorkspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  flex: 1;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.viewWorkspacePane {
+  display: flex;
+  flex-direction: column;
+}
+
+.editableDiffWorkspace,
+.unifiedDiffPanel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.diffEditorHeaders {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  border-bottom: 1px solid
+    light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+}
+
+.diffEditorHeader {
+  min-width: 0;
+  overflow: hidden;
+  container-name: editor-pane;
+  container-type: inline-size;
+}
+
+.diffEditorHeader + .diffEditorHeader {
+  border-left: 1px solid
+    light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+}
+
+.diffEditorHeader[data-active] {
+  box-shadow: inset 0 0 0 1px var(--mantine-color-blue-6);
+}
+
+.editableMergeView {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editableMergeView .cm-mergeView {
+  height: 100%;
+  overflow: auto;
+}
+
+.editableMergeView .cm-mergeViewEditors,
+.editableMergeView .cm-mergeViewEditor,
+.editableMergeView .cm-editor {
+  min-height: 100%;
+}
+
+.editableMergeView .cm-scroller,
+.unifiedDiffEditor .cm-scroller {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+  line-height: 1.55;
+}
+
+.unifiedDiffHeader {
+  flex: 0 0 auto;
+  min-height: 46px;
+  padding: 7px 14px;
+  border-bottom: 1px solid
+    light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+  background: light-dark(
+    var(--mantine-color-gray-0),
+    var(--mantine-color-dark-7)
+  );
+}
+
+.unifiedDiffEditor {
+  flex: 1;
 }
 
 .editorWorkspace[data-split] {
@@ -363,10 +475,6 @@ button {
 
 .editorCommands {
   flex-shrink: 0;
-}
-
-.viewModeTabs {
-  flex: 0 0 auto;
 }
 
 .sampleButton {
@@ -1169,6 +1277,33 @@ button {
 }
 
 @media (max-width: 420px) {
+  .workspaceModeBar {
+    align-items: center;
+    padding-inline: 6px;
+  }
+
+  .workspaceModeLabel {
+    display: none;
+  }
+
+  .workspaceModeBar .mantine-SegmentedControl-label {
+    padding-inline: 7px;
+  }
+
+  .workspaceModeActions .mantine-Button-label {
+    display: none;
+  }
+
+  .workspaceModeActions .mantine-Button-root {
+    width: 30px;
+    min-width: 30px;
+    padding-inline: 0;
+  }
+
+  .workspaceModeActions .mantine-Button-section {
+    margin-inline: 0;
+  }
+
   .editorToolbar {
     min-height: 44px;
     padding: 6px 8px;
@@ -1219,11 +1354,4 @@ button {
     display: none;
   }
 
-  .viewModeTabs {
-    max-width: 112px;
-  }
-
-  .viewModeTabs .mantine-SegmentedControl-label {
-    padding-inline: 7px;
-  }
 }

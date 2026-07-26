@@ -2,7 +2,7 @@ import {
     ActionIcon,
     Button,
     Group,
-    SegmentedControl,
+    Text,
     Tooltip
 } from '@mantine/core';
 import {
@@ -18,64 +18,44 @@ import {
     IconGitCommit,
     IconTextWrap
 } from '@tabler/icons-react';
-import type { WorkbenchViewMode } from '../types';
 
 export function EditorToolbar({
-  activeViewMode,
   canCommitWorkingText,
-  // editorTitle,
+  paneLabel,
   onCopyText,
   onCommitWorkingText,
   onOpenSamples,
   onOpenSearch,
   onPasteText,
-  onSetViewMode,
   onToggleSoftWrap,
   onToggleWhitespace,
   searchPanelOpen,
   softWrapEnabled,
   showCommit,
-  showViewMode,
-  viewAvailable,
   whitespaceVisible,
 }: {
-  activeViewMode: WorkbenchViewMode
   canCommitWorkingText: boolean
-  // editorTitle: string
+  paneLabel?: string
   onCopyText: () => void
   onCommitWorkingText?: () => void
   onOpenSamples: () => void
   onOpenSearch: () => void
   onPasteText: () => void
-  onSetViewMode: (mode: WorkbenchViewMode) => void
   onToggleSoftWrap: () => void
   onToggleWhitespace: () => void
   searchPanelOpen: boolean
   showCommit: boolean
-  showViewMode: boolean
   softWrapEnabled: boolean
-  viewAvailable: boolean
   whitespaceVisible: boolean
 }) {
   return (
     <Group className="editorToolbar" justify="space-between" wrap="nowrap">
       <Group gap="xs" wrap="nowrap">
         <CircleDot className="editorPaneMarker" size={14} />
-        {/* <Text className="editorPaneTitle" fw={600} size="sm">
-          {editorTitle}
-        </Text> */}
-        {showViewMode ? (
-          <SegmentedControl
-            aria-label="Editor view mode"
-            className="viewModeTabs"
-            data={[
-              { label: 'Source', value: 'source' },
-              { disabled: !viewAvailable, label: 'View', value: 'view' },
-            ]}
-            size="xs"
-            value={activeViewMode}
-            onChange={(value) => onSetViewMode(value)}
-          />
+        {paneLabel ? (
+          <Text className="editorPaneTitle" fw={650} size="xs">
+            {paneLabel}
+          </Text>
         ) : null}
       </Group>
       <Group className="editorToolbarActions" gap={6} wrap="nowrap">
@@ -103,17 +83,12 @@ export function EditorToolbar({
           </ActionIcon>
         </Tooltip>
         <Tooltip
-          label={
-            activeViewMode === 'source'
-              ? 'Paste at cursor or replace selection'
-              : 'Paste is available in source mode'
-          }
+          label="Paste at cursor or replace selection"
           withArrow
         >
           <ActionIcon
             aria-label="Paste clipboard text"
             color="dark"
-            disabled={activeViewMode !== 'source'}
             variant="subtle"
             onClick={onPasteText}
           >
@@ -160,25 +135,16 @@ export function EditorToolbar({
         </Tooltip>
         <Tooltip
           label={
-            activeViewMode !== 'source'
-              ? 'Search is available in source mode'
-              : searchPanelOpen
-                ? 'Close search'
-                : 'Search and replace (Ctrl+F)'
+            searchPanelOpen ? 'Close search' : 'Search and replace (Ctrl+F)'
           }
           withArrow
         >
           <ActionIcon
             aria-label={
-              activeViewMode !== 'source'
-                ? 'Search is available in source mode'
-                : searchPanelOpen
-                  ? 'Close search'
-                  : 'Search and replace'
+              searchPanelOpen ? 'Close search' : 'Search and replace'
             }
             aria-pressed={searchPanelOpen}
             color="dark"
-            disabled={activeViewMode !== 'source'}
             variant={searchPanelOpen ? 'filled' : 'subtle'}
             onClick={onOpenSearch}
           >

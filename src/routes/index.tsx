@@ -30,13 +30,20 @@ import {
     Replace,
     Sun
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 
 import { EditorPane } from '#/features/workbench/components/EditorPane';
 import { HistoryRail } from '#/features/workbench/components/HistoryRail';
 import { HistorySidebar } from '#/features/workbench/components/HistorySidebar';
 import { SplitEditorWorkspace } from '#/features/workbench/components/SplitEditorWorkspace';
+import {
+    WorkspaceModeBar,
+} from '#/features/workbench/components/WorkspaceModeBar';
+import type {
+    DiffLayout,
+    SecondaryPurpose,
+} from '#/features/workbench/components/WorkspaceModeBar';
 import { TransformsRail } from '#/features/workbench/components/TransformsRail';
 import { TransformsSidebar } from '#/features/workbench/components/TransformsSidebar';
 import type { TextRevisionSnapshot } from '#/features/workbench/history';
@@ -76,7 +83,21 @@ import type {
     EditorSession,
 } from '#/features/workbench/useEditorSession';
 import { useEditorSession } from '#/features/workbench/useEditorSession';
+import { FORMAT_VIEWS } from '#/features/workbench/formats';
+import { FormatViewPanel } from '#/features/workbench/views/FormatViewPanel';
 import { theme } from '#/theme.ts';
+
+const EditableDiffWorkspace = lazy(() =>
+  import('#/features/workbench/components/EditableDiffWorkspace').then(
+    (module) => ({ default: module.EditableDiffWorkspace }),
+  ),
+)
+
+const UnifiedDiffView = lazy(() =>
+  import('#/features/workbench/components/UnifiedDiffView').then((module) => ({
+    default: module.UnifiedDiffView,
+  })),
+)
 
 export const Route = createFileRoute('/')({
   ssr: false,
@@ -96,6 +117,18 @@ const RAIL_WIDTH = 48
 const LEFT_PANEL_STORAGE_KEY = 'text-pipeline:leftSidebarOpened'
 const RIGHT_PANEL_STORAGE_KEY = 'text-pipeline:rightSidebarOpened'
 const SPLIT_RATIO_STORAGE_KEY = 'text-pipeline:editorSplitRatio'
+
+type SecondaryWorkspaceMode =
+  | { kind: 'secondary'; purpose: 'editor' }
+  | { kind: 'secondary'; purpose: 'view' }
+  | { kind: 'secondary'; layout: DiffLayout; purpose: 'diff' }
+
+type WorkspaceMode = { kind: 'single' } | SecondaryWorkspaceMode
+
+const DEFAULT_SECONDARY_MODE: SecondaryWorkspaceMode = {
+  kind: 'secondary',
+  purpose: 'editor',
+}
 
 function readStoredPanelOpened(key: string, fallback: boolean) {
   if (typeof window === 'undefined') {
@@ -163,8 +196,11 @@ function Workbench() {
   const [workingBaseRevisionId, setWorkingBaseRevisionId] =
     useState(ROOT_REVISION_ID)
   const [activeEditorId, setActiveEditorId] = useState<EditorId>('main')
-  const [splitEnabled, setSplitEnabled] = useState(false)
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>({
+    kind: 'single',
+  })
   const [splitRatio, setSplitRatio] = useState(readStoredSplitRatio)
+  const [copyConfirmationOpened, setCopyConfirmationOpened] = useState(false)
   const [runningTransformLabel, setRunningTransformLabel] = useState<
     string | null
   >(null)
@@ -172,6 +208,10 @@ function Workbench() {
     TextCommit | typeof ROOT_REVISION_ID | null
   >(null)
   const commitSeqRef = useRef(0)
+  const lastSecondaryModeRef = useRef<SecondaryWorkspaceMode>(
+    DEFAULT_SECONDARY_MODE,
+  )
+  const lastDiffLayoutRef = useRef<DiffLayout>('split')
   const { setColorScheme } = useMantineColorScheme()
   const isCompact = useMediaQuery('(max-width: 48em)')
   const computedColorScheme = useComputedColorScheme('dark', {
@@ -190,8 +230,25 @@ function Workbench() {
     initialSyntaxMode: 'json',
     initialValue: '',
   })
+  const splitEnabled = workspaceMode.kind === 'secondary'
+  const secondaryPurpose: SecondaryPurpose =
+    workspaceMode.kind === 'secondary' ? workspaceMode.purpose : 'editor'
+  const configuredDiffLayout =
+    workspaceMode.kind === 'secondary' && workspaceMode.purpose === 'diff'
+      ? workspaceMode.layout
+      : lastDiffLayoutRef.current
+  const effectiveDiffLayout: DiffLayout = isCompact
+    ? 'unified'
+    : configuredDiffLayout
+  const unifiedDiffReadOnly =
+    secondaryPurpose === 'diff' && effectiveDiffLayout === 'unified'
   const activeSession =
-    activeEditorId === 'sub' && splitEnabled ? subSession : mainSession
+    activeEditorId === 'sub' &&
+    splitEnabled &&
+    secondaryPurpose !== 'view' &&
+    !unifiedDiffReadOnly
+      ? subSession
+      : mainSession
   const rootRevision = getRootRevisionSnapshot(commits, INITIAL_TEXT_REVISION)
   const rootText = rootRevision.text
   const rootSyntaxMode = rootRevision.syntaxMode
@@ -576,10 +633,69 @@ function Workbench() {
 
   function toggleSplitEditor() {
     if (splitEnabled) {
+      mainSession.searchReplace.closePanel()
       subSession.searchReplace.closePanel()
       setActiveEditorId('main')
+      setWorkspaceMode({ kind: 'single' })
+      return
     }
-    setSplitEnabled((enabled) => !enabled)
+
+    setWorkspaceMode(lastSecondaryModeRef.current)
+  }
+
+  function setSecondaryPurpose(purpose: SecondaryPurpose) {
+    mainSession.searchReplace.closePanel()
+    subSession.searchReplace.closePanel()
+    setActiveEditorId('main')
+
+    const nextMode: SecondaryWorkspaceMode =
+      purpose === 'diff'
+        ? {
+            kind: 'secondary',
+            layout: lastDiffLayoutRef.current,
+            purpose,
+          }
+        : { kind: 'secondary', purpose }
+
+    lastSecondaryModeRef.current = nextMode
+    setWorkspaceMode(nextMode)
+  }
+
+  function setDiffLayout(layout: DiffLayout) {
+    lastDiffLayoutRef.current = layout
+    const nextMode: SecondaryWorkspaceMode = {
+      kind: 'secondary',
+      layout,
+      purpose: 'diff',
+    }
+
+    lastSecondaryModeRef.current = nextMode
+    mainSession.searchReplace.closePanel()
+    subSession.searchReplace.closePanel()
+    setActiveEditorId('main')
+    setWorkspaceMode(nextMode)
+  }
+
+  function requestCopyLeftToRight() {
+    if (subSession.value && subSession.value !== mainSession.value) {
+      setCopyConfirmationOpened(true)
+      return
+    }
+
+    copyLeftToRight()
+  }
+
+  function copyLeftToRight() {
+    subSession.searchReplace.closePanel()
+    subSession.setValue(mainSession.value)
+    subSession.setSyntaxMode(mainSession.syntaxMode)
+    setCopyConfirmationOpened(false)
+    setActiveEditorId('sub')
+    notifications.show({
+      color: 'blue',
+      message: 'The left text and format were copied to the right editor.',
+      title: 'Right editor updated',
+    })
   }
 
   useEffect(() => {
@@ -609,10 +725,13 @@ function Workbench() {
 
             return [
               {
-                description: activeSession.hasEditorSelection
+                description: unifiedDiffReadOnly
+                  ? 'Switch to Side-by-side or Editor mode to transform text'
+                  : activeSession.hasEditorSelection
                   ? definition.description
                   : 'Select text in the editor first',
-                disabled: !activeSession.hasEditorSelection,
+                disabled:
+                  unifiedDiffReadOnly || !activeSession.hasEditorSelection,
                 icon: getTransformIcon(definition.id),
                 id: definition.id,
                 label: definition.label,
@@ -640,7 +759,10 @@ function Workbench() {
 
           return [
             {
-              description: definition.description,
+              description: unifiedDiffReadOnly
+                ? 'Switch to Side-by-side or Editor mode to transform text'
+                : definition.description,
+              disabled: unifiedDiffReadOnly,
               icon: getTransformIcon(definition.id),
               id: definition.id,
               label: definition.label,
@@ -654,10 +776,12 @@ function Workbench() {
 
       if (section.id === 'general') {
         const replaceAction: TransformAction = {
-          description: activeSession.hasEditorSelection
+          description: unifiedDiffReadOnly
+            ? 'Switch to Side-by-side or Editor mode to edit text'
+            : activeSession.hasEditorSelection
             ? 'Search for the selected text and replace it'
             : 'Select text in the editor first',
-          disabled: !activeSession.hasEditorSelection,
+          disabled: unifiedDiffReadOnly || !activeSession.hasEditorSelection,
           icon: <Replace size={16} />,
           id: 'search-replace',
           label: 'Replace',
@@ -741,6 +865,30 @@ function Workbench() {
           </Group>
         </Stack>
       </Modal>
+      <Modal
+        centered
+        opened={copyConfirmationOpened}
+        overlayProps={{ backgroundOpacity: 0.45, blur: 1 }}
+        size="sm"
+        title="Replace the right editor?"
+        onClose={() => setCopyConfirmationOpened(false)}
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            Copying the left editor will replace the current right text and
+            format. This does not create history.
+          </Text>
+          <Group justify="flex-end" gap="xs" wrap="nowrap">
+            <Button
+              variant="default"
+              onClick={() => setCopyConfirmationOpened(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={copyLeftToRight}>Replace right editor</Button>
+          </Group>
+        </Stack>
+      </Modal>
       <AppShell.Header className="workbenchHeader">
         <Group h="100%" px="sm" justify="space-between" wrap="nowrap">
           <Group gap="xs" wrap="nowrap">
@@ -756,16 +904,27 @@ function Workbench() {
             <Badge className="workbenchBadge" variant="light" size="xs">
               Alpha
             </Badge>
-          </Group>
-
-          <Group gap={6} wrap="nowrap">
             <HeaderIconButton
-              label={splitEnabled ? 'Close split editor' : 'Split editor'}
+              label={
+                splitEnabled
+                  ? 'Close secondary workspace'
+                  : 'Open editor, diff, or view panel'
+              }
               pressed={splitEnabled}
               onClick={toggleSplitEditor}
             >
               <Columns2 size={18} />
             </HeaderIconButton>
+          </Group>
+
+          <Group gap={6} wrap="nowrap">
+            {/* <HeaderIconButton
+              label={splitEnabled ? 'Close split editor' : 'Split editor'}
+              pressed={splitEnabled}
+              onClick={toggleSplitEditor}
+            >
+              <Columns2 size={18} />
+            </HeaderIconButton> */}
             {/* <HeaderIconButton
               label={leftOpened ? 'Hide left sidebar' : 'Show left sidebar'}
               onClick={() => setLeftOpenedPersisted(!leftOpened)}
@@ -827,37 +986,92 @@ function Workbench() {
       </AppShell.Navbar>
 
       <AppShell.Main className="workbenchMain">
-        <SplitEditorWorkspace
-          compact={isCompact === true}
-          ratio={splitRatio}
-          split={splitEnabled}
-          onRatioChange={setSplitRatioPersisted}
-          main={
-            <EditorPane
-              allowCommit
-              allowView
-              canCommitWorkingText={canCommitWorkingText}
-              // editorTitle="Main Editor"
-              isActive={activeEditorId === 'main'}
-              isDark={isDark}
-              session={mainSession}
-              onActivate={() => setActiveEditorId('main')}
-              onCommitWorkingText={commitWorkingText}
+        <Box className="workspaceFrame">
+          {splitEnabled ? (
+            <WorkspaceModeBar
+              compact={isCompact === true}
+              diffLayout={configuredDiffLayout}
+              purpose={secondaryPurpose}
+              rightMatchesLeft={
+                mainSession.value === subSession.value &&
+                mainSession.syntaxMode === subSession.syntaxMode
+              }
+              viewAvailable={mainSession.viewAvailable}
+              onClose={toggleSplitEditor}
+              onCopyLeftToRight={requestCopyLeftToRight}
+              onDiffLayoutChange={setDiffLayout}
+              onPurposeChange={setSecondaryPurpose}
             />
-          }
-          sub={
-            <EditorPane
-              allowCommit={false}
-              allowView={false}
-              canCommitWorkingText={false}
-              // editorTitle="Sub Editor"
-              isActive={activeEditorId === 'sub'}
-              isDark={isDark}
-              session={subSession}
-              onActivate={() => setActiveEditorId('sub')}
+          ) : null}
+
+          {secondaryPurpose === 'diff' && splitEnabled ? (
+            <Suspense fallback={<WorkspaceLoadingState label="Loading diff" />}>
+              {effectiveDiffLayout === 'unified' ? (
+                <UnifiedDiffView
+                  isDark={isDark}
+                  mainSession={mainSession}
+                  subSession={subSession}
+                />
+              ) : (
+                <EditableDiffWorkspace
+                  activeEditorId={activeEditorId}
+                  canCommitWorkingText={canCommitWorkingText}
+                  isDark={isDark}
+                  mainSession={mainSession}
+                  subSession={subSession}
+                  onActivate={setActiveEditorId}
+                  onCommitWorkingText={commitWorkingText}
+                />
+              )}
+            </Suspense>
+          ) : (
+            <SplitEditorWorkspace
+              compact={isCompact === true}
+              ratio={splitRatio}
+              split={splitEnabled}
+              onRatioChange={setSplitRatioPersisted}
+              main={
+                <EditorPane
+                  allowCommit
+                  canCommitWorkingText={canCommitWorkingText}
+                  isActive={activeEditorId === 'main'}
+                  isDark={isDark}
+                  paneLabel={
+                    splitEnabled
+                      ? secondaryPurpose === 'view'
+                        ? 'Source · Left'
+                        : 'Main · Left'
+                      : undefined
+                  }
+                  session={mainSession}
+                  onActivate={() => setActiveEditorId('main')}
+                  onCommitWorkingText={commitWorkingText}
+                />
+              }
+              sub={
+                secondaryPurpose === 'view' ? (
+                  <Box className="editorPane viewWorkspacePane">
+                    <FormatViewPanel
+                      format={mainSession.currentFormat}
+                      value={mainSession.value}
+                      views={FORMAT_VIEWS}
+                    />
+                  </Box>
+                ) : (
+                  <EditorPane
+                    allowCommit={false}
+                    canCommitWorkingText={false}
+                    isActive={activeEditorId === 'sub'}
+                    isDark={isDark}
+                    paneLabel="Secondary · Right"
+                    session={subSession}
+                    onActivate={() => setActiveEditorId('sub')}
+                  />
+                )
+              }
             />
-          }
-        />
+          )}
+        </Box>
       </AppShell.Main>
 
       <AppShell.Aside
@@ -996,6 +1210,17 @@ function HeaderIconButton({
         {children}
       </ActionIcon>
     </Tooltip>
+  )
+}
+
+function WorkspaceLoadingState({ label }: { label: string }) {
+  return (
+    <Group className="workspaceLoadingState" gap="xs" justify="center">
+      <Loader size="sm" />
+      <Text c="dimmed" size="sm">
+        {label}…
+      </Text>
+    </Group>
   )
 }
 

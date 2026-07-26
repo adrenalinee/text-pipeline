@@ -2,7 +2,7 @@ import { linter, lintGutter } from '@codemirror/lint'
 import type { LintSource } from '@codemirror/lint'
 import type { Extension } from '@codemirror/state'
 import { EditorView, highlightWhitespace } from '@codemirror/view'
-import type { ReactCodeMirrorRef } from '@uiw/react-codemirror'
+import type { ViewUpdate } from '@codemirror/view'
 import { notifications } from '@mantine/notifications'
 import { useEffect, useRef, useState } from 'react'
 
@@ -12,7 +12,7 @@ import type { ReplaceSession } from './search/useSearchReplace'
 import type { TextSample } from './samples'
 import { DEFAULT_SQL_DIALECT, SQL_DIALECT_OPTIONS } from './sqlDialects'
 import type { SqlDialect } from './sqlDialects'
-import type { SyntaxMode, WorkbenchViewMode } from './types'
+import type { SyntaxMode } from './types'
 import { createSqlLintSource } from './utils/formatLinting'
 import { validateFormat, validateSqlDialect } from './utils/formatValidation'
 import type { FormatValidationResult } from './utils/formatValidation'
@@ -67,22 +67,21 @@ export function useEditorSession({
   const [whitespaceVisible, setWhitespaceVisible] = useState(false)
   const [validationEnabled, setValidationEnabled] = useState(false)
   const [sqlDialect, setSqlDialect] = useState<SqlDialect>(DEFAULT_SQL_DIALECT)
-  const [viewMode, setViewMode] = useState<WorkbenchViewMode>('source')
   const [selectionRange, setSelectionRange] = useState({ from: 0, to: 0 })
   const [cursorOffset, setCursorOffset] = useState(0)
   const [editorExtensions, setEditorExtensions] = useState<Array<Extension>>([])
+  const [editorExtensionsVersion, setEditorExtensionsVersion] = useState(0)
   const [validationResult, setValidationResult] =
     useState<FormatValidationResult | null>(null)
-  const editorRef = useRef<ReactCodeMirrorRef>(null)
+  const editorViewRef = useRef<EditorView | null>(null)
   const onManualChangeRef = useRef(onManualChange)
 
   onManualChangeRef.current = onManualChange
 
-  const searchReplace = useSearchReplace({ editorRef, onReplaceCommit })
+  const searchReplace = useSearchReplace({ editorViewRef, onReplaceCommit })
   const currentFormat = getFormatDefinition(syntaxMode)
   const viewAvailable = currentFormat.viewIds.length > 0
-  const hasEditorSelection =
-    viewMode === 'source' && selectionRange.from !== selectionRange.to
+  const hasEditorSelection = selectionRange.from !== selectionRange.to
   const lineCount = countLines(value)
   const charCount = value.length
   const cursorPosition = getLineAndColumn(value, cursorOffset)
@@ -116,8 +115,16 @@ export function useEditorSession({
           : []),
         ...(whitespaceVisible ? [highlightWhitespace()] : []),
         ...(softWrapEnabled ? [EditorView.lineWrapping] : []),
+        EditorView.updateListener.of(updateEditorViewState),
+        EditorView.domEventHandlers({
+          focus: (_event, view) => {
+            bindEditorView(view)
+            return false
+          },
+        }),
         ...searchReplace.extensions,
       ])
+      setEditorExtensionsVersion((version) => version + 1)
     }
 
     void loadEditorExtensions()
@@ -177,9 +184,31 @@ export function useEditorSession({
     setCursorOffset((current) => (current === head ? current : head))
   }
 
+  function bindEditorView(view: EditorView | null) {
+    editorViewRef.current = view
+
+    if (view) {
+      updateStatisticsFromView(view)
+    }
+  }
+
+  function updateEditorViewState(update: ViewUpdate) {
+    editorViewRef.current = update.view
+
+    if (update.selectionSet || update.docChanged) {
+      updateStatisticsFromView(update.view)
+    }
+  }
+
+  function updateStatisticsFromView(view: EditorView) {
+    const { from, head, to } = view.state.selection.main
+
+    updateStatistics({ selectionAsSingle: { from, head, to } })
+  }
+
   async function copyText() {
     try {
-      const view = editorRef.current?.view
+      const view = editorViewRef.current
       const documentText = view?.state.doc.toString() ?? value
       const selection =
         view?.state.selection.main ??
@@ -206,7 +235,7 @@ export function useEditorSession({
 
   async function pasteText() {
     try {
-      const view = editorRef.current?.view
+      const view = editorViewRef.current
       if (!view) throw new Error('Source editor unavailable')
 
       const text = await navigator.clipboard.readText()
@@ -240,9 +269,6 @@ export function useEditorSession({
   function chooseSyntax(nextSyntaxMode: SyntaxMode) {
     if (nextSyntaxMode !== syntaxMode) onManualChangeRef.current?.()
     setSyntaxMode(nextSyntaxMode)
-    if (getFormatDefinition(nextSyntaxMode).viewIds.length === 0) {
-      setViewMode('source')
-    }
     setSyntaxModalOpened(false)
   }
 
@@ -251,7 +277,6 @@ export function useEditorSession({
     setValue(sample.value)
     setSyntaxMode(sample.syntaxMode)
     setSampleModalOpened(false)
-    setViewMode('source')
     notifications.show({
       color: 'blue',
       message: `${sample.label} is now loaded in the ${id === 'main' ? 'main' : 'sub'} editor.`,
@@ -260,9 +285,8 @@ export function useEditorSession({
   }
 
   function goToLineColumn(line: number, column: number) {
-    setViewMode('source')
     const offset = getOffsetForLineAndColumn(value, line, column)
-    const view = editorRef.current?.view
+    const view = editorViewRef.current
 
     if (view) {
       view.dispatch({ selection: { anchor: offset }, scrollIntoView: true })
@@ -275,13 +299,15 @@ export function useEditorSession({
   }
 
   return {
+    bindEditorView,
     charCount,
     chooseSyntax,
     copyText,
     currentFormat,
     cursorPosition,
     editorExtensions,
-    editorRef,
+    editorExtensionsVersion,
+    editorViewRef,
     encoding,
     encodingModalOpened,
     goToLineColumn,
@@ -305,7 +331,6 @@ export function useEditorSession({
     setSyntaxMode,
     setValidationEnabled,
     setValue,
-    setViewMode,
     setWhitespaceVisible,
     softWrapEnabled,
     sqlDialect,
@@ -318,7 +343,6 @@ export function useEditorSession({
     validationResult,
     value,
     viewAvailable,
-    viewMode,
     whitespaceVisible,
   }
 }
