@@ -756,9 +756,6 @@ function Workbench() {
             <Badge className="workbenchBadge" variant="light" size="xs">
               Alpha
             </Badge>
-          </Group>
-
-          <Group gap={6} wrap="nowrap">
             <HeaderIconButton
               label={splitEnabled ? 'Close split editor' : 'Split editor'}
               pressed={splitEnabled}
@@ -766,6 +763,9 @@ function Workbench() {
             >
               <Columns2 size={18} />
             </HeaderIconButton>
+          </Group>
+
+          <Group gap={6} wrap="nowrap">
             {/* <HeaderIconButton
               label={leftOpened ? 'Hide left sidebar' : 'Show left sidebar'}
               onClick={() => setLeftOpenedPersisted(!leftOpened)}
@@ -835,8 +835,8 @@ function Workbench() {
           main={
             <EditorPane
               allowCommit
-              allowView
               canCommitWorkingText={canCommitWorkingText}
+              compact={isCompact === true}
               // editorTitle="Main Editor"
               isActive={activeEditorId === 'main'}
               isDark={isDark}
@@ -848,8 +848,8 @@ function Workbench() {
           sub={
             <EditorPane
               allowCommit={false}
-              allowView={false}
               canCommitWorkingText={false}
+              compact={isCompact === true}
               // editorTitle="Sub Editor"
               isActive={activeEditorId === 'sub'}
               isDark={isDark}

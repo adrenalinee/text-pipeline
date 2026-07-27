@@ -67,7 +67,8 @@ export function useEditorSession({
   const [whitespaceVisible, setWhitespaceVisible] = useState(false)
   const [validationEnabled, setValidationEnabled] = useState(false)
   const [sqlDialect, setSqlDialect] = useState<SqlDialect>(DEFAULT_SQL_DIALECT)
-  const [viewMode, setViewMode] = useState<WorkbenchViewMode>('source')
+  const [viewMode, setViewModeState] = useState<WorkbenchViewMode>('source')
+  const [sourceViewEnabled, setSourceViewEnabled] = useState(false)
   const [selectionRange, setSelectionRange] = useState({ from: 0, to: 0 })
   const [cursorOffset, setCursorOffset] = useState(0)
   const [editorExtensions, setEditorExtensions] = useState<Array<Extension>>([])
@@ -237,11 +238,18 @@ export function useEditorSession({
     }
   }
 
+  function setViewMode(nextViewMode: WorkbenchViewMode) {
+    if (nextViewMode === 'view') {
+      searchReplace.closePanel()
+    }
+    setViewModeState(nextViewMode)
+  }
+
   function chooseSyntax(nextSyntaxMode: SyntaxMode) {
     if (nextSyntaxMode !== syntaxMode) onManualChangeRef.current?.()
     setSyntaxMode(nextSyntaxMode)
     if (getFormatDefinition(nextSyntaxMode).viewIds.length === 0) {
-      setViewMode('source')
+      setViewModeState('source')
     }
     setSyntaxModalOpened(false)
   }
@@ -251,7 +259,7 @@ export function useEditorSession({
     setValue(sample.value)
     setSyntaxMode(sample.syntaxMode)
     setSampleModalOpened(false)
-    setViewMode('source')
+    setViewModeState('source')
     notifications.show({
       color: 'blue',
       message: `${sample.label} is now loaded in the ${id === 'main' ? 'main' : 'sub'} editor.`,
@@ -260,7 +268,7 @@ export function useEditorSession({
   }
 
   function goToLineColumn(line: number, column: number) {
-    setViewMode('source')
+    setViewModeState('source')
     const offset = getOffsetForLineAndColumn(value, line, column)
     const view = editorRef.current?.view
 
@@ -300,6 +308,7 @@ export function useEditorSession({
     setGoToLineModalOpened,
     setSampleModalOpened,
     setSoftWrapEnabled,
+    setSourceViewEnabled,
     setSqlDialect,
     setSyntaxModalOpened,
     setSyntaxMode,
@@ -308,6 +317,7 @@ export function useEditorSession({
     setViewMode,
     setWhitespaceVisible,
     softWrapEnabled,
+    sourceViewEnabled,
     sqlDialect,
     sqlDialectOptions: SQL_DIALECT_OPTIONS,
     syntaxModalOpened,
