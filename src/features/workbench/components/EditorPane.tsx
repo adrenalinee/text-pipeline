@@ -22,6 +22,7 @@ import {
 import { useState } from 'react'
 
 import { FORMAT_DEFINITIONS, FORMAT_OPTIONS, FORMAT_VIEWS } from '../formats'
+import { shouldShowSourceAlongsideView } from '../editorViewLayout'
 import { TEXT_SAMPLES } from '../samples'
 import type { TextSample } from '../samples'
 import type { SyntaxMode } from '../types'
@@ -33,8 +34,8 @@ import { StatusBar } from './StatusBar'
 
 export function EditorPane({
   allowCommit,
-  allowView,
   canCommitWorkingText,
+  compact,
   // editorTitle,
   isActive,
   isDark,
@@ -43,8 +44,8 @@ export function EditorPane({
   session,
 }: {
   allowCommit: boolean
-  allowView: boolean
   canCommitWorkingText: boolean
+  compact: boolean
   // editorTitle: string
   isActive: boolean
   isDark: boolean
@@ -52,7 +53,12 @@ export function EditorPane({
   onCommitWorkingText?: () => void
   session: EditorSession
 }) {
-  const activeViewMode = allowView ? session.viewMode : 'source'
+  const activeViewMode = session.viewMode
+  const showSourceAlongsideView = shouldShowSourceAlongsideView({
+    compact,
+    sourceViewEnabled: session.sourceViewEnabled,
+    viewMode: activeViewMode,
+  })
 
   return (
     <Box
@@ -70,8 +76,9 @@ export function EditorPane({
           // editorTitle={editorTitle}
           searchPanelOpen={session.searchReplace.isOpen}
           showCommit={allowCommit}
-          showViewMode={allowView}
           softWrapEnabled={session.softWrapEnabled}
+          sourceViewDisabled={compact}
+          sourceViewEnabled={session.sourceViewEnabled}
           viewAvailable={session.viewAvailable}
           whitespaceVisible={session.whitespaceVisible}
           onCommitWorkingText={onCommitWorkingText}
@@ -84,6 +91,9 @@ export function EditorPane({
           }
           onPasteText={() => void session.pasteText()}
           onSetViewMode={session.setViewMode}
+          onToggleSourceView={() =>
+            session.setSourceViewEnabled((enabled) => !enabled)
+          }
           onToggleSoftWrap={() =>
             session.setSoftWrapEnabled((enabled) => !enabled)
           }
@@ -126,47 +136,63 @@ export function EditorPane({
             session.setValidationEnabled((enabled) => !enabled)
           }
         />
-        {activeViewMode === 'source' ? (
-          <CodeMirror
-            ref={session.editorRef}
-            aria-label={
-              session.id === 'main' ? 'Text editor' : 'Secondary text editor'
-            }
-            className={[
-              session.softWrapEnabled
-                ? 'codeEditor'
-                : 'codeEditor codeEditorNoWrap',
-              session.searchReplace.editorProps.className,
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            style={session.searchReplace.editorProps.style}
-            basicSetup={{
-              bracketMatching: true,
-              closeBrackets: true,
-              foldGutter: true,
-              highlightActiveLine: true,
-              highlightActiveLineGutter: true,
-              lineNumbers: true,
-            }}
-            extensions={session.editorExtensions}
-            height="100%"
-            placeholder="any text here"
-            theme={isDark ? oneDark : 'light'}
-            value={session.value}
-            onChange={session.updateValue}
-            onStatistics={session.updateStatistics}
-          />
-        ) : (
-          <FormatViewPanel
-            format={session.currentFormat}
-            value={session.value}
-            views={FORMAT_VIEWS}
-          />
-        )}
+        <Box
+          className="editorContent"
+          data-source-view={showSourceAlongsideView || undefined}
+        >
+          {activeViewMode === 'source' || showSourceAlongsideView ? (
+            <SourceEditor isDark={isDark} session={session} />
+          ) : null}
+          {activeViewMode === 'view' ? (
+            <FormatViewPanel
+              format={session.currentFormat}
+              value={session.value}
+              views={FORMAT_VIEWS}
+            />
+          ) : null}
+        </Box>
         {session.searchReplace.panelPortal}
       </Box>
     </Box>
+  )
+}
+
+function SourceEditor({
+  isDark,
+  session,
+}: {
+  isDark: boolean
+  session: EditorSession
+}) {
+  return (
+    <CodeMirror
+      ref={session.editorRef}
+      aria-label={
+        session.id === 'main' ? 'Text editor' : 'Secondary text editor'
+      }
+      className={[
+        session.softWrapEnabled ? 'codeEditor' : 'codeEditor codeEditorNoWrap',
+        session.searchReplace.editorProps.className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      style={session.searchReplace.editorProps.style}
+      basicSetup={{
+        bracketMatching: true,
+        closeBrackets: true,
+        foldGutter: true,
+        highlightActiveLine: true,
+        highlightActiveLineGutter: true,
+        lineNumbers: true,
+      }}
+      extensions={session.editorExtensions}
+      height="100%"
+      placeholder="any text here"
+      theme={isDark ? oneDark : 'light'}
+      value={session.value}
+      onChange={session.updateValue}
+      onStatistics={session.updateStatistics}
+    />
   )
 }
 

@@ -40,27 +40,26 @@ const commonProps = {
   onOpenSearch: vi.fn(),
   onPasteText: vi.fn(),
   onSetViewMode: vi.fn(),
+  onToggleSourceView: vi.fn(),
   onToggleSoftWrap: vi.fn(),
   onToggleWhitespace: vi.fn(),
   searchPanelOpen: false,
   softWrapEnabled: true,
+  sourceViewDisabled: false,
+  sourceViewEnabled: false,
   viewAvailable: true,
   whitespaceVisible: false,
 }
 
 describe('EditorToolbar capabilities', () => {
-  it('omits view mode and commit controls from the sub editor', () => {
+  it('keeps view mode but omits commit controls from the sub editor', () => {
     render(
       <MantineProvider>
-        <EditorToolbar
-          {...commonProps}
-          showCommit={false}
-          showViewMode={false}
-        />
+        <EditorToolbar {...commonProps} showCommit={false} />
       </MantineProvider>,
     )
 
-    expect(screen.queryByLabelText('Editor view mode')).toBeNull()
+    expect(screen.getByLabelText('Editor view mode')).toBeTruthy()
     expect(screen.queryByLabelText('Commit current editor text')).toBeNull()
     expect(screen.getByLabelText('Choose sample data')).toBeTruthy()
     expect(screen.getByLabelText('Copy editor text')).toBeTruthy()
@@ -74,7 +73,6 @@ describe('EditorToolbar capabilities', () => {
         <EditorToolbar
           {...commonProps}
           showCommit
-          showViewMode
           onCommitWorkingText={vi.fn()}
         />
       </MantineProvider>,
@@ -84,20 +82,64 @@ describe('EditorToolbar capabilities', () => {
     expect(screen.getByLabelText('Commit current editor text')).toBeTruthy()
   })
 
-  it('disables paste outside source mode while keeping copy available', () => {
+  it('replaces every source action with Source + View in view mode', () => {
     render(
       <MantineProvider>
         <EditorToolbar
           {...commonProps}
           activeViewMode="view"
           showCommit={false}
-          showViewMode
         />
       </MantineProvider>,
     )
 
-    expect(screen.getByLabelText('Copy editor text').disabled).toBe(false)
-    expect(screen.getByLabelText('Paste clipboard text').disabled).toBe(true)
+    expect(screen.getByLabelText('Show source alongside view')).toBeTruthy()
+    expect(screen.queryByLabelText('Choose sample data')).toBeNull()
+    expect(screen.queryByLabelText('Copy editor text')).toBeNull()
+    expect(screen.queryByLabelText('Paste clipboard text')).toBeNull()
+    expect(screen.queryByLabelText('Show whitespace')).toBeNull()
+    expect(screen.queryByLabelText('Disable soft wrap')).toBeNull()
+    expect(screen.queryByLabelText('Search and replace')).toBeNull()
+    expect(screen.queryByLabelText('Commit current editor text')).toBeNull()
+  })
+
+  it('reports and toggles the Source + View state', () => {
+    const onToggleSourceView = vi.fn()
+
+    render(
+      <MantineProvider>
+        <EditorToolbar
+          {...commonProps}
+          activeViewMode="view"
+          onToggleSourceView={onToggleSourceView}
+          showCommit
+          sourceViewEnabled
+        />
+      </MantineProvider>,
+    )
+
+    const toggle = screen.getByLabelText('Show view only')
+    expect(toggle.getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(toggle)
+    expect(onToggleSourceView).toHaveBeenCalledOnce()
+  })
+
+  it('disables Source + View on compact screens without clearing its state', () => {
+    render(
+      <MantineProvider>
+        <EditorToolbar
+          {...commonProps}
+          activeViewMode="view"
+          showCommit={false}
+          sourceViewDisabled
+          sourceViewEnabled
+        />
+      </MantineProvider>,
+    )
+
+    const toggle = screen.getByLabelText('Show view only')
+    expect(toggle.disabled).toBe(true)
+    expect(toggle.getAttribute('aria-pressed')).toBe('true')
   })
 
   it('shows whitespace state and invokes its toggle', () => {
@@ -109,7 +151,6 @@ describe('EditorToolbar capabilities', () => {
           {...commonProps}
           onToggleWhitespace={onToggleWhitespace}
           showCommit={false}
-          showViewMode
         />
       </MantineProvider>,
     )
