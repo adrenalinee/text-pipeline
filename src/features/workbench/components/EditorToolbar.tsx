@@ -67,7 +67,7 @@ export function EditorToolbar({
     : 'Show source alongside view'
 
   return (
-    <Group className="editorToolbar" justify="space-between" wrap="nowrap">
+    <Group className="editorToolbar" justify="space-between" wrap="wrap">
       <Group gap="xs" wrap="nowrap">
         <CircleDot className="editorPaneMarker" size={14} />
         {/* <Text className="editorPaneTitle" fw={600} size="sm">
@@ -85,7 +85,7 @@ export function EditorToolbar({
           onChange={(value) => onSetViewMode(value)}
         />
       </Group>
-      <Group className="editorToolbarActions" gap={6} wrap="nowrap">
+      <Group className="editorToolbarActions" gap={6} wrap="wrap">
         {activeViewMode === 'view' ? (
           <Tooltip
             label={
@@ -111,7 +111,7 @@ export function EditorToolbar({
             <Tooltip label="Choose sample data" withArrow>
               <Button
                 aria-label="Choose sample data"
-                className="sampleButton"
+                // className="sampleButton"
                 size="xs"
                 color="gray"
                 leftSection={<FileJson size={14} />}
