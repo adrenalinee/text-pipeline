@@ -387,10 +387,6 @@ button {
   flex-shrink: 0;
 }
 
-.viewModeTabs {
-  flex: 0 0 auto;
-}
-
 .sampleButton {
   min-width: 92px;
   font-weight: 700;
@@ -1240,13 +1236,5 @@ button {
 
   .statusBarValidation .statusBarButtonLabel {
     display: none;
-  }
-
-  .viewModeTabs {
-    max-width: 112px;
-  }
-
-  .viewModeTabs .mantine-SegmentedControl-label {
-    padding-inline: 7px;
   }
 }

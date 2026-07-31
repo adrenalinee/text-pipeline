@@ -40,13 +40,10 @@ const commonProps = {
   onOpenSearch: vi.fn(),
   onPasteText: vi.fn(),
   onSetViewMode: vi.fn(),
-  onToggleSourceView: vi.fn(),
   onToggleSoftWrap: vi.fn(),
   onToggleWhitespace: vi.fn(),
   searchPanelOpen: false,
   softWrapEnabled: true,
-  sourceViewDisabled: false,
-  sourceViewEnabled: false,
   viewAvailable: true,
   whitespaceVisible: false,
 }
@@ -59,7 +56,8 @@ describe('EditorToolbar capabilities', () => {
       </MantineProvider>,
     )
 
-    expect(screen.getByLabelText('Editor view mode')).toBeTruthy()
+    expect(screen.queryByLabelText('Editor view mode')).toBeNull()
+    expect(screen.getByLabelText('Show view')).toBeTruthy()
     expect(screen.queryByLabelText('Commit current editor text')).toBeNull()
     expect(screen.getByLabelText('Choose sample data')).toBeTruthy()
     expect(screen.getByLabelText('Copy editor text')).toBeTruthy()
@@ -78,11 +76,12 @@ describe('EditorToolbar capabilities', () => {
       </MantineProvider>,
     )
 
-    expect(screen.getByLabelText('Editor view mode')).toBeTruthy()
+    expect(screen.queryByLabelText('Editor view mode')).toBeNull()
+    expect(screen.getByLabelText('Show view')).toBeTruthy()
     expect(screen.getByLabelText('Commit current editor text')).toBeTruthy()
   })
 
-  it('replaces every source action with Source + View in view mode', () => {
+  it('keeps every editor action visible in view mode', () => {
     render(
       <MantineProvider>
         <EditorToolbar
@@ -93,53 +92,50 @@ describe('EditorToolbar capabilities', () => {
       </MantineProvider>,
     )
 
-    expect(screen.getByLabelText('Show source alongside view')).toBeTruthy()
-    expect(screen.queryByLabelText('Choose sample data')).toBeNull()
-    expect(screen.queryByLabelText('Copy editor text')).toBeNull()
-    expect(screen.queryByLabelText('Paste clipboard text')).toBeNull()
-    expect(screen.queryByLabelText('Show whitespace')).toBeNull()
-    expect(screen.queryByLabelText('Disable soft wrap')).toBeNull()
-    expect(screen.queryByLabelText('Search and replace')).toBeNull()
+    expect(screen.getByLabelText('Show source only')).toBeTruthy()
+    expect(screen.getByLabelText('Choose sample data')).toBeTruthy()
+    expect(screen.getByLabelText('Copy editor text')).toBeTruthy()
+    expect(screen.getByLabelText('Paste clipboard text')).toBeTruthy()
+    expect(screen.getByLabelText('Show whitespace')).toBeTruthy()
+    expect(screen.getByLabelText('Disable soft wrap')).toBeTruthy()
+    expect(screen.getByLabelText('Search and replace')).toBeTruthy()
     expect(screen.queryByLabelText('Commit current editor text')).toBeNull()
   })
 
-  it('reports and toggles the Source + View state', () => {
-    const onToggleSourceView = vi.fn()
+  it('reports and toggles the visual view state', () => {
+    const onSetViewMode = vi.fn()
 
     render(
       <MantineProvider>
         <EditorToolbar
           {...commonProps}
           activeViewMode="view"
-          onToggleSourceView={onToggleSourceView}
+          onSetViewMode={onSetViewMode}
           showCommit
-          sourceViewEnabled
         />
       </MantineProvider>,
     )
 
-    const toggle = screen.getByLabelText('Show view only')
+    const toggle = screen.getByLabelText('Show source only')
     expect(toggle.getAttribute('aria-pressed')).toBe('true')
     fireEvent.click(toggle)
-    expect(onToggleSourceView).toHaveBeenCalledOnce()
+    expect(onSetViewMode).toHaveBeenCalledWith('source')
   })
 
-  it('disables Source + View on compact screens without clearing its state', () => {
+  it('disables the view toggle when the format has no visual view', () => {
     render(
       <MantineProvider>
         <EditorToolbar
           {...commonProps}
-          activeViewMode="view"
           showCommit={false}
-          sourceViewDisabled
-          sourceViewEnabled
+          viewAvailable={false}
         />
       </MantineProvider>,
     )
 
-    const toggle = screen.getByLabelText('Show view only')
+    const toggle = screen.getByLabelText('Show view') as HTMLButtonElement
     expect(toggle.disabled).toBe(true)
-    expect(toggle.getAttribute('aria-pressed')).toBe('true')
+    expect(toggle.getAttribute('aria-pressed')).toBe('false')
   })
 
   it('shows whitespace state and invokes its toggle', () => {

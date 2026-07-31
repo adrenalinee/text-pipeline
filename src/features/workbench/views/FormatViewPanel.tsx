@@ -1,5 +1,5 @@
-import { Box, Group, Loader, Text } from '@mantine/core'
-import { EyeOff } from 'lucide-react'
+import { ActionIcon, Box, Group, Loader, Text, Tooltip } from '@mantine/core'
+import { Columns2, EyeOff, PanelLeftClose } from 'lucide-react'
 import { Suspense } from 'react'
 
 import type {
@@ -10,10 +10,16 @@ import type {
 
 export function FormatViewPanel({
   format,
+  onToggleSourceView,
+  sourceViewAvailable,
+  sourceViewVisible,
   value,
   views,
 }: {
   format: FormatCapability
+  onToggleSourceView: () => void
+  sourceViewAvailable: boolean
+  sourceViewVisible: boolean
   value: string
   views: ReadonlyArray<FormatViewDefinition>
 }) {
@@ -36,6 +42,35 @@ export function FormatViewPanel({
             {view.description}
           </Text>
         </Box>
+        <Tooltip
+          label={
+            sourceViewAvailable
+              ? sourceViewVisible
+                ? 'Show view only'
+                : 'Show source alongside view'
+              : 'Split view is available on wider screens'
+          }
+          withArrow
+        >
+          <ActionIcon
+            aria-label={
+              sourceViewVisible
+                ? 'Show view only'
+                : 'Show source alongside view'
+            }
+            aria-pressed={!sourceViewVisible}
+            color="dark"
+            disabled={!sourceViewAvailable}
+            variant="subtle"
+            onClick={onToggleSourceView}
+          >
+            {sourceViewVisible ? (
+              <PanelLeftClose size={18} />
+            ) : (
+              <Columns2 size={18} />
+            )}
+          </ActionIcon>
+        </Tooltip>
       </Group>
       <Box className="formatViewBody">
         <Suspense
