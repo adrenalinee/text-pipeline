@@ -54,9 +54,27 @@ export function EditorToolbar({
     <Group className="editorToolbar" justify="space-between" wrap="wrap">
       <Group gap="xs" wrap="nowrap">
         <CircleDot className="editorPaneMarker" size={14} />
-        {/* <Text className="editorPaneTitle" fw={600} size="sm">
-          {editorTitle}
-        </Text> */}
+        {/* <Tooltip
+          label={
+            viewAvailable
+              ? viewToggleLabel
+              : 'No visual view is available for this format'
+          }
+          withArrow
+        >
+          <ActionIcon
+            aria-label={viewToggleLabel}
+            aria-pressed={activeViewMode === 'view'}
+            color="dark"
+            disabled={!viewAvailable}
+            variant={activeViewMode === 'view' ? 'filled' : 'subtle'}
+            onClick={() =>
+              onSetViewMode(activeViewMode === 'view' ? 'source' : 'view')
+            }
+          >
+            <Eye size={18} />
+          </ActionIcon>
+        </Tooltip> */}
       </Group>
       <Group className="editorToolbarActions" gap={6} wrap="wrap">
         <Tooltip label="Choose sample data" withArrow>

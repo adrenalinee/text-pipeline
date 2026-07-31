@@ -1,5 +1,5 @@
 import { ActionIcon, Box, Group, Loader, Text, Tooltip } from '@mantine/core'
-import { Columns2, EyeOff, PanelLeftClose } from 'lucide-react'
+import { Columns2, EyeOff, Maximize, Minimize, PanelLeftClose } from 'lucide-react'
 import { Suspense } from 'react'
 
 import type {
@@ -65,9 +65,9 @@ export function FormatViewPanel({
             onClick={onToggleSourceView}
           >
             {sourceViewVisible ? (
-              <PanelLeftClose size={18} />
+              <Maximize size={18} />
             ) : (
-              <Columns2 size={18} />
+              <Minimize size={18} />
             )}
           </ActionIcon>
         </Tooltip>
