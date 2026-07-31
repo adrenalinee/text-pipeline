@@ -77,8 +77,6 @@ export function EditorPane({
           searchPanelOpen={session.searchReplace.isOpen}
           showCommit={allowCommit}
           softWrapEnabled={session.softWrapEnabled}
-          sourceViewDisabled={compact}
-          sourceViewEnabled={session.sourceViewEnabled}
           viewAvailable={session.viewAvailable}
           whitespaceVisible={session.whitespaceVisible}
           onCommitWorkingText={onCommitWorkingText}
@@ -91,9 +89,6 @@ export function EditorPane({
           }
           onPasteText={() => void session.pasteText()}
           onSetViewMode={session.setViewMode}
-          onToggleSourceView={() =>
-            session.setSourceViewEnabled((enabled) => !enabled)
-          }
           onToggleSoftWrap={() =>
             session.setSoftWrapEnabled((enabled) => !enabled)
           }
@@ -146,8 +141,13 @@ export function EditorPane({
           {activeViewMode === 'view' ? (
             <FormatViewPanel
               format={session.currentFormat}
+              sourceViewAvailable={!compact}
+              sourceViewVisible={showSourceAlongsideView}
               value={session.value}
               views={FORMAT_VIEWS}
+              onToggleSourceView={() =>
+                session.setSourceViewEnabled((enabled) => !enabled)
+              }
             />
           ) : null}
         </Box>

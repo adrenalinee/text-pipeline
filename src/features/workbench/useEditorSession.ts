@@ -68,7 +68,7 @@ export function useEditorSession({
   const [validationEnabled, setValidationEnabled] = useState(false)
   const [sqlDialect, setSqlDialect] = useState<SqlDialect>(DEFAULT_SQL_DIALECT)
   const [viewMode, setViewModeState] = useState<WorkbenchViewMode>('source')
-  const [sourceViewEnabled, setSourceViewEnabled] = useState(false)
+  const [sourceViewEnabled, setSourceViewEnabled] = useState(true)
   const [selectionRange, setSelectionRange] = useState({ from: 0, to: 0 })
   const [cursorOffset, setCursorOffset] = useState(0)
   const [editorExtensions, setEditorExtensions] = useState<Array<Extension>>([])
@@ -241,6 +241,7 @@ export function useEditorSession({
   function setViewMode(nextViewMode: WorkbenchViewMode) {
     if (nextViewMode === 'view') {
       searchReplace.closePanel()
+      setSourceViewEnabled(true)
     }
     setViewModeState(nextViewMode)
   }
