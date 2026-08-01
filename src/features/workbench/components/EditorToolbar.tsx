@@ -1,21 +1,21 @@
-import { ActionIcon, Button, Group, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Group, Tooltip } from '@mantine/core'
 import {
-    CircleDot,
-    ClipboardPaste,
-    Copy,
-    Eye,
-    FileJson,
-    PilcrowIcon,
-    Search,
-} from 'lucide-react';
+  CircleDot,
+  ClipboardPaste,
+  Copy,
+  Eye,
+  FileJson,
+  PilcrowIcon,
+  Search,
+} from 'lucide-react'
 
-import { IconGitCommit, IconTextWrap } from '@tabler/icons-react';
-import type { WorkbenchViewMode } from '../types';
+import { IconGitCommit, IconTextWrap } from '@tabler/icons-react'
+import type { WorkbenchViewMode } from '../types'
 
 export function EditorToolbar({
   activeViewMode,
   canCommitWorkingText,
-  // editorTitle,
+  isActive,
   onCopyText,
   onCommitWorkingText,
   onOpenSamples,
@@ -32,6 +32,7 @@ export function EditorToolbar({
 }: {
   activeViewMode: WorkbenchViewMode
   canCommitWorkingText: boolean
+  isActive: boolean
   onCopyText: () => void
   onCommitWorkingText?: () => void
   onOpenSamples: () => void
@@ -52,7 +53,12 @@ export function EditorToolbar({
   return (
     <Group className="editorToolbar" justify="space-between" wrap="wrap">
       <Group gap="xs" wrap="nowrap">
-        <CircleDot className="editorPaneMarker" size={14} />
+        <CircleDot
+          aria-label={isActive ? 'Active editor' : 'Inactive editor'}
+          className="editorPaneMarker"
+          data-active={isActive || undefined}
+          size={18}
+        />
       </Group>
       <Group className="editorToolbarActions" gap={6} wrap="wrap">
         <Tooltip label="Choose sample data" withArrow>

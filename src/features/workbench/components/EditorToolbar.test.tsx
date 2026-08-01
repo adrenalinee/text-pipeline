@@ -35,6 +35,7 @@ afterEach(cleanup)
 const commonProps = {
   activeViewMode: 'source' as const,
   canCommitWorkingText: false,
+  isActive: true,
   onCopyText: vi.fn(),
   onOpenSamples: vi.fn(),
   onOpenSearch: vi.fn(),
@@ -49,6 +50,28 @@ const commonProps = {
 }
 
 describe('EditorToolbar capabilities', () => {
+  it('marks only the active editor indicator with its active state', () => {
+    const { rerender } = render(
+      <MantineProvider>
+        <EditorToolbar {...commonProps} showCommit={false} />
+      </MantineProvider>,
+    )
+
+    expect(
+      screen.getByLabelText('Active editor').hasAttribute('data-active'),
+    ).toBe(true)
+
+    rerender(
+      <MantineProvider>
+        <EditorToolbar {...commonProps} isActive={false} showCommit={false} />
+      </MantineProvider>,
+    )
+
+    expect(
+      screen.getByLabelText('Inactive editor').hasAttribute('data-active'),
+    ).toBe(false)
+  })
+
   it('keeps view mode but omits commit controls from the sub editor', () => {
     render(
       <MantineProvider>
