@@ -1,16 +1,16 @@
-import { ActionIcon, Button, Group, Tooltip } from '@mantine/core'
+import { ActionIcon, Button, Group, Tooltip } from '@mantine/core';
 import {
-  CircleDot,
-  ClipboardPaste,
-  Copy,
-  Eye,
-  FileJson,
-  PilcrowIcon,
-  Search,
-} from 'lucide-react'
+    CircleDot,
+    ClipboardPaste,
+    Copy,
+    Eye,
+    FileJson,
+    PilcrowIcon,
+    Search,
+} from 'lucide-react';
 
-import { IconGitCommit, IconTextWrap } from '@tabler/icons-react'
-import type { WorkbenchViewMode } from '../types'
+import { IconGitCommit, IconTextWrap } from '@tabler/icons-react';
+import type { WorkbenchViewMode } from '../types';
 
 export function EditorToolbar({
   activeViewMode,
@@ -32,7 +32,6 @@ export function EditorToolbar({
 }: {
   activeViewMode: WorkbenchViewMode
   canCommitWorkingText: boolean
-  // editorTitle: string
   onCopyText: () => void
   onCommitWorkingText?: () => void
   onOpenSamples: () => void
@@ -54,27 +53,6 @@ export function EditorToolbar({
     <Group className="editorToolbar" justify="space-between" wrap="wrap">
       <Group gap="xs" wrap="nowrap">
         <CircleDot className="editorPaneMarker" size={14} />
-        {/* <Tooltip
-          label={
-            viewAvailable
-              ? viewToggleLabel
-              : 'No visual view is available for this format'
-          }
-          withArrow
-        >
-          <ActionIcon
-            aria-label={viewToggleLabel}
-            aria-pressed={activeViewMode === 'view'}
-            color="dark"
-            disabled={!viewAvailable}
-            variant={activeViewMode === 'view' ? 'filled' : 'subtle'}
-            onClick={() =>
-              onSetViewMode(activeViewMode === 'view' ? 'source' : 'view')
-            }
-          >
-            <Eye size={18} />
-          </ActionIcon>
-        </Tooltip> */}
       </Group>
       <Group className="editorToolbarActions" gap={6} wrap="wrap">
         <Tooltip label="Choose sample data" withArrow>
@@ -111,6 +89,27 @@ export function EditorToolbar({
           </ActionIcon>
         </Tooltip>
         <span className="statusBarDivider" aria-hidden="true" />
+        <Tooltip
+          label={
+            viewAvailable
+              ? viewToggleLabel
+              : 'No visual view is available for this format'
+          }
+          withArrow
+        >
+          <ActionIcon
+            aria-label={viewToggleLabel}
+            aria-pressed={activeViewMode === 'view'}
+            color="dark"
+            disabled={!viewAvailable}
+            variant={activeViewMode === 'view' ? 'filled' : 'subtle'}
+            onClick={() =>
+              onSetViewMode(activeViewMode === 'view' ? 'source' : 'view')
+            }
+          >
+            <Eye size={18} />
+          </ActionIcon>
+        </Tooltip>
         <Tooltip
           label={whitespaceVisible ? 'Hide whitespace' : 'Show whitespace'}
           withArrow
@@ -164,7 +163,7 @@ export function EditorToolbar({
             <Search size={18} />
           </ActionIcon>
         </Tooltip>
-        <span className="statusBarDivider" aria-hidden="true" />
+        {/* <span className="statusBarDivider" aria-hidden="true" />
         <Tooltip
           label={
             viewAvailable
@@ -185,7 +184,7 @@ export function EditorToolbar({
           >
             <Eye size={18} />
           </ActionIcon>
-        </Tooltip>
+        </Tooltip> */}
         {showCommit ? (
           <>
             <span className="statusBarDivider" aria-hidden="true" />
