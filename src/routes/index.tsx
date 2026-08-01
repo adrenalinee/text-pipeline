@@ -756,6 +756,16 @@ function Workbench() {
             <Badge className="workbenchBadge" variant="light" size="xs">
               Alpha
             </Badge>
+            {/* <HeaderIconButton
+              label={splitEnabled ? 'Close split editor' : 'Split editor'}
+              pressed={splitEnabled}
+              onClick={toggleSplitEditor}
+            >
+              <Columns2 size={18} />
+            </HeaderIconButton> */}
+          </Group>
+
+          <Group gap={6} wrap="nowrap">
             <HeaderIconButton
               label={splitEnabled ? 'Close split editor' : 'Split editor'}
               pressed={splitEnabled}
@@ -763,29 +773,6 @@ function Workbench() {
             >
               <Columns2 size={18} />
             </HeaderIconButton>
-          </Group>
-
-          <Group gap={6} wrap="nowrap">
-            {/* <HeaderIconButton
-              label={leftOpened ? 'Hide left sidebar' : 'Show left sidebar'}
-              onClick={() => setLeftOpenedPersisted(!leftOpened)}
-            >
-              {leftOpened ? (
-                <PanelLeftClose size={18} />
-              ) : (
-                <PanelLeftOpen size={18} />
-              )}
-            </HeaderIconButton>
-            <HeaderIconButton
-              label={rightOpened ? 'Hide right sidebar' : 'Show right sidebar'}
-              onClick={() => setRightOpenedPersisted(!rightOpened)}
-            >
-              {rightOpened ? (
-                <PanelRightClose size={18} />
-              ) : (
-                <PanelRightOpen size={18} />
-              )}
-            </HeaderIconButton> */}
             <HeaderIconButton
               label={isDark ? 'Use light theme' : 'Use dark theme'}
               onClick={() => setColorScheme(isDark ? 'light' : 'dark')}

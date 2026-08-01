@@ -187,6 +187,11 @@ button {
   justify-content: flex-end;
 }
 
+.editorPaneMarker[data-active] {
+  color: var(--mantine-primary-color-filled);
+  stroke-width: 3;
+}
+
 @container editor-pane (max-width: 520px) {
   .editorPaneTitle {
     display: none;
@@ -209,10 +214,6 @@ button {
 @container editor-pane (max-width: 380px) {
   .editorToolbar {
     padding-inline: 8px;
-  }
-
-  .editorPaneMarker {
-    display: none;
   }
 
   .editorToolbarActions {

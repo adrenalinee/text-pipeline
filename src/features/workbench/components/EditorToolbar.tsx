@@ -15,7 +15,7 @@ import type { WorkbenchViewMode } from '../types'
 export function EditorToolbar({
   activeViewMode,
   canCommitWorkingText,
-  // editorTitle,
+  isActive,
   onCopyText,
   onCommitWorkingText,
   onOpenSamples,
@@ -32,7 +32,7 @@ export function EditorToolbar({
 }: {
   activeViewMode: WorkbenchViewMode
   canCommitWorkingText: boolean
-  // editorTitle: string
+  isActive: boolean
   onCopyText: () => void
   onCommitWorkingText?: () => void
   onOpenSamples: () => void
@@ -53,28 +53,12 @@ export function EditorToolbar({
   return (
     <Group className="editorToolbar" justify="space-between" wrap="wrap">
       <Group gap="xs" wrap="nowrap">
-        <CircleDot className="editorPaneMarker" size={14} />
-        {/* <Tooltip
-          label={
-            viewAvailable
-              ? viewToggleLabel
-              : 'No visual view is available for this format'
-          }
-          withArrow
-        >
-          <ActionIcon
-            aria-label={viewToggleLabel}
-            aria-pressed={activeViewMode === 'view'}
-            color="dark"
-            disabled={!viewAvailable}
-            variant={activeViewMode === 'view' ? 'filled' : 'subtle'}
-            onClick={() =>
-              onSetViewMode(activeViewMode === 'view' ? 'source' : 'view')
-            }
-          >
-            <Eye size={18} />
-          </ActionIcon>
-        </Tooltip> */}
+        <CircleDot
+          aria-label={isActive ? 'Active editor' : 'Inactive editor'}
+          className="editorPaneMarker"
+          data-active={isActive || undefined}
+          size={18}
+        />
       </Group>
       <Group className="editorToolbarActions" gap={6} wrap="wrap">
         <Tooltip label="Choose sample data" withArrow>
@@ -111,6 +95,27 @@ export function EditorToolbar({
           </ActionIcon>
         </Tooltip>
         <span className="statusBarDivider" aria-hidden="true" />
+        <Tooltip
+          label={
+            viewAvailable
+              ? viewToggleLabel
+              : 'No visual view is available for this format'
+          }
+          withArrow
+        >
+          <ActionIcon
+            aria-label={viewToggleLabel}
+            aria-pressed={activeViewMode === 'view'}
+            color="dark"
+            disabled={!viewAvailable}
+            variant={activeViewMode === 'view' ? 'filled' : 'subtle'}
+            onClick={() =>
+              onSetViewMode(activeViewMode === 'view' ? 'source' : 'view')
+            }
+          >
+            <Eye size={18} />
+          </ActionIcon>
+        </Tooltip>
         <Tooltip
           label={whitespaceVisible ? 'Hide whitespace' : 'Show whitespace'}
           withArrow
@@ -164,7 +169,7 @@ export function EditorToolbar({
             <Search size={18} />
           </ActionIcon>
         </Tooltip>
-        <span className="statusBarDivider" aria-hidden="true" />
+        {/* <span className="statusBarDivider" aria-hidden="true" />
         <Tooltip
           label={
             viewAvailable
@@ -185,7 +190,7 @@ export function EditorToolbar({
           >
             <Eye size={18} />
           </ActionIcon>
-        </Tooltip>
+        </Tooltip> */}
         {showCommit ? (
           <>
             <span className="statusBarDivider" aria-hidden="true" />

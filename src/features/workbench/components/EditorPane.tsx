@@ -73,6 +73,7 @@ export function EditorPane({
         <EditorToolbar
           activeViewMode={activeViewMode}
           canCommitWorkingText={canCommitWorkingText}
+          isActive={isActive}
           // editorTitle={editorTitle}
           searchPanelOpen={session.searchReplace.isOpen}
           showCommit={allowCommit}
