@@ -12,7 +12,6 @@ import { Prec } from '@codemirror/state'
 import type { Extension } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import type { Panel, ViewUpdate } from '@codemirror/view'
-import type { ReactCodeMirrorRef } from '@uiw/react-codemirror'
 import {
   useCallback,
   useEffect,
@@ -57,10 +56,10 @@ function isPatternValid(searchText: string, regexp: boolean) {
 }
 
 export function useSearchReplace({
-  editorRef,
+  editorViewRef,
   onReplaceCommit,
 }: {
-  editorRef: RefObject<ReactCodeMirrorRef | null>
+  editorViewRef: RefObject<EditorView | null>
   onReplaceCommit?: (session: ReplaceSession) => void
 }) {
   const [panelDom, setPanelDom] = useState<HTMLElement | null>(null)
@@ -148,7 +147,7 @@ export function useSearchReplace({
    */
   const openPanel = useCallback(
     (target: 'replace' | 'search') => {
-      const view = editorRef.current?.view
+      const view = editorViewRef.current
 
       if (!view) {
         return
@@ -161,7 +160,7 @@ export function useSearchReplace({
       openSearchPanel(view)
       requestFocus(target)
     },
-    [editorRef, requestFocus],
+    [editorViewRef, requestFocus],
   )
 
   const extensions = useMemo<Array<Extension>>(() => {
@@ -272,7 +271,7 @@ export function useSearchReplace({
   // Sync the React query state into CodeMirror, flushing the pending session
   // first when the search/replace pair changed.
   useEffect(() => {
-    const view = editorRef.current?.view
+    const view = editorViewRef.current
 
     if (!view || !panelDom) {
       return
@@ -300,7 +299,7 @@ export function useSearchReplace({
     }
   }, [
     caseSensitive,
-    editorRef,
+    editorViewRef,
     flushPendingReplace,
     panelDom,
     regexp,
@@ -322,7 +321,7 @@ export function useSearchReplace({
       return
     }
 
-    const view = editorRef.current?.view
+    const view = editorViewRef.current
 
     if (!view) {
       return
@@ -330,10 +329,10 @@ export function useSearchReplace({
 
     view.scrollDOM.scrollTop += delta
     view.requestMeasure()
-  }, [editorRef, overlayHeight])
+  }, [editorViewRef, overlayHeight])
 
   function getView() {
-    return editorRef.current?.view ?? null
+    return editorViewRef.current
   }
 
   function buildQuery() {
@@ -396,13 +395,13 @@ export function useSearchReplace({
   }
 
   const closePanel = useCallback(() => {
-    const view = editorRef.current?.view
+    const view = editorViewRef.current
 
     if (view) {
       closeSearchPanel(view)
       view.focus()
     }
-  }, [editorRef])
+  }, [editorViewRef])
 
   const queryValid = isPatternValid(searchText, regexp)
 

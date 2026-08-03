@@ -1,82 +1,93 @@
 import {
-    ActionIcon,
-    AppShell,
-    Badge,
-    Box,
-    Button,
-    Group,
-    Loader,
-    MantineProvider,
-    Modal,
-    Stack,
-    Text,
-    Tooltip,
-    useComputedColorScheme,
-    useMantineColorScheme,
-} from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
-import { Notifications, notifications } from '@mantine/notifications';
-import { createFileRoute } from '@tanstack/react-router';
+  ActionIcon,
+  AppShell,
+  Badge,
+  Box,
+  Button,
+  Group,
+  Loader,
+  MantineProvider,
+  Modal,
+  Stack,
+  Text,
+  Tooltip,
+  useComputedColorScheme,
+  useMantineColorScheme,
+} from '@mantine/core'
+import { useMediaQuery } from '@mantine/hooks'
+import { Notifications, notifications } from '@mantine/notifications'
+import { createFileRoute } from '@tanstack/react-router'
 import {
-    Binary,
-    Braces,
-    Code2,
-    Columns2,
-    Crop,
-    FileJson,
-    Link,
-    ListTree,
-    Moon,
-    Replace,
-    Sun
-} from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
+  Binary,
+  Braces,
+  Code2,
+  Columns2,
+  Crop,
+  FileJson,
+  GitCompareArrows,
+  Link,
+  ListTree,
+  Moon,
+  Replace,
+  Sun,
+} from 'lucide-react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 
-import { EditorPane } from '#/features/workbench/components/EditorPane';
-import { HistoryRail } from '#/features/workbench/components/HistoryRail';
-import { HistorySidebar } from '#/features/workbench/components/HistorySidebar';
-import { SplitEditorWorkspace } from '#/features/workbench/components/SplitEditorWorkspace';
-import { TransformsRail } from '#/features/workbench/components/TransformsRail';
-import { TransformsSidebar } from '#/features/workbench/components/TransformsSidebar';
-import type { TextRevisionSnapshot } from '#/features/workbench/history';
+import { EditorPane } from '#/features/workbench/components/EditorPane'
 import {
-    appendCommit,
-    createTextCommit,
-    createWorkingSnapshotCommit,
-    getNextCommitId,
-    getRevisionSnapshot,
-    getRootRevisionSnapshot,
-    hasRevisionTextChanged,
-    ROOT_REVISION_ID,
-    WORKING_REVISION_ID,
-} from '#/features/workbench/history';
-import type { ReplaceSession } from '#/features/workbench/search/useSearchReplace';
-import { cropToSelection } from '#/features/workbench/transforms/cropSelection';
-import { TRANSFORM_DEFINITIONS } from '#/features/workbench/transforms/definitions';
-import { getTransformSections } from '#/features/workbench/transforms/filterTransforms';
+  toggleCompareMode,
+  toggleSplitMode,
+} from '#/features/workbench/compareMode'
+import { HistoryRail } from '#/features/workbench/components/HistoryRail'
+import { HistorySidebar } from '#/features/workbench/components/HistorySidebar'
+import { SplitEditorWorkspace } from '#/features/workbench/components/SplitEditorWorkspace'
+import { TransformsRail } from '#/features/workbench/components/TransformsRail'
+import { TransformsSidebar } from '#/features/workbench/components/TransformsSidebar'
+import type { TextRevisionSnapshot } from '#/features/workbench/history'
 import {
-    shouldShowTransformProgress,
-    TRANSFORM_PROGRESS_THRESHOLDS,
-} from '#/features/workbench/transforms/progress';
+  appendCommit,
+  createTextCommit,
+  createWorkingSnapshotCommit,
+  getNextCommitId,
+  getRevisionSnapshot,
+  getRootRevisionSnapshot,
+  hasRevisionTextChanged,
+  ROOT_REVISION_ID,
+  WORKING_REVISION_ID,
+} from '#/features/workbench/history'
+import type { ReplaceSession } from '#/features/workbench/search/useSearchReplace'
+import { cropToSelection } from '#/features/workbench/transforms/cropSelection'
+import { TRANSFORM_DEFINITIONS } from '#/features/workbench/transforms/definitions'
+import { getTransformSections } from '#/features/workbench/transforms/filterTransforms'
 import {
-    formatSqlWithDialect,
-    TRANSFORM_RUNNERS,
-} from '#/features/workbench/transforms/runners';
+  shouldShowTransformProgress,
+  TRANSFORM_PROGRESS_THRESHOLDS,
+} from '#/features/workbench/transforms/progress'
+import {
+  formatSqlWithDialect,
+  TRANSFORM_RUNNERS,
+} from '#/features/workbench/transforms/runners'
 import type {
-    SyntaxMode,
-    TextCommit,
-    TransformAction,
-    TransformActionSection,
-    TransformDefinition,
-    TransformRunner,
-} from '#/features/workbench/types';
+  SyntaxMode,
+  TextCommit,
+  TransformAction,
+  TransformActionSection,
+  TransformDefinition,
+  TransformRunner,
+} from '#/features/workbench/types'
 import type {
-    EditorId,
-    EditorSession,
-} from '#/features/workbench/useEditorSession';
-import { useEditorSession } from '#/features/workbench/useEditorSession';
-import { theme } from '#/theme.ts';
+  EditorId,
+  EditorSession,
+} from '#/features/workbench/useEditorSession'
+import { useEditorSession } from '#/features/workbench/useEditorSession'
+import { theme } from '#/theme.ts'
+
+const CompareWorkspace = lazy(() =>
+  import('#/features/workbench/components/CompareWorkspace').then((module) => ({
+    default: module.CompareWorkspace,
+  })),
+)
 
 export const Route = createFileRoute('/')({
   ssr: false,
@@ -164,6 +175,7 @@ function Workbench() {
     useState(ROOT_REVISION_ID)
   const [activeEditorId, setActiveEditorId] = useState<EditorId>('main')
   const [splitEnabled, setSplitEnabled] = useState(false)
+  const [compareEnabled, setCompareEnabled] = useState(false)
   const [splitRatio, setSplitRatio] = useState(readStoredSplitRatio)
   const [runningTransformLabel, setRunningTransformLabel] = useState<
     string | null
@@ -192,6 +204,7 @@ function Workbench() {
   })
   const activeSession =
     activeEditorId === 'sub' && splitEnabled ? subSession : mainSession
+  const compactCompareReadOnly = compareEnabled && isCompact === true
   const rootRevision = getRootRevisionSnapshot(commits, INITIAL_TEXT_REVISION)
   const rootText = rootRevision.text
   const rootSyntaxMode = rootRevision.syntaxMode
@@ -575,11 +588,24 @@ function Workbench() {
   }
 
   function toggleSplitEditor() {
+    const next = toggleSplitMode({ compareEnabled, splitEnabled })
+
     if (splitEnabled) {
       subSession.searchReplace.closePanel()
       setActiveEditorId('main')
     }
-    setSplitEnabled((enabled) => !enabled)
+    setCompareEnabled(next.compareEnabled)
+    setSplitEnabled(next.splitEnabled)
+  }
+
+  function toggleCompareEditor() {
+    const next = toggleCompareMode({ compareEnabled, splitEnabled })
+
+    mainSession.searchReplace.closePanel()
+    subSession.searchReplace.closePanel()
+    if (isCompact) setActiveEditorId('main')
+    setCompareEnabled(next.compareEnabled)
+    setSplitEnabled(next.splitEnabled)
   }
 
   useEffect(() => {
@@ -609,10 +635,13 @@ function Workbench() {
 
             return [
               {
-                description: activeSession.hasEditorSelection
-                  ? definition.description
-                  : 'Select text in the editor first',
-                disabled: !activeSession.hasEditorSelection,
+                description: compactCompareReadOnly
+                  ? 'Exit Compare to transform text on a narrow screen'
+                  : activeSession.hasEditorSelection
+                    ? definition.description
+                    : 'Select text in the editor first',
+                disabled:
+                  compactCompareReadOnly || !activeSession.hasEditorSelection,
                 icon: getTransformIcon(definition.id),
                 id: definition.id,
                 label: definition.label,
@@ -640,7 +669,10 @@ function Workbench() {
 
           return [
             {
-              description: definition.description,
+              description: compactCompareReadOnly
+                ? 'Exit Compare to transform text on a narrow screen'
+                : definition.description,
+              disabled: compactCompareReadOnly,
               icon: getTransformIcon(definition.id),
               id: definition.id,
               label: definition.label,
@@ -654,10 +686,12 @@ function Workbench() {
 
       if (section.id === 'general') {
         const replaceAction: TransformAction = {
-          description: activeSession.hasEditorSelection
-            ? 'Search for the selected text and replace it'
-            : 'Select text in the editor first',
-          disabled: !activeSession.hasEditorSelection,
+          description: compactCompareReadOnly
+            ? 'Exit Compare to edit text on a narrow screen'
+            : activeSession.hasEditorSelection
+              ? 'Search for the selected text and replace it'
+              : 'Select text in the editor first',
+          disabled: compactCompareReadOnly || !activeSession.hasEditorSelection,
           icon: <Replace size={16} />,
           id: 'search-replace',
           label: 'Replace',
@@ -774,6 +808,15 @@ function Workbench() {
               <Columns2 size={18} />
             </HeaderIconButton>
             <HeaderIconButton
+              label={
+                compareEnabled ? 'Stop comparing editors' : 'Compare editors'
+              }
+              pressed={compareEnabled}
+              onClick={toggleCompareEditor}
+            >
+              <GitCompareArrows size={18} />
+            </HeaderIconButton>
+            <HeaderIconButton
               label={isDark ? 'Use light theme' : 'Use dark theme'}
               onClick={() => setColorScheme(isDark ? 'light' : 'dark')}
             >
@@ -814,37 +857,56 @@ function Workbench() {
       </AppShell.Navbar>
 
       <AppShell.Main className="workbenchMain">
-        <SplitEditorWorkspace
-          compact={isCompact === true}
-          ratio={splitRatio}
-          split={splitEnabled}
-          onRatioChange={setSplitRatioPersisted}
-          main={
-            <EditorPane
-              allowCommit
+        {compareEnabled ? (
+          <Suspense
+            fallback={<WorkspaceLoadingState label="Loading comparison" />}
+          >
+            <CompareWorkspace
+              activeEditorId={activeEditorId}
               canCommitWorkingText={canCommitWorkingText}
               compact={isCompact === true}
-              // editorTitle="Main Editor"
-              isActive={activeEditorId === 'main'}
               isDark={isDark}
-              session={mainSession}
-              onActivate={() => setActiveEditorId('main')}
+              mainSession={mainSession}
+              ratio={splitRatio}
+              subSession={subSession}
+              onActivate={setActiveEditorId}
               onCommitWorkingText={commitWorkingText}
+              onRatioChange={setSplitRatioPersisted}
             />
-          }
-          sub={
-            <EditorPane
-              allowCommit={false}
-              canCommitWorkingText={false}
-              compact={isCompact === true}
-              // editorTitle="Sub Editor"
-              isActive={activeEditorId === 'sub'}
-              isDark={isDark}
-              session={subSession}
-              onActivate={() => setActiveEditorId('sub')}
-            />
-          }
-        />
+          </Suspense>
+        ) : (
+          <SplitEditorWorkspace
+            compact={isCompact === true}
+            ratio={splitRatio}
+            split={splitEnabled}
+            onRatioChange={setSplitRatioPersisted}
+            main={
+              <EditorPane
+                allowCommit
+                canCommitWorkingText={canCommitWorkingText}
+                compact={isCompact === true}
+                // editorTitle="Main Editor"
+                isActive={activeEditorId === 'main'}
+                isDark={isDark}
+                session={mainSession}
+                onActivate={() => setActiveEditorId('main')}
+                onCommitWorkingText={commitWorkingText}
+              />
+            }
+            sub={
+              <EditorPane
+                allowCommit={false}
+                canCommitWorkingText={false}
+                compact={isCompact === true}
+                // editorTitle="Sub Editor"
+                isActive={activeEditorId === 'sub'}
+                isDark={isDark}
+                session={subSession}
+                onActivate={() => setActiveEditorId('sub')}
+              />
+            }
+          />
+        )}
       </AppShell.Main>
 
       <AppShell.Aside
@@ -983,6 +1045,17 @@ function HeaderIconButton({
         {children}
       </ActionIcon>
     </Tooltip>
+  )
+}
+
+function WorkspaceLoadingState({ label }: { label: string }) {
+  return (
+    <Group className="workspaceLoadingState" gap="xs" justify="center">
+      <Loader size="sm" />
+      <Text c="dimmed" size="sm">
+        {label}…
+      </Text>
+    </Group>
   )
 }
 
