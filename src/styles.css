@@ -83,6 +83,154 @@ button {
     minmax(0, calc(100% - var(--editor-split-ratio) - 3px));
 }
 
+.workspaceLoadingState,
+.compareWorkspace {
+  height: calc(100vh - 44px);
+  min-width: 0;
+  min-height: 0;
+}
+
+.compareWorkspace {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.compareToolbar {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 5px 10px;
+  border-bottom: 1px solid
+    light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+  background: light-dark(
+    var(--mantine-color-gray-0),
+    var(--mantine-color-dark-7)
+  );
+}
+
+.compareEditorHeaders {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns:
+    minmax(0, calc(var(--editor-split-ratio) - 3px)) 6px
+    minmax(0, calc(100% - var(--editor-split-ratio) - 3px));
+}
+
+.compareEditorHeader {
+  min-width: 0;
+  overflow: hidden;
+  container-name: editor-pane;
+  container-type: inline-size;
+}
+
+.compareEditorHeaderLeft {
+  grid-column: 1;
+}
+
+.compareEditorHeaderRight {
+  grid-column: 3;
+  border-left: 1px solid
+    light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+}
+
+.compareMergeBody {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.compareMergeHost,
+.compareMergeHost .cm-mergeView {
+  height: 100%;
+  min-height: 0;
+}
+
+.compareMergeHost .cm-mergeView {
+  overflow: auto;
+}
+
+.compareMergeHost .cm-mergeViewEditors {
+  min-height: 100%;
+}
+
+.compareMergeHost .cm-mergeViewEditors > .cm-mergeViewEditor:first-child {
+  flex: 0 0 calc(var(--editor-split-ratio) - 3px);
+}
+
+.compareMergeHost .cm-mergeViewEditors > .cm-mergeViewEditor:last-child {
+  flex: 0 0 calc(100% - var(--editor-split-ratio) - 3px);
+}
+
+.compareMergeHost .cm-editor,
+.compareUnifiedHost .cm-editor {
+  min-height: 100%;
+  color: light-dark(var(--mantine-color-gray-9), var(--mantine-color-gray-1));
+  font-size: 14px;
+}
+
+.compareMergeHost .cm-scroller,
+.compareUnifiedHost .cm-scroller {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+  line-height: 1.55;
+}
+
+.compareSeparator {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--editor-split-ratio) - 3px);
+  width: 6px;
+  background: light-dark(
+    var(--mantine-color-gray-2),
+    var(--mantine-color-dark-6)
+  );
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.compareSeparator::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: 2px;
+  border-radius: 2px;
+  background: light-dark(
+    var(--mantine-color-gray-4),
+    var(--mantine-color-dark-3)
+  );
+  content: '';
+}
+
+.compareSeparator:hover,
+.compareSeparator:focus-visible {
+  background: light-dark(
+    var(--mantine-color-blue-1),
+    var(--mantine-color-blue-9)
+  );
+  outline: 0;
+}
+
+.compareWorkspaceCompact .compareToolbar {
+  min-height: 48px;
+}
+
+.compareUnifiedHost {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.compareUnifiedHost .cm-editor {
+  height: 100%;
+}
+
 .editorPane {
   position: relative;
   min-width: 0;
