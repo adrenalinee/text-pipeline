@@ -28,6 +28,7 @@ export function EditorToolbar({
   softWrapEnabled,
   showCommit,
   viewAvailable,
+  viewDisabledReason,
   whitespaceVisible,
 }: {
   activeViewMode: WorkbenchViewMode
@@ -45,6 +46,7 @@ export function EditorToolbar({
   showCommit: boolean
   softWrapEnabled: boolean
   viewAvailable: boolean
+  viewDisabledReason?: string
   whitespaceVisible: boolean
 }) {
   const viewToggleLabel =
@@ -97,9 +99,10 @@ export function EditorToolbar({
         <span className="statusBarDivider" aria-hidden="true" />
         <Tooltip
           label={
-            viewAvailable
+            viewDisabledReason ??
+            (viewAvailable
               ? viewToggleLabel
-              : 'No visual view is available for this format'
+              : 'No visual view is available for this format')
           }
           withArrow
         >

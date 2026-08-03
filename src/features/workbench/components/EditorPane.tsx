@@ -70,67 +70,13 @@ export function EditorPane({
     >
       <EditorDialogs session={session} />
       <Box className="editorPanel">
-        <EditorToolbar
+        <EditorPaneHeader
           activeViewMode={activeViewMode}
+          allowCommit={allowCommit}
           canCommitWorkingText={canCommitWorkingText}
           isActive={isActive}
-          // editorTitle={editorTitle}
-          searchPanelOpen={session.searchReplace.isOpen}
-          showCommit={allowCommit}
-          softWrapEnabled={session.softWrapEnabled}
-          viewAvailable={session.viewAvailable}
-          whitespaceVisible={session.whitespaceVisible}
+          session={session}
           onCommitWorkingText={onCommitWorkingText}
-          onCopyText={() => void session.copyText()}
-          onOpenSamples={() => session.setSampleModalOpened(true)}
-          onOpenSearch={() =>
-            session.searchReplace.isOpen
-              ? session.searchReplace.closePanel()
-              : session.searchReplace.openPanel('search')
-          }
-          onPasteText={() => void session.pasteText()}
-          onSetViewMode={session.setViewMode}
-          onToggleSoftWrap={() =>
-            session.setSoftWrapEnabled((enabled) => !enabled)
-          }
-          onToggleWhitespace={() =>
-            session.setWhitespaceVisible((visible) => !visible)
-          }
-        />
-        <StatusBar
-          activeViewMode={activeViewMode}
-          charCount={session.charCount}
-          cursor={session.cursorPosition}
-          encoding={session.encoding}
-          formatLabel={session.currentFormat.label}
-          lineCount={session.lineCount}
-          selection={session.selectionStats}
-          sqlDialectId={
-            session.syntaxMode === 'sql' ? session.sqlDialect.id : undefined
-          }
-          sqlDialectOptions={
-            session.syntaxMode === 'sql'
-              ? session.sqlDialectOptions.map((dialect) => ({
-                  label: dialect.label,
-                  value: dialect.id,
-                }))
-              : undefined
-          }
-          validationEnabled={session.validationEnabled}
-          validationAvailable={session.currentFormat.validation === 'supported'}
-          validationResult={session.validationResult}
-          onChooseSqlDialect={(id) => {
-            const dialect = session.sqlDialectOptions.find(
-              (option) => option.id === id,
-            )
-            if (dialect) session.setSqlDialect(dialect)
-          }}
-          onChooseEncoding={() => session.setEncodingModalOpened(true)}
-          onChooseSyntax={() => session.setSyntaxModalOpened(true)}
-          onGoToLine={() => session.setGoToLineModalOpened(true)}
-          onToggleValidation={() =>
-            session.setValidationEnabled((enabled) => !enabled)
-          }
         />
         <Box
           className="editorContent"
@@ -191,13 +137,99 @@ function SourceEditor({
       placeholder="any text here"
       theme={isDark ? oneDark : 'light'}
       value={session.value}
+      onCreateEditor={session.bindEditorView}
       onChange={session.updateValue}
-      onStatistics={session.updateStatistics}
+      onUpdate={session.updateEditorView}
     />
   )
 }
 
-function EditorDialogs({ session }: { session: EditorSession }) {
+export function EditorPaneHeader({
+  activeViewMode,
+  allowCommit,
+  canCommitWorkingText,
+  isActive,
+  onCommitWorkingText,
+  session,
+  viewDisabledReason,
+}: {
+  activeViewMode: 'source' | 'view'
+  allowCommit: boolean
+  canCommitWorkingText: boolean
+  isActive: boolean
+  onCommitWorkingText?: () => void
+  session: EditorSession
+  viewDisabledReason?: string
+}) {
+  return (
+    <>
+      <EditorToolbar
+        activeViewMode={activeViewMode}
+        canCommitWorkingText={canCommitWorkingText}
+        isActive={isActive}
+        searchPanelOpen={session.searchReplace.isOpen}
+        showCommit={allowCommit}
+        softWrapEnabled={session.softWrapEnabled}
+        viewAvailable={session.viewAvailable && !viewDisabledReason}
+        viewDisabledReason={viewDisabledReason}
+        whitespaceVisible={session.whitespaceVisible}
+        onCommitWorkingText={onCommitWorkingText}
+        onCopyText={() => void session.copyText()}
+        onOpenSamples={() => session.setSampleModalOpened(true)}
+        onOpenSearch={() =>
+          session.searchReplace.isOpen
+            ? session.searchReplace.closePanel()
+            : session.searchReplace.openPanel('search')
+        }
+        onPasteText={() => void session.pasteText()}
+        onSetViewMode={session.setViewMode}
+        onToggleSoftWrap={() =>
+          session.setSoftWrapEnabled((enabled) => !enabled)
+        }
+        onToggleWhitespace={() =>
+          session.setWhitespaceVisible((visible) => !visible)
+        }
+      />
+      <StatusBar
+        activeViewMode={activeViewMode}
+        charCount={session.charCount}
+        cursor={session.cursorPosition}
+        encoding={session.encoding}
+        formatLabel={session.currentFormat.label}
+        lineCount={session.lineCount}
+        selection={session.selectionStats}
+        sqlDialectId={
+          session.syntaxMode === 'sql' ? session.sqlDialect.id : undefined
+        }
+        sqlDialectOptions={
+          session.syntaxMode === 'sql'
+            ? session.sqlDialectOptions.map((dialect) => ({
+                label: dialect.label,
+                value: dialect.id,
+              }))
+            : undefined
+        }
+        validationEnabled={session.validationEnabled}
+        validationAvailable={session.currentFormat.validation === 'supported'}
+        validationResult={session.validationResult}
+        onChooseSqlDialect={(id) => {
+          const dialect = session.sqlDialectOptions.find(
+            (option) => option.id === id,
+          )
+          if (dialect) session.setSqlDialect(dialect)
+        }}
+        onChooseEncoding={() => session.setEncodingModalOpened(true)}
+        onChooseSyntax={() => session.setSyntaxModalOpened(true)}
+        onGoToLine={() => session.setGoToLineModalOpened(true)}
+        onToggleValidation={() =>
+          session.setValidationEnabled((enabled) => !enabled)
+        }
+      />
+    </>
+  )
+}
+
+export function EditorDialogs({ session }: { session: EditorSession }) {
   return (
     <>
       <Modal

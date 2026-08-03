@@ -156,7 +156,7 @@ describe('EditorToolbar capabilities', () => {
       </MantineProvider>,
     )
 
-    const toggle = screen.getByLabelText('Show view') as HTMLButtonElement
+    const toggle = screen.getByLabelText('Show view')
     expect(toggle.disabled).toBe(true)
     expect(toggle.getAttribute('aria-pressed')).toBe('false')
   })

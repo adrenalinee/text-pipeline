@@ -2,7 +2,7 @@ import { linter, lintGutter } from '@codemirror/lint'
 import type { LintSource } from '@codemirror/lint'
 import type { Extension } from '@codemirror/state'
 import { EditorView, highlightWhitespace } from '@codemirror/view'
-import type { ReactCodeMirrorRef } from '@uiw/react-codemirror'
+import type { ViewUpdate } from '@codemirror/view'
 import { notifications } from '@mantine/notifications'
 import { useEffect, useRef, useState } from 'react'
 
@@ -74,12 +74,12 @@ export function useEditorSession({
   const [editorExtensions, setEditorExtensions] = useState<Array<Extension>>([])
   const [validationResult, setValidationResult] =
     useState<FormatValidationResult | null>(null)
-  const editorRef = useRef<ReactCodeMirrorRef>(null)
+  const editorViewRef = useRef<EditorView | null>(null)
   const onManualChangeRef = useRef(onManualChange)
 
   onManualChangeRef.current = onManualChange
 
-  const searchReplace = useSearchReplace({ editorRef, onReplaceCommit })
+  const searchReplace = useSearchReplace({ editorViewRef, onReplaceCommit })
   const currentFormat = getFormatDefinition(syntaxMode)
   const viewAvailable = currentFormat.viewIds.length > 0
   const hasEditorSelection =
@@ -178,9 +178,29 @@ export function useEditorSession({
     setCursorOffset((current) => (current === head ? current : head))
   }
 
+  function bindEditorView(view: EditorView | null) {
+    editorViewRef.current = view
+
+    if (view) updateStatisticsFromView(view)
+  }
+
+  function updateEditorView(update: ViewUpdate) {
+    editorViewRef.current = update.view
+
+    if (update.selectionSet || update.docChanged) {
+      updateStatisticsFromView(update.view)
+    }
+  }
+
+  function updateStatisticsFromView(view: EditorView) {
+    const { from, head, to } = view.state.selection.main
+
+    updateStatistics({ selectionAsSingle: { from, head, to } })
+  }
+
   async function copyText() {
     try {
-      const view = editorRef.current?.view
+      const view = editorViewRef.current
       const documentText = view?.state.doc.toString() ?? value
       const selection =
         view?.state.selection.main ??
@@ -207,7 +227,7 @@ export function useEditorSession({
 
   async function pasteText() {
     try {
-      const view = editorRef.current?.view
+      const view = editorViewRef.current
       if (!view) throw new Error('Source editor unavailable')
 
       const text = await navigator.clipboard.readText()
@@ -271,7 +291,7 @@ export function useEditorSession({
   function goToLineColumn(line: number, column: number) {
     setViewModeState('source')
     const offset = getOffsetForLineAndColumn(value, line, column)
-    const view = editorRef.current?.view
+    const view = editorViewRef.current
 
     if (view) {
       view.dispatch({ selection: { anchor: offset }, scrollIntoView: true })
@@ -284,13 +304,14 @@ export function useEditorSession({
   }
 
   return {
+    bindEditorView,
     charCount,
     chooseSyntax,
     copyText,
     currentFormat,
     cursorPosition,
     editorExtensions,
-    editorRef,
+    editorViewRef,
     encoding,
     encodingModalOpened,
     goToLineColumn,
@@ -324,6 +345,7 @@ export function useEditorSession({
     syntaxModalOpened,
     syntaxMode,
     updateStatistics,
+    updateEditorView,
     updateValue,
     validationEnabled,
     validationResult,
