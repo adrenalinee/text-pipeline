@@ -314,6 +314,24 @@ button {
     light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
 }
 
+.editorSourceColumn {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  /* Reuses the editor-pane breakpoints so the status bar in this column
+     compacts against the column width, not the width of the whole pane. */
+  container-name: editor-pane;
+  container-type: inline-size;
+}
+
+/* Beside a view the source column carries its own status bar, so give it the
+   same height as the view header and both columns start on the same line. */
+.editorContent[data-source-view] .editorSourceColumn > .statusBar {
+  min-height: 46px;
+}
+
 .editorToolbar {
   min-height: 38px;
   padding: 4px 12px;

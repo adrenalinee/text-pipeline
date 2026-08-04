@@ -22,7 +22,10 @@ import {
 import { useState } from 'react'
 
 import { FORMAT_DEFINITIONS, FORMAT_OPTIONS, FORMAT_VIEWS } from '../formats'
-import { shouldShowSourceAlongsideView } from '../editorViewLayout'
+import {
+  getStatusBarPlacement,
+  shouldShowSourceAlongsideView,
+} from '../editorViewLayout'
 import { TEXT_SAMPLES } from '../samples'
 import type { TextSample } from '../samples'
 import type { SyntaxMode } from '../types'
@@ -59,6 +62,11 @@ export function EditorPane({
     sourceViewEnabled: session.sourceViewEnabled,
     viewMode: activeViewMode,
   })
+  const statusBarPlacement = getStatusBarPlacement({
+    compact,
+    sourceViewEnabled: session.sourceViewEnabled,
+    viewMode: activeViewMode,
+  })
 
   return (
     <Box
@@ -76,6 +84,7 @@ export function EditorPane({
           canCommitWorkingText={canCommitWorkingText}
           isActive={isActive}
           session={session}
+          showStatusBar={statusBarPlacement === 'header'}
           onCommitWorkingText={onCommitWorkingText}
         />
         <Box
@@ -83,7 +92,12 @@ export function EditorPane({
           data-source-view={showSourceAlongsideView || undefined}
         >
           {activeViewMode === 'source' || showSourceAlongsideView ? (
-            <SourceEditor isDark={isDark} session={session} />
+            <Box className="editorSourceColumn">
+              {statusBarPlacement === 'sourceColumn' ? (
+                <SessionStatusBar session={session} />
+              ) : null}
+              <SourceEditor isDark={isDark} session={session} />
+            </Box>
           ) : null}
           {activeViewMode === 'view' ? (
             <FormatViewPanel
@@ -151,6 +165,7 @@ export function EditorPaneHeader({
   isActive,
   onCommitWorkingText,
   session,
+  showStatusBar = true,
   viewDisabledReason,
 }: {
   activeViewMode: 'source' | 'view'
@@ -159,6 +174,7 @@ export function EditorPaneHeader({
   isActive: boolean
   onCommitWorkingText?: () => void
   session: EditorSession
+  showStatusBar?: boolean
   viewDisabledReason?: string
 }) {
   return (
@@ -190,42 +206,48 @@ export function EditorPaneHeader({
           session.setWhitespaceVisible((visible) => !visible)
         }
       />
-      <StatusBar
-        activeViewMode={activeViewMode}
-        charCount={session.charCount}
-        cursor={session.cursorPosition}
-        encoding={session.encoding}
-        formatLabel={session.currentFormat.label}
-        lineCount={session.lineCount}
-        selection={session.selectionStats}
-        sqlDialectId={
-          session.syntaxMode === 'sql' ? session.sqlDialect.id : undefined
-        }
-        sqlDialectOptions={
-          session.syntaxMode === 'sql'
-            ? session.sqlDialectOptions.map((dialect) => ({
-                label: dialect.label,
-                value: dialect.id,
-              }))
-            : undefined
-        }
-        validationEnabled={session.validationEnabled}
-        validationAvailable={session.currentFormat.validation === 'supported'}
-        validationResult={session.validationResult}
-        onChooseSqlDialect={(id) => {
-          const dialect = session.sqlDialectOptions.find(
-            (option) => option.id === id,
-          )
-          if (dialect) session.setSqlDialect(dialect)
-        }}
-        onChooseEncoding={() => session.setEncodingModalOpened(true)}
-        onChooseSyntax={() => session.setSyntaxModalOpened(true)}
-        onGoToLine={() => session.setGoToLineModalOpened(true)}
-        onToggleValidation={() =>
-          session.setValidationEnabled((enabled) => !enabled)
-        }
-      />
+      {showStatusBar ? <SessionStatusBar session={session} /> : null}
     </>
+  )
+}
+
+/** Status bar wired to a session, so every placement reads the same state. */
+function SessionStatusBar({ session }: { session: EditorSession }) {
+  return (
+    <StatusBar
+      charCount={session.charCount}
+      cursor={session.cursorPosition}
+      encoding={session.encoding}
+      formatLabel={session.currentFormat.label}
+      lineCount={session.lineCount}
+      selection={session.selectionStats}
+      sqlDialectId={
+        session.syntaxMode === 'sql' ? session.sqlDialect.id : undefined
+      }
+      sqlDialectOptions={
+        session.syntaxMode === 'sql'
+          ? session.sqlDialectOptions.map((dialect) => ({
+              label: dialect.label,
+              value: dialect.id,
+            }))
+          : undefined
+      }
+      validationEnabled={session.validationEnabled}
+      validationAvailable={session.currentFormat.validation === 'supported'}
+      validationResult={session.validationResult}
+      onChooseSqlDialect={(id) => {
+        const dialect = session.sqlDialectOptions.find(
+          (option) => option.id === id,
+        )
+        if (dialect) session.setSqlDialect(dialect)
+      }}
+      onChooseEncoding={() => session.setEncodingModalOpened(true)}
+      onChooseSyntax={() => session.setSyntaxModalOpened(true)}
+      onGoToLine={() => session.setGoToLineModalOpened(true)}
+      onToggleValidation={() =>
+        session.setValidationEnabled((enabled) => !enabled)
+      }
+    />
   )
 }
 

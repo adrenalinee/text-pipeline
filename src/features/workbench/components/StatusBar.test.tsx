@@ -41,7 +41,6 @@ describe('StatusBar', () => {
   it('shows total counts, cursor position, encoding, and format state', () => {
     renderWith(
       <StatusBar
-        activeViewMode="source"
         charCount={42}
         cursor={{ column: 5, line: 2 }}
         encoding="UTF-8"
@@ -71,7 +70,6 @@ describe('StatusBar', () => {
 
     renderWith(
       <StatusBar
-        activeViewMode="source"
         charCount={42}
         cursor={{ column: 5, line: 2 }}
         encoding="UTF-8"
@@ -99,7 +97,6 @@ describe('StatusBar', () => {
   it('shows selection stats only when a selection is present', () => {
     renderWith(
       <StatusBar
-        activeViewMode="source"
         charCount={11}
         cursor={{ column: 1, line: 1 }}
         encoding="UTF-8"
@@ -119,7 +116,6 @@ describe('StatusBar', () => {
   it('formats line counts with thousands separators', () => {
     renderWith(
       <StatusBar
-        activeViewMode="source"
         charCount={12345}
         cursor={{ column: 1, line: 1234 }}
         encoding="UTF-8"
@@ -138,10 +134,11 @@ describe('StatusBar', () => {
     expect(screen.getByText('1234:1')).toBeTruthy()
   })
 
-  it('hides the entire status bar when not in source mode', () => {
+  // Visibility is decided by the pane layout (getStatusBarPlacement), not by
+  // the bar itself, so the bar always renders its controls once mounted.
+  it('renders its controls wherever it is mounted', () => {
     renderWith(
       <StatusBar
-        activeViewMode="view"
         charCount={11}
         cursor={{ column: 1, line: 1 }}
         encoding="UTF-8"
@@ -156,17 +153,15 @@ describe('StatusBar', () => {
     )
 
     expect(
-      screen.queryByRole('button', { name: 'Go to line and column' }),
-    ).toBeNull()
-    expect(screen.queryByText('UTF-8')).toBeNull()
-    expect(screen.queryByText('JSON')).toBeNull()
-    expect(screen.queryByText('11')).toBeNull()
+      screen.getByRole('button', { name: 'Go to line and column' }),
+    ).toBeTruthy()
+    expect(screen.getByText('UTF-8')).toBeTruthy()
+    expect(screen.getByText('11')).toBeTruthy()
   })
 
   it('surfaces validation status as the right-most control', () => {
     renderWith(
       <StatusBar
-        activeViewMode="source"
         charCount={11}
         cursor={{ column: 1, line: 1 }}
         encoding="UTF-8"
