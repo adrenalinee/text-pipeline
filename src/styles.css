@@ -305,13 +305,63 @@ button {
   overflow: hidden;
 }
 
+.editorSourceColumn {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Own query container so the status bar reacts to the source column width, not
+   the whole pane, and drops its optional chips before it has to wrap. */
+.editorSourceColumnHeader {
+  display: flex;
+  min-width: 0;
+  container-name: editor-pane;
+  container-type: inline-size;
+}
+
+.editorSourceColumnHeader > .statusBar {
+  flex: 1;
+  min-width: 0;
+}
+
 .editorContent[data-source-view] {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+/* Split layout: the source status bar and the view header share one grid row
+   through subgrid, so both stay exactly the same height even when either one
+   wraps onto a second line. Without subgrid the columns simply size
+   themselves, which is the layout this had before. */
+@supports (grid-template-rows: subgrid) {
+  .editorContent[data-source-view] {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .editorContent[data-source-view] > * {
+    grid-row: span 2;
+  }
+
+  .editorContent[data-source-view] > .editorSourceColumn,
+  .editorContent[data-source-view] > .formatViewPanel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: subgrid;
+  }
 }
 
 .editorContent[data-source-view] > :last-child {
   border-left: 1px solid
     light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+}
+
+/* Side by side the two headers read as one strip, so they share a background. */
+.editorContent[data-source-view] .formatViewHeader {
+  background: light-dark(
+    var(--mantine-color-gray-0),
+    var(--mantine-color-dark-8)
+  );
 }
 
 .editorToolbar {
@@ -391,26 +441,30 @@ button {
 .statusBar {
   min-height: 30px;
   padding: 3px 8px;
-  gap: 8px;
+  column-gap: 8px;
+  row-gap: 2px;
   border-bottom: 1px solid
     light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
   background: light-dark(
     var(--mantine-color-gray-0),
     var(--mantine-color-dark-8)
   );
-  overflow: hidden;
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
     'Courier New', monospace;
 }
 
+/* The bar wraps onto a second line rather than clipping its right-hand chips,
+   which is what keeps it usable in the narrow split source column. */
 .statusBarGroup {
-  min-width: 0;
+  /* min-content sizing (not 0) so the bar breaks onto a second line instead of
+     letting the right-hand group shrink until its chips are cut off. */
+  min-width: auto;
+  row-gap: 2px;
 }
 
 .statusBarGroupRight {
   flex: 0 1 auto;
-  overflow: hidden;
   color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-gray-4));
 }
 
@@ -706,15 +760,28 @@ button {
   );
 }
 
+/* Sized to match the source status bar so the split columns line up. Title and
+   description sit on one line and wrap together when the column gets narrow. */
 .formatViewHeader {
-  min-height: 46px;
-  padding: 7px 14px;
+  min-height: 30px;
+  padding: 3px 10px;
+  column-gap: 8px;
+  row-gap: 2px;
   border-bottom: 1px solid
     light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
   background: light-dark(
     var(--mantine-color-gray-0),
     var(--mantine-color-dark-7)
   );
+}
+
+.formatViewHeaderTitle {
+  min-width: auto;
+  row-gap: 0;
+}
+
+.formatViewHeaderAction {
+  flex: 0 0 auto;
 }
 
 .formatViewBody {
