@@ -11,7 +11,6 @@ import {
   TextSelect,
 } from 'lucide-react'
 
-import type { WorkbenchViewMode } from '../types'
 import type { FormatValidationResult } from '../utils/formatValidation'
 
 const integerFormatter = new Intl.NumberFormat('en-US')
@@ -27,7 +26,6 @@ export type StatusBarSelectionInfo = {
 }
 
 export function StatusBar({
-  activeViewMode,
   charCount,
   cursor,
   encoding,
@@ -45,7 +43,6 @@ export function StatusBar({
   validationEnabled,
   validationResult,
 }: {
-  activeViewMode: WorkbenchViewMode
   charCount: number
   cursor: StatusBarCursorInfo
   encoding: string
@@ -63,20 +60,14 @@ export function StatusBar({
   validationEnabled: boolean
   validationResult: FormatValidationResult | null
 }) {
-  if (activeViewMode !== 'source') return null
-
   const formattedLineCount = integerFormatter.format(lineCount)
   const formattedSelectionLineCount = selection
     ? integerFormatter.format(selection.lineCount)
     : null
 
   return (
-    <Group className="statusBar" justify="space-between" wrap="nowrap">
-      <Group
-        className="statusBarGroup statusBarGroupLeft"
-        gap={4}
-        wrap="nowrap"
-      >
+    <Group className="statusBar" justify="space-between" wrap="wrap">
+      <Group className="statusBarGroup statusBarGroupLeft" gap={4}>
         <ValidationStatusButton
           available={validationAvailable}
           enabled={validationEnabled}
@@ -127,11 +118,7 @@ export function StatusBar({
         )}
       </Group>
 
-      <Group
-        className="statusBarGroup statusBarGroupRight"
-        gap={4}
-        wrap="nowrap"
-      >
+      <Group className="statusBarGroup statusBarGroupRight" gap={4}>
         <Tooltip
           label={`${formattedLineCount} line${lineCount === 1 ? '' : 's'}, ${charCount} character${charCount === 1 ? '' : 's'} total`}
           withArrow
