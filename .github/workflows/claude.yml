@@ -43,6 +43,6 @@ jobs:
           # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
           # prompt: 'Update the pull request description to include a summary of changes.'
 
-          # Use Opus 4.8 with high reasoning effort
-          claude_args: '--model claude-opus-4-8 --reasoning-effort high'
+          # Use Opus 5 with high reasoning effort
+          claude_args: '--model claude-opus-5 --effort high'
 
