@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { shouldShowSourceAlongsideView } from './editorViewLayout'
+import {
+  getStatusBarPlacement,
+  shouldShowSourceAlongsideView,
+} from './editorViewLayout'
 
 describe('shouldShowSourceAlongsideView', () => {
   it('shows source beside the view only when enabled in desktop view mode', () => {
@@ -37,5 +40,45 @@ describe('shouldShowSourceAlongsideView', () => {
         viewMode: 'view',
       }),
     ).toBe(false)
+  })
+})
+
+describe('getStatusBarPlacement', () => {
+  it('spans the pane header in source mode', () => {
+    expect(
+      getStatusBarPlacement({
+        compact: false,
+        sourceViewEnabled: false,
+        viewMode: 'source',
+      }),
+    ).toBe('header')
+  })
+
+  it('moves onto the source column when source sits beside the view', () => {
+    expect(
+      getStatusBarPlacement({
+        compact: false,
+        sourceViewEnabled: true,
+        viewMode: 'view',
+      }),
+    ).toBe('sourceColumn')
+  })
+
+  it('hides when the view has no source editor to describe', () => {
+    expect(
+      getStatusBarPlacement({
+        compact: false,
+        sourceViewEnabled: false,
+        viewMode: 'view',
+      }),
+    ).toBe('hidden')
+
+    expect(
+      getStatusBarPlacement({
+        compact: true,
+        sourceViewEnabled: true,
+        viewMode: 'view',
+      }),
+    ).toBe('hidden')
   })
 })

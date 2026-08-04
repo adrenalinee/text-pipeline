@@ -33,15 +33,15 @@ export function FormatViewPanel({
 
   return (
     <Box className="formatViewPanel">
-      <Group className="formatViewHeader" justify="space-between" wrap="nowrap">
-        <Box>
+      <Group className="formatViewHeader" justify="space-between" wrap="wrap">
+        <Group className="formatViewHeaderTitle" gap={8}>
           <Text fw={700} size="sm">
             {view.label}
           </Text>
           <Text c="dimmed" size="xs">
             {view.description}
           </Text>
-        </Box>
+        </Group>
         <Tooltip
           label={
             sourceViewAvailable
@@ -59,15 +59,17 @@ export function FormatViewPanel({
                 : 'Show source alongside view'
             }
             aria-pressed={!sourceViewVisible}
+            className="formatViewHeaderAction"
             color="dark"
             disabled={!sourceViewAvailable}
+            size="sm"
             variant="subtle"
             onClick={onToggleSourceView}
           >
             {sourceViewVisible ? (
-              <Maximize size={18} />
+              <Maximize size={16} />
             ) : (
-              <Minimize size={18} />
+              <Minimize size={16} />
             )}
           </ActionIcon>
         </Tooltip>
