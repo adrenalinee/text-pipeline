@@ -75,6 +75,7 @@ export function useSearchReplace({
     useState<SearchPanelFocusRequest | null>(null)
 
   const pendingSessionRef = useRef<ReplaceSession | null>(null)
+  const panelDomRef = useRef<HTMLElement | null>(null)
   const flushTimerRef = useRef<number | null>(null)
   const focusSeqRef = useRef(0)
   const overlayHeightRef = useRef(0)
@@ -182,6 +183,7 @@ export function useSearchReplace({
 
           syncQueryToReact(query)
           setMatchInfo(countMatches(view.state, query))
+          panelDomRef.current = dom
           setPanelDom(dom)
         },
         top: true,
@@ -204,6 +206,7 @@ export function useSearchReplace({
           }
         },
         destroy: () => {
+          panelDomRef.current = null
           setPanelDom(null)
           scheduleFlush()
         },
@@ -221,11 +224,21 @@ export function useSearchReplace({
       return true
     }
 
+    const toggleSearchPanelFromKeymap = (view: EditorView) => {
+      if (panelDomRef.current) {
+        closeSearchPanel(view)
+        view.focus()
+        return true
+      }
+
+      return openPanelFromKeymap(view, false)
+    }
+
     return [
       search({ createPanel, literal: true, top: true }),
       Prec.high(
         keymap.of([
-          { key: 'Mod-f', run: (view) => openPanelFromKeymap(view, false) },
+          { key: 'Mod-f', run: toggleSearchPanelFromKeymap },
           // Ctrl+H (VS Code style) instead of IntelliJ's Ctrl+R, which would
           // shadow browser reload; Cmd+H hides the app on macOS.
           {

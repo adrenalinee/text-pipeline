@@ -18,7 +18,11 @@ import type { KeyboardEvent, PointerEvent } from 'react'
 
 import type { EditorId, EditorSession } from '../useEditorSession'
 import { clampSplitRatio } from './SplitEditorWorkspace'
-import { EditorDialogs, EditorPaneHeader } from './EditorPane'
+import {
+  EditorDialogs,
+  EditorPaneHeader,
+  handleEditorToolbarShortcut,
+} from './EditorPane'
 
 const DIFF_CONFIG = { scanLimit: 500, timeout: 250 } as const
 const COLLAPSE_UNCHANGED = { margin: 3, minSize: 8 } as const
@@ -237,8 +241,24 @@ function DesktopCompare({
     target.focus()
   }
 
+  const activeSession = activeEditorId === 'main' ? mainSession : subSession
+
   return (
-    <Box className="compareWorkspace">
+    <Box
+      className="compareWorkspace"
+      onKeyDownCapture={(event) =>
+        handleEditorToolbarShortcut(event, {
+          canCommit: activeEditorId === 'main' && canCommitWorkingText,
+          canToggleView: false,
+          commit: activeEditorId === 'main' ? onCommitWorkingText : undefined,
+          toggleSoftWrap: () =>
+            activeSession.setSoftWrapEnabled((enabled) => !enabled),
+          toggleView: () => undefined,
+          toggleWhitespace: () =>
+            activeSession.setWhitespaceVisible((visible) => !visible),
+        })
+      }
+    >
       <CompareToolbar
         compact={false}
         stats={stats}

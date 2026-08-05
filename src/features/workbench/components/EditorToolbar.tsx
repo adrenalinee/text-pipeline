@@ -12,6 +12,25 @@ import {
 import { IconGitCommit, IconTextWrap } from '@tabler/icons-react'
 import type { WorkbenchViewMode } from '../types'
 
+export const EDITOR_TOOLBAR_SHORTCUTS = {
+  commit: { aria: 'Control+S Meta+S', label: 'Ctrl+S' },
+  copy: { aria: 'Control+C Meta+C', label: 'Ctrl+C' },
+  paste: { aria: 'Control+V Meta+V', label: 'Ctrl+V' },
+  softWrap: { aria: 'Alt+Z', label: 'Alt+Z' },
+  view: {
+    aria: 'Control+Shift+E Meta+Shift+E',
+    label: 'Ctrl+Shift+E',
+  },
+  whitespace: {
+    aria: 'Control+Alt+W Meta+Alt+W',
+    label: 'Ctrl+Alt+W',
+  },
+} as const
+
+function withShortcut(label: string, shortcut: string) {
+  return `${label} (${shortcut})`
+}
+
 export function EditorToolbar({
   activeViewMode,
   canCommitWorkingText,
@@ -76,9 +95,16 @@ export function EditorToolbar({
             Samples
           </Button>
         </Tooltip>
-        <Tooltip label="Copy selected text, or all text" withArrow>
+        <Tooltip
+          label={withShortcut(
+            'Copy selected text, or all text',
+            EDITOR_TOOLBAR_SHORTCUTS.copy.label,
+          )}
+          withArrow
+        >
           <ActionIcon
             aria-label="Copy editor text"
+            aria-keyshortcuts={EDITOR_TOOLBAR_SHORTCUTS.copy.aria}
             color="dark"
             variant="subtle"
             onClick={onCopyText}
@@ -86,9 +112,16 @@ export function EditorToolbar({
             <Copy size={18} />
           </ActionIcon>
         </Tooltip>
-        <Tooltip label="Paste at cursor or replace selection" withArrow>
+        <Tooltip
+          label={withShortcut(
+            'Paste at cursor or replace selection',
+            EDITOR_TOOLBAR_SHORTCUTS.paste.label,
+          )}
+          withArrow
+        >
           <ActionIcon
             aria-label="Paste clipboard text"
+            aria-keyshortcuts={EDITOR_TOOLBAR_SHORTCUTS.paste.aria}
             color="dark"
             variant="subtle"
             onClick={onPasteText}
@@ -98,16 +131,18 @@ export function EditorToolbar({
         </Tooltip>
         <span className="statusBarDivider" aria-hidden="true" />
         <Tooltip
-          label={
+          label={withShortcut(
             viewDisabledReason ??
-            (viewAvailable
-              ? viewToggleLabel
-              : 'No visual view is available for this format')
-          }
+              (viewAvailable
+                ? viewToggleLabel
+                : 'No visual view is available for this format'),
+            EDITOR_TOOLBAR_SHORTCUTS.view.label,
+          )}
           withArrow
         >
           <ActionIcon
             aria-label={viewToggleLabel}
+            aria-keyshortcuts={EDITOR_TOOLBAR_SHORTCUTS.view.aria}
             aria-pressed={activeViewMode === 'view'}
             color="dark"
             disabled={!viewAvailable}
@@ -120,13 +155,17 @@ export function EditorToolbar({
           </ActionIcon>
         </Tooltip>
         <Tooltip
-          label={whitespaceVisible ? 'Hide whitespace' : 'Show whitespace'}
+          label={withShortcut(
+            whitespaceVisible ? 'Hide whitespace' : 'Show whitespace',
+            EDITOR_TOOLBAR_SHORTCUTS.whitespace.label,
+          )}
           withArrow
         >
           <ActionIcon
             aria-label={
               whitespaceVisible ? 'Hide whitespace' : 'Show whitespace'
             }
+            aria-keyshortcuts={EDITOR_TOOLBAR_SHORTCUTS.whitespace.aria}
             aria-pressed={whitespaceVisible}
             color="dark"
             variant={whitespaceVisible ? 'filled' : 'subtle'}
@@ -136,13 +175,17 @@ export function EditorToolbar({
           </ActionIcon>
         </Tooltip>
         <Tooltip
-          label={softWrapEnabled ? 'Disable soft wrap' : 'Enable soft wrap'}
+          label={withShortcut(
+            softWrapEnabled ? 'Disable soft wrap' : 'Enable soft wrap',
+            EDITOR_TOOLBAR_SHORTCUTS.softWrap.label,
+          )}
           withArrow
         >
           <ActionIcon
             aria-label={
               softWrapEnabled ? 'Disable soft wrap' : 'Enable soft wrap'
             }
+            aria-keyshortcuts={EDITOR_TOOLBAR_SHORTCUTS.softWrap.aria}
             aria-pressed={softWrapEnabled}
             color="dark"
             variant={softWrapEnabled ? 'filled' : 'subtle'}
@@ -158,12 +201,17 @@ export function EditorToolbar({
         </Tooltip>
         <Tooltip
           label={
-            searchPanelOpen ? 'Close search' : 'Search and replace (Ctrl+F)'
+            searchPanelOpen
+              ? 'Close search (Ctrl+F or Esc)'
+              : 'Search and replace (Ctrl+F)'
           }
           withArrow
         >
           <ActionIcon
             aria-label={searchPanelOpen ? 'Close search' : 'Search and replace'}
+            aria-keyshortcuts={
+              searchPanelOpen ? 'Control+F Meta+F Escape' : 'Control+F Meta+F'
+            }
             aria-pressed={searchPanelOpen}
             color="dark"
             variant={searchPanelOpen ? 'filled' : 'subtle'}
@@ -200,13 +248,20 @@ export function EditorToolbar({
             <Tooltip
               label={
                 canCommitWorkingText
-                  ? 'Commit current editor text'
-                  : 'No editor changes to commit'
+                  ? withShortcut(
+                      'Commit current editor text',
+                      EDITOR_TOOLBAR_SHORTCUTS.commit.label,
+                    )
+                  : withShortcut(
+                      'No editor changes to commit',
+                      EDITOR_TOOLBAR_SHORTCUTS.commit.label,
+                    )
               }
               withArrow
             >
               <ActionIcon
                 aria-label="Commit current editor text"
+                aria-keyshortcuts={EDITOR_TOOLBAR_SHORTCUTS.commit.aria}
                 color={canCommitWorkingText ? 'green' : 'gray'}
                 disabled={!canCommitWorkingText}
                 variant={canCommitWorkingText ? 'filled' : 'light'}

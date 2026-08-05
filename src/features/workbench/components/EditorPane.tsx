@@ -20,6 +20,7 @@ import {
   Share2,
 } from 'lucide-react'
 import { useState } from 'react'
+import type { KeyboardEvent } from 'react'
 
 import { FORMAT_DEFINITIONS, FORMAT_OPTIONS, FORMAT_VIEWS } from '../formats'
 import { getStatusBarPlacement } from '../editorViewLayout'
@@ -31,6 +32,79 @@ import type { EditorSession } from '../useEditorSession'
 import { FormatViewPanel } from '../views/FormatViewPanel'
 import { EditorToolbar } from './EditorToolbar'
 import { StatusBar } from './StatusBar'
+
+type EditorToolbarShortcutActions = {
+  canCommit: boolean
+  canToggleView: boolean
+  commit?: () => void
+  toggleSoftWrap: () => void
+  toggleView: () => void
+  toggleWhitespace: () => void
+}
+
+type EditorToolbarShortcutEvent = Pick<
+  KeyboardEvent,
+  | 'altKey'
+  | 'code'
+  | 'ctrlKey'
+  | 'metaKey'
+  | 'preventDefault'
+  | 'shiftKey'
+  | 'target'
+>
+
+function isStandaloneTextInput(target: EventTarget | null) {
+  if (!(target instanceof Element) || target.closest('.cm-content')) {
+    return false
+  }
+
+  return Boolean(
+    target.closest(
+      'input, textarea, select, [contenteditable]:not([contenteditable="false"])',
+    ),
+  )
+}
+
+export function handleEditorToolbarShortcut(
+  event: EditorToolbarShortcutEvent,
+  actions: EditorToolbarShortcutActions,
+) {
+  if (isStandaloneTextInput(event.target)) return false
+
+  const modifier = event.ctrlKey || event.metaKey
+  const plainModifier = modifier && !event.altKey && !event.shiftKey
+  let action: (() => void) | undefined
+
+  if (
+    modifier &&
+    event.shiftKey &&
+    !event.altKey &&
+    event.code === 'KeyE' &&
+    actions.canToggleView
+  ) {
+    action = actions.toggleView
+  }
+  if (modifier && event.altKey && !event.shiftKey && event.code === 'KeyW') {
+    action = actions.toggleWhitespace
+  }
+  if (event.altKey && !modifier && !event.shiftKey && event.code === 'KeyZ') {
+    action = actions.toggleSoftWrap
+  }
+  if (
+    plainModifier &&
+    event.code === 'KeyS' &&
+    actions.canCommit &&
+    actions.commit
+  ) {
+    action = actions.commit
+  }
+
+  if (!action) return false
+
+  event.preventDefault()
+  action()
+  return true
+}
 
 export function EditorPane({
   allowCommit,
@@ -67,6 +141,23 @@ export function EditorPane({
       data-active={isActive || undefined}
       data-editor-id={session.id}
       onFocusCapture={onActivate}
+      onKeyDownCapture={(event) => {
+        if (!isActive) return
+
+        handleEditorToolbarShortcut(event, {
+          canCommit: allowCommit && canCommitWorkingText,
+          canToggleView: session.viewAvailable,
+          commit: onCommitWorkingText,
+          toggleSoftWrap: () =>
+            session.setSoftWrapEnabled((enabled) => !enabled),
+          toggleView: () =>
+            session.setViewMode(
+              session.viewMode === 'view' ? 'source' : 'view',
+            ),
+          toggleWhitespace: () =>
+            session.setWhitespaceVisible((visible) => !visible),
+        })
+      }}
       onPointerDownCapture={onActivate}
     >
       <EditorDialogs session={session} />

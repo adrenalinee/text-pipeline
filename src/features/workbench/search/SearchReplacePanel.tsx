@@ -201,8 +201,7 @@ export function SearchReplacePanel({
 
     if (isFindShortcut(event)) {
       event.preventDefault()
-      searchInputRef.current?.focus()
-      searchInputRef.current?.select()
+      onClose()
     }
   }
 

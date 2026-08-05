@@ -250,9 +250,11 @@ export function useEditorSession({
         title: 'Pasted',
       })
     } catch {
+      editorViewRef.current?.focus()
       notifications.show({
         color: 'red',
-        message: 'Clipboard access is not available in this browser context.',
+        message:
+          'Browser clipboard access was blocked. Focus the editor and press Ctrl+V instead.',
         title: 'Paste failed',
       })
     }
