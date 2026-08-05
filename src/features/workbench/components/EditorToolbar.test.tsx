@@ -4,7 +4,8 @@ import { MantineProvider } from '@mantine/core'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { EditorToolbar } from './EditorToolbar'
+import { handleEditorToolbarShortcut } from './EditorPane'
+import { EDITOR_TOOLBAR_SHORTCUTS, EditorToolbar } from './EditorToolbar'
 
 beforeAll(() => {
   Object.defineProperty(window, 'matchMedia', {
@@ -184,5 +185,198 @@ describe('EditorToolbar capabilities', () => {
 
     fireEvent.click(whitespaceToggle)
     expect(onToggleWhitespace).toHaveBeenCalledOnce()
+  })
+
+  it('exposes the assigned keyboard shortcuts on every icon action', () => {
+    render(
+      <MantineProvider>
+        <EditorToolbar
+          {...commonProps}
+          showCommit
+          onCommitWorkingText={vi.fn()}
+        />
+      </MantineProvider>,
+    )
+
+    expect(
+      screen
+        .getByLabelText('Copy editor text')
+        .getAttribute('aria-keyshortcuts'),
+    ).toBe(EDITOR_TOOLBAR_SHORTCUTS.copy.aria)
+    expect(
+      screen
+        .getByLabelText('Paste clipboard text')
+        .getAttribute('aria-keyshortcuts'),
+    ).toBe(EDITOR_TOOLBAR_SHORTCUTS.paste.aria)
+    expect(
+      screen.getByLabelText('Show view').getAttribute('aria-keyshortcuts'),
+    ).toBe(EDITOR_TOOLBAR_SHORTCUTS.view.aria)
+    expect(
+      screen
+        .getByLabelText('Show whitespace')
+        .getAttribute('aria-keyshortcuts'),
+    ).toBe(EDITOR_TOOLBAR_SHORTCUTS.whitespace.aria)
+    expect(
+      screen
+        .getByLabelText('Disable soft wrap')
+        .getAttribute('aria-keyshortcuts'),
+    ).toBe(EDITOR_TOOLBAR_SHORTCUTS.softWrap.aria)
+    expect(
+      screen
+        .getByLabelText('Search and replace')
+        .getAttribute('aria-keyshortcuts'),
+    ).toBe('Control+F Meta+F')
+    expect(
+      screen
+        .getByLabelText('Commit current editor text')
+        .getAttribute('aria-keyshortcuts'),
+    ).toBe(EDITOR_TOOLBAR_SHORTCUTS.commit.aria)
+  })
+
+  it('shows each icon action shortcut in its tooltip', async () => {
+    render(
+      <MantineProvider>
+        <EditorToolbar
+          {...commonProps}
+          canCommitWorkingText
+          showCommit
+          onCommitWorkingText={vi.fn()}
+        />
+      </MantineProvider>,
+    )
+
+    const cases = [
+      ['Copy editor text', 'Copy selected text, or all text (Ctrl+C)'],
+      ['Paste clipboard text', 'Paste at cursor or replace selection (Ctrl+V)'],
+      ['Show view', 'Show view (Ctrl+Shift+E)'],
+      ['Show whitespace', 'Show whitespace (Ctrl+Alt+W)'],
+      ['Disable soft wrap', 'Disable soft wrap (Alt+Z)'],
+      ['Search and replace', 'Search and replace (Ctrl+F)'],
+      ['Commit current editor text', 'Commit current editor text (Ctrl+S)'],
+    ] as const
+
+    for (const [accessibleName, tooltip] of cases) {
+      const action = screen.getByLabelText(accessibleName)
+      fireEvent.mouseEnter(action)
+      expect(await screen.findByText(tooltip)).toBeTruthy()
+      fireEvent.mouseLeave(action)
+    }
+  })
+
+  it('reports both close shortcuts while search is open', async () => {
+    render(
+      <MantineProvider>
+        <EditorToolbar {...commonProps} searchPanelOpen showCommit={false} />
+      </MantineProvider>,
+    )
+
+    const closeSearch = screen.getByLabelText('Close search')
+    expect(closeSearch.getAttribute('aria-keyshortcuts')).toBe(
+      'Control+F Meta+F Escape',
+    )
+    fireEvent.mouseEnter(closeSearch)
+    expect(await screen.findByText('Close search (Ctrl+F or Esc)')).toBeTruthy()
+  })
+
+  it('runs toolbar actions from their shortcuts inside CodeMirror', () => {
+    const actions = {
+      canCommit: true,
+      canToggleView: true,
+      commit: vi.fn(),
+      toggleSoftWrap: vi.fn(),
+      toggleView: vi.fn(),
+      toggleWhitespace: vi.fn(),
+    }
+
+    render(
+      <div
+        onKeyDownCapture={(event) =>
+          handleEditorToolbarShortcut(event, actions)
+        }
+      >
+        <div aria-label="CodeMirror content" className="cm-content" />
+      </div>,
+    )
+
+    const editor = screen.getByLabelText('CodeMirror content')
+    fireEvent.keyDown(editor, {
+      code: 'KeyE',
+      ctrlKey: true,
+      shiftKey: true,
+    })
+    fireEvent.keyDown(editor, {
+      altKey: true,
+      code: 'KeyW',
+      ctrlKey: true,
+    })
+    fireEvent.keyDown(editor, { altKey: true, code: 'KeyZ' })
+    fireEvent.keyDown(editor, { code: 'KeyS', ctrlKey: true })
+
+    expect(actions.toggleView).toHaveBeenCalledOnce()
+    expect(actions.toggleWhitespace).toHaveBeenCalledOnce()
+    expect(actions.toggleSoftWrap).toHaveBeenCalledOnce()
+    expect(actions.commit).toHaveBeenCalledOnce()
+  })
+
+  it('leaves native copy and paste shortcuts to the browser', () => {
+    const actions = {
+      canCommit: true,
+      canToggleView: true,
+      commit: vi.fn(),
+      toggleSoftWrap: vi.fn(),
+      toggleView: vi.fn(),
+      toggleWhitespace: vi.fn(),
+    }
+
+    render(
+      <div
+        onKeyDownCapture={(event) =>
+          handleEditorToolbarShortcut(event, actions)
+        }
+      >
+        <div aria-label="CodeMirror content" className="cm-content" />
+      </div>,
+    )
+
+    const editor = screen.getByLabelText('CodeMirror content')
+    expect(fireEvent.keyDown(editor, { code: 'KeyC', ctrlKey: true })).toBe(
+      true,
+    )
+    expect(fireEvent.keyDown(editor, { code: 'KeyV', ctrlKey: true })).toBe(
+      true,
+    )
+    expect(actions.commit).not.toHaveBeenCalled()
+    expect(actions.toggleSoftWrap).not.toHaveBeenCalled()
+    expect(actions.toggleView).not.toHaveBeenCalled()
+    expect(actions.toggleWhitespace).not.toHaveBeenCalled()
+  })
+
+  it('preserves shortcuts in standalone text inputs', () => {
+    const commit = vi.fn()
+
+    render(
+      <div
+        onKeyDownCapture={(event) =>
+          handleEditorToolbarShortcut(event, {
+            canCommit: true,
+            canToggleView: true,
+            commit,
+            toggleSoftWrap: vi.fn(),
+            toggleView: vi.fn(),
+            toggleWhitespace: vi.fn(),
+          })
+        }
+      >
+        <input aria-label="Search field" />
+      </div>,
+    )
+
+    expect(
+      fireEvent.keyDown(screen.getByLabelText('Search field'), {
+        code: 'KeyS',
+        ctrlKey: true,
+      }),
+    ).toBe(true)
+    expect(commit).not.toHaveBeenCalled()
   })
 })
