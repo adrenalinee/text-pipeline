@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { getFormatDefinition } from '../formats'
 import type { TransformDefinition } from '../types'
 import { TRANSFORM_DEFINITIONS } from './definitions'
 import {
@@ -13,7 +14,6 @@ const transformFixtures = [
     description: 'Pretty print JSON',
     group: 'format',
     id: 'json-format',
-    inputFormats: ['json'],
     label: 'JSON format',
     outputFormat: 'json',
   },
@@ -21,7 +21,6 @@ const transformFixtures = [
     description: 'Minify JSON',
     group: 'format',
     id: 'json-minify',
-    inputFormats: ['json'],
     label: 'JSON minify',
     outputFormat: 'json',
   },
@@ -29,7 +28,6 @@ const transformFixtures = [
     description: 'Encode text for URLs',
     group: 'general',
     id: 'url-encode',
-    inputFormats: '*',
     label: 'URL encode',
     outputFormat: 'plain',
   },
@@ -38,13 +36,19 @@ const transformFixtures = [
 describe('transform filtering', () => {
   it('keeps JSON transforms and general transforms available for JSON input', () => {
     expect(
-      getAvailableTransforms(transformFixtures, 'json').map(({ id }) => id),
+      getAvailableTransforms(
+        transformFixtures,
+        getFormatDefinition('json'),
+      ).map(({ id }) => id),
     ).toEqual(['json-format', 'json-minify', 'url-encode'])
   })
 
   it('hides JSON-only transforms for YAML input while keeping general transforms', () => {
     expect(
-      getAvailableTransforms(transformFixtures, 'yaml').map(({ id }) => id),
+      getAvailableTransforms(
+        transformFixtures,
+        getFormatDefinition('yaml'),
+      ).map(({ id }) => id),
     ).toEqual(['url-encode'])
   })
 
@@ -57,21 +61,34 @@ describe('transform filtering', () => {
       throw new Error('Fixture is missing the general transform.')
     }
 
-    expect(isTransformAvailable(generalTransform, 'plain')).toBe(true)
-    expect(isTransformAvailable(generalTransform, 'html')).toBe(true)
-    expect(isTransformAvailable(generalTransform, 'json')).toBe(true)
-    expect(isTransformAvailable(generalTransform, 'markdown')).toBe(true)
-    expect(isTransformAvailable(generalTransform, 'toml')).toBe(true)
-    expect(isTransformAvailable(generalTransform, 'yaml')).toBe(true)
+    expect(
+      isTransformAvailable(generalTransform, getFormatDefinition('plain')),
+    ).toBe(true)
+    expect(
+      isTransformAvailable(generalTransform, getFormatDefinition('html')),
+    ).toBe(true)
+    expect(
+      isTransformAvailable(generalTransform, getFormatDefinition('json')),
+    ).toBe(true)
+    expect(
+      isTransformAvailable(generalTransform, getFormatDefinition('markdown')),
+    ).toBe(true)
+    expect(
+      isTransformAvailable(generalTransform, getFormatDefinition('toml')),
+    ).toBe(true)
+    expect(
+      isTransformAvailable(generalTransform, getFormatDefinition('yaml')),
+    ).toBe(true)
   })
 
   it('groups available transforms into format and general sections', () => {
-    const sections = getTransformSections(transformFixtures, 'json').map(
-      (section) => ({
-        ids: section.transforms.map(({ id }) => id),
-        title: section.title,
-      }),
-    )
+    const sections = getTransformSections(
+      transformFixtures,
+      getFormatDefinition('json'),
+    ).map((section) => ({
+      ids: section.transforms.map(({ id }) => id),
+      title: section.title,
+    }))
 
     expect(sections).toEqual([
       {
@@ -86,12 +103,13 @@ describe('transform filtering', () => {
   })
 
   it('omits empty format sections', () => {
-    const sections = getTransformSections(transformFixtures, 'plain').map(
-      (section) => ({
-        ids: section.transforms.map(({ id }) => id),
-        title: section.title,
-      }),
-    )
+    const sections = getTransformSections(
+      transformFixtures,
+      getFormatDefinition('plain'),
+    ).map((section) => ({
+      ids: section.transforms.map(({ id }) => id),
+      title: section.title,
+    }))
 
     expect(sections).toEqual([
       {
@@ -102,12 +120,13 @@ describe('transform filtering', () => {
   })
 
   it('exposes YAML to JSON with general transforms for YAML input', () => {
-    const sections = getTransformSections(TRANSFORM_DEFINITIONS, 'yaml').map(
-      (section) => ({
-        ids: section.transforms.map(({ id }) => id),
-        title: section.title,
-      }),
-    )
+    const sections = getTransformSections(
+      TRANSFORM_DEFINITIONS,
+      getFormatDefinition('yaml'),
+    ).map((section) => ({
+      ids: section.transforms.map(({ id }) => id),
+      title: section.title,
+    }))
 
     expect(sections).toEqual([
       {
@@ -128,12 +147,13 @@ describe('transform filtering', () => {
   })
 
   it('exposes TOML conversions with general transforms for TOML input', () => {
-    const sections = getTransformSections(TRANSFORM_DEFINITIONS, 'toml').map(
-      (section) => ({
-        ids: section.transforms.map(({ id }) => id),
-        title: section.title,
-      }),
-    )
+    const sections = getTransformSections(
+      TRANSFORM_DEFINITIONS,
+      getFormatDefinition('toml'),
+    ).map((section) => ({
+      ids: section.transforms.map(({ id }) => id),
+      title: section.title,
+    }))
 
     expect(sections).toEqual([
       {
@@ -154,12 +174,13 @@ describe('transform filtering', () => {
   })
 
   it('exposes HTML compacting, formatting, and minifying with general transforms for HTML input', () => {
-    const sections = getTransformSections(TRANSFORM_DEFINITIONS, 'html').map(
-      (section) => ({
-        ids: section.transforms.map(({ id }) => id),
-        title: section.title,
-      }),
-    )
+    const sections = getTransformSections(
+      TRANSFORM_DEFINITIONS,
+      getFormatDefinition('html'),
+    ).map((section) => ({
+      ids: section.transforms.map(({ id }) => id),
+      title: section.title,
+    }))
 
     expect(sections).toEqual([
       {
@@ -181,9 +202,10 @@ describe('transform filtering', () => {
 
   it('exposes only general transforms for plain text input', () => {
     expect(
-      getAvailableTransforms(TRANSFORM_DEFINITIONS, 'plain').map(
-        ({ id }) => id,
-      ),
+      getAvailableTransforms(
+        TRANSFORM_DEFINITIONS,
+        getFormatDefinition('plain'),
+      ).map(({ id }) => id),
     ).toEqual([
       'crop-selection',
       'url-encode',
@@ -195,9 +217,10 @@ describe('transform filtering', () => {
 
   it('exposes only general transforms for Markdown input', () => {
     expect(
-      getAvailableTransforms(TRANSFORM_DEFINITIONS, 'markdown').map(
-        ({ id }) => id,
-      ),
+      getAvailableTransforms(
+        TRANSFORM_DEFINITIONS,
+        getFormatDefinition('markdown'),
+      ).map(({ id }) => id),
     ).toEqual([
       'crop-selection',
       'url-encode',

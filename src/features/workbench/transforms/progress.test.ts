@@ -13,7 +13,6 @@ function transform(
     description: 'Test transform',
     group: 'general',
     id: 'url-encode',
-    inputFormats: '*',
     label: 'Test transform',
     outputFormat: 'plain',
     ...overrides,

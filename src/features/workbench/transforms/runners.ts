@@ -1,4 +1,5 @@
 import type { DefaultTreeAdapterTypes, ParserError } from 'parse5'
+import type { SqlLanguage } from 'sql-formatter'
 
 import type { TransformRunnerMap } from '../types'
 import { decodeBase64Url } from '../utils/formatValidation'
@@ -212,7 +213,7 @@ function decodeBase64(input: string) {
 
 export async function formatSqlWithDialect(
   input: string,
-  language: string,
+  language: SqlLanguage,
 ): Promise<string> {
   // Load sql-formatter lazily so it stays out of the initial bundle.
   const { format } = await import('sql-formatter')

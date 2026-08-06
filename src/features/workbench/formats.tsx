@@ -1,12 +1,34 @@
 import { lazy } from 'react'
+import {
+  Braces,
+  Code2,
+  FileJson,
+  FileText,
+  KeyRound,
+  Share2,
+} from 'lucide-react'
 
 import type {
   FormatCapability,
+  FormatValidationCapability,
   FormatViewDefinition,
   SyntaxMode,
   TransformId,
 } from './types'
-import { loadFormatLintSource } from './utils/formatLinting'
+import {
+  sniffCsv,
+  sniffDiff,
+  sniffGraphql,
+  sniffHtml,
+  sniffJson,
+  sniffJwt,
+  sniffMarkdown,
+  sniffNdjson,
+  sniffSql,
+  sniffToml,
+  sniffXml,
+  sniffYaml,
+} from './utils/formatSniffers'
 import { UnavailableView } from './views/FormatViewPanel'
 
 // Editor language modes are loaded through dynamic import() so that each
@@ -86,20 +108,25 @@ const GENERAL_TRANSFORMS = [
   'base64-decode',
 ] satisfies ReadonlyArray<TransformId>
 
+function createValidationCapability(
+  validate: FormatValidationCapability['validate'],
+  loadLintSource: FormatValidationCapability['loadLintSource'],
+): FormatValidationCapability {
+  return { loadLintSource, validate }
+}
+
 export const FORMAT_VIEWS = [
   {
     description: 'Inspect patch hunks with old and new line numbers',
     id: 'diff-patch',
     label: 'Patch view',
     render: ({ value }) => <DiffPatchView value={value} />,
-    supportedFormats: ['diff'],
   },
   {
     description: 'Preview static HTML in a restricted iframe',
     id: 'html-preview',
     label: 'Sandboxed preview',
     render: ({ value }) => <HtmlPreviewView value={value} />,
-    supportedFormats: ['html'],
   },
   {
     description: 'Inspect parsed objects and arrays as collapsible nodes',
@@ -111,37 +138,52 @@ export const FORMAT_VIEWS = [
       ) : (
         <UnavailableView syntaxMode={syntaxMode} />
       ),
-    supportedFormats: ['json', 'yaml'],
   },
   {
     description: 'Read Markdown as a formatted document',
     id: 'markdown-document',
     label: 'Document view',
     render: ({ value }) => <MarkdownDocumentView value={value} />,
-    supportedFormats: ['markdown'],
   },
 ] satisfies ReadonlyArray<FormatViewDefinition>
 
 export const FORMAT_DEFINITIONS = {
   csv: {
+    detection: {
+      loadConfirm: () =>
+        import('./utils/formatConfirmers').then((module) => module.confirmCsv),
+      priority: 65,
+      sniff: sniffCsv,
+    },
     description: 'Delimited rows and columns',
+    icon: <FileText size={18} />,
     loadEditorExtensions: async () => {
       const { csvLanguage } = await import('./utils/csvLanguage')
       return [csvLanguage]
     },
     id: 'csv',
     label: 'CSV',
-    loadLintSource: () => loadFormatLintSource('csv'),
     renderPolicy: 'explicit',
     renderSecurity: 'source-only',
     sampleIds: ['csv-pipeline-metrics'],
     transformIds: [...GENERAL_TRANSFORMS],
-    validation: 'supported',
+    validation: createValidationCapability(
+      (value) =>
+        import('./utils/formatValidation').then((module) =>
+          module.validateCsv(value),
+        ),
+      () =>
+        import('./utils/formatLinting').then((module) =>
+          module.loadCsvLintSource(),
+        ),
+    ),
     viewIds: [],
   },
   diff: {
     defaultViewId: 'diff-patch',
+    detection: { priority: 95, sniff: sniffDiff },
     description: 'Unified diff and patch output',
+    icon: <FileText size={18} />,
     loadEditorExtensions: async () => {
       const [{ StreamLanguage }, { diff }] = await Promise.all([
         import('@codemirror/language'),
@@ -155,11 +197,19 @@ export const FORMAT_DEFINITIONS = {
     renderSecurity: 'sanitized',
     sampleIds: ['diff-pipeline-config'],
     transformIds: [...GENERAL_TRANSFORMS],
-    validation: 'unsupported',
     viewIds: ['diff-patch'],
   },
   graphql: {
+    detection: {
+      loadConfirm: () =>
+        import('./utils/formatConfirmers').then(
+          (module) => module.confirmGraphql,
+        ),
+      priority: 60,
+      sniff: sniffGraphql,
+    },
     description: 'Queries, mutations, and schema definitions',
+    icon: <Share2 size={18} />,
     loadEditorExtensions: async () => {
       const [{ LanguageSupport }, { graphqlLanguage }] = await Promise.all([
         import('@codemirror/language'),
@@ -169,67 +219,112 @@ export const FORMAT_DEFINITIONS = {
     },
     id: 'graphql',
     label: 'GraphQL',
-    loadLintSource: () => loadFormatLintSource('graphql'),
     renderPolicy: 'explicit',
     renderSecurity: 'source-only',
     sampleIds: ['graphql-user-query'],
     transformIds: [...GRAPHQL_TRANSFORMS, ...GENERAL_TRANSFORMS],
-    validation: 'supported',
+    validation: createValidationCapability(
+      (value) =>
+        import('./utils/formatValidation').then((module) =>
+          module.validateGraphql(value),
+        ),
+      () =>
+        import('./utils/formatLinting').then((module) =>
+          module.loadGraphqlLintSource(),
+        ),
+    ),
     viewIds: [],
   },
   html: {
     defaultViewId: 'html-preview',
+    detection: {
+      loadConfirm: () =>
+        import('./utils/formatConfirmers').then((module) => module.confirmHtml),
+      priority: 80,
+      sniff: sniffHtml,
+    },
     description: 'Markup fragments and documents',
+    icon: <Code2 size={18} />,
     loadEditorExtensions: async () => {
       const { html } = await import('@codemirror/lang-html')
       return [html()]
     },
     id: 'html',
     label: 'HTML',
-    loadLintSource: () => loadFormatLintSource('html'),
     renderPolicy: 'explicit',
     renderSecurity: 'sandboxed',
     sampleIds: ['html-status-panel'],
     transformIds: [...HTML_TRANSFORMS, ...GENERAL_TRANSFORMS],
-    validation: 'supported',
+    validation: createValidationCapability(
+      (value) =>
+        import('./utils/formatValidation').then((module) =>
+          module.validateHtml(value),
+        ),
+      () =>
+        import('./utils/formatLinting').then((module) =>
+          module.loadHtmlLintSource(),
+        ),
+    ),
     viewIds: ['html-preview'],
   },
   json: {
     defaultViewId: 'structured-tree',
+    detection: { priority: 85, sniff: sniffJson },
     description: 'Objects, arrays, payloads',
+    icon: <Braces size={18} />,
     loadEditorExtensions: async () => {
       const { json } = await import('@codemirror/lang-json')
       return [json()]
     },
     id: 'json',
     label: 'JSON',
-    loadLintSource: () => loadFormatLintSource('json'),
     renderPolicy: 'automatic',
     renderSecurity: 'source-only',
     sampleIds: ['json-service-event'],
     transformIds: [...JSON_TRANSFORMS, ...GENERAL_TRANSFORMS],
-    validation: 'supported',
+    validation: createValidationCapability(
+      (value) =>
+        import('./utils/formatValidation').then((module) =>
+          module.validateJson(value),
+        ),
+      () =>
+        import('./utils/formatLinting').then((module) =>
+          module.loadJsonLintSource(),
+        ),
+    ),
     viewIds: ['structured-tree'],
   },
   jwt: {
+    detection: { priority: 100, sniff: sniffJwt },
     description: 'Signed JSON Web Tokens (header.payload.signature)',
+    icon: <KeyRound size={18} />,
     loadEditorExtensions: async () => {
       const { jwtLanguage } = await import('./utils/jwtLanguage')
       return [jwtLanguage]
     },
     id: 'jwt',
     label: 'JWT',
-    loadLintSource: () => loadFormatLintSource('jwt'),
     renderPolicy: 'explicit',
     renderSecurity: 'source-only',
     sampleIds: ['jwt-access-token'],
     transformIds: [...JWT_TRANSFORMS, ...GENERAL_TRANSFORMS],
-    validation: 'supported',
+    validation: createValidationCapability(
+      (value) =>
+        import('./utils/formatValidation').then((module) =>
+          module.validateJwt(value),
+        ),
+      () =>
+        import('./utils/formatLinting').then((module) =>
+          module.loadJwtLintSource(),
+        ),
+    ),
     viewIds: [],
   },
   markdown: {
     defaultViewId: 'markdown-document',
+    detection: { priority: 30, sniff: sniffMarkdown },
     description: 'Notes, docs, and fenced code',
+    icon: <FileText size={18} />,
     loadEditorExtensions: async () => {
       const [{ markdown }, { languages }] = await Promise.all([
         import('@codemirror/lang-markdown'),
@@ -243,11 +338,12 @@ export const FORMAT_DEFINITIONS = {
     renderSecurity: 'source-only',
     sampleIds: ['markdown-release-notes'],
     transformIds: [...GENERAL_TRANSFORMS],
-    validation: 'unsupported',
     viewIds: ['markdown-document'],
   },
   ndjson: {
+    detection: { priority: 90, sniff: sniffNdjson },
     description: 'Newline-delimited JSON records (logs, streams)',
+    icon: <FileJson size={18} />,
     loadEditorExtensions: async () => {
       const [{ StreamLanguage }, { json }] = await Promise.all([
         import('@codemirror/language'),
@@ -257,16 +353,25 @@ export const FORMAT_DEFINITIONS = {
     },
     id: 'ndjson',
     label: 'NDJSON',
-    loadLintSource: () => loadFormatLintSource('ndjson'),
     renderPolicy: 'explicit',
     renderSecurity: 'source-only',
     sampleIds: ['ndjson-request-log'],
     transformIds: [...NDJSON_TRANSFORMS, ...GENERAL_TRANSFORMS],
-    validation: 'supported',
+    validation: createValidationCapability(
+      (value) =>
+        import('./utils/formatValidation').then((module) =>
+          module.validateNdjson(value),
+        ),
+      () =>
+        import('./utils/formatLinting').then((module) =>
+          module.loadNdjsonLintSource(),
+        ),
+    ),
     viewIds: [],
   },
   plain: {
     description: 'No highlighting',
+    icon: <FileText size={18} />,
     loadEditorExtensions: async () => [],
     id: 'plain',
     label: 'Plain text',
@@ -274,11 +379,12 @@ export const FORMAT_DEFINITIONS = {
     renderSecurity: 'source-only',
     sampleIds: [],
     transformIds: [...GENERAL_TRANSFORMS],
-    validation: 'unsupported',
     viewIds: [],
   },
   sql: {
+    detection: { priority: 55, sniff: sniffSql },
     description: 'Queries and schema statements',
+    icon: <Code2 size={18} />,
     loadEditorExtensions: async () => {
       const { sql } = await import('@codemirror/lang-sql')
       return [sql()]
@@ -289,11 +395,29 @@ export const FORMAT_DEFINITIONS = {
     renderSecurity: 'source-only',
     sampleIds: ['sql-event-report'],
     transformIds: [...SQL_TRANSFORMS, ...GENERAL_TRANSFORMS],
-    validation: 'supported',
+    validation: createValidationCapability(
+      (value, context) =>
+        import('./utils/formatValidation').then((module) =>
+          module.validateSqlDialect(value, context.sqlParserDatabase ?? null),
+        ),
+      (context) =>
+        context.sqlParserDatabase
+          ? import('./utils/formatLinting').then((module) =>
+              module.createSqlLintSource(context.sqlParserDatabase!),
+            )
+          : Promise.resolve(null),
+    ),
     viewIds: [],
   },
   toml: {
+    detection: {
+      loadConfirm: () =>
+        import('./utils/formatConfirmers').then((module) => module.confirmToml),
+      priority: 70,
+      sniff: sniffToml,
+    },
     description: 'Config tables and arrays',
+    icon: <FileText size={18} />,
     loadEditorExtensions: async () => {
       const [{ StreamLanguage }, { toml }] = await Promise.all([
         import('@codemirror/language'),
@@ -303,45 +427,83 @@ export const FORMAT_DEFINITIONS = {
     },
     id: 'toml',
     label: 'TOML',
-    loadLintSource: () => loadFormatLintSource('toml'),
     renderPolicy: 'explicit',
     renderSecurity: 'source-only',
     sampleIds: ['toml-pipeline-config'],
     transformIds: [...TOML_TRANSFORMS, ...GENERAL_TRANSFORMS],
-    validation: 'supported',
+    validation: createValidationCapability(
+      (value) =>
+        import('./utils/formatValidation').then((module) =>
+          module.validateToml(value),
+        ),
+      () =>
+        import('./utils/formatLinting').then((module) =>
+          module.loadTomlLintSource(),
+        ),
+    ),
     viewIds: [],
   },
   xml: {
+    detection: {
+      loadConfirm: () =>
+        import('./utils/formatConfirmers').then((module) => module.confirmXml),
+      priority: 79,
+      sniff: sniffXml,
+    },
     description: 'Markup documents and feeds',
+    icon: <Code2 size={18} />,
     loadEditorExtensions: async () => {
       const { xml } = await import('@codemirror/lang-xml')
       return [xml()]
     },
     id: 'xml',
     label: 'XML',
-    loadLintSource: () => loadFormatLintSource('xml'),
     renderPolicy: 'explicit',
     renderSecurity: 'source-only',
     sampleIds: ['xml-pipeline-config'],
     transformIds: [...GENERAL_TRANSFORMS],
-    validation: 'supported',
+    validation: createValidationCapability(
+      (value) =>
+        import('./utils/formatValidation').then((module) =>
+          module.validateXml(value),
+        ),
+      () =>
+        import('./utils/formatLinting').then((module) =>
+          module.loadXmlLintSource(),
+        ),
+    ),
     viewIds: [],
   },
   yaml: {
     defaultViewId: 'structured-tree',
+    detection: {
+      loadConfirm: () =>
+        import('./utils/formatConfirmers').then((module) => module.confirmYaml),
+      priority: 40,
+      sniff: sniffYaml,
+    },
     description: 'Config and manifests',
+    icon: <Code2 size={18} />,
     loadEditorExtensions: async () => {
       const { yaml } = await import('@codemirror/lang-yaml')
       return [yaml()]
     },
     id: 'yaml',
     label: 'YAML',
-    loadLintSource: () => loadFormatLintSource('yaml'),
     renderPolicy: 'automatic',
     renderSecurity: 'source-only',
     sampleIds: ['yaml-pipeline-config'],
     transformIds: [...YAML_TRANSFORMS, ...GENERAL_TRANSFORMS],
-    validation: 'supported',
+    validation: createValidationCapability(
+      (value) =>
+        import('./utils/formatValidation').then((module) =>
+          module.validateYaml(value),
+        ),
+      () =>
+        import('./utils/formatLinting').then((module) =>
+          module.loadYamlLintSource(),
+        ),
+    ),
     viewIds: ['structured-tree'],
   },
 } satisfies Record<SyntaxMode, FormatCapability>

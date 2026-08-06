@@ -23,6 +23,65 @@ export type FormatRenderPolicy = 'automatic' | 'explicit'
 
 export type FormatRenderSecurity = 'sanitized' | 'sandboxed' | 'source-only'
 
+export type FormatDetectionContext = {
+  sample: string
+  value: string
+}
+
+export type FormatDetectionEvidence = {
+  confidence: number
+  reason: string
+}
+
+export type FormatDetectionConfirmer = (
+  value: string,
+) => Promise<boolean> | boolean
+
+export type FormatDetectionCapability = {
+  loadConfirm?: () => Promise<FormatDetectionConfirmer>
+  priority: number
+  sniff: (context: FormatDetectionContext) => FormatDetectionEvidence | null
+}
+
+export type FormatDetectionResult = FormatDetectionEvidence & {
+  format: Exclude<SyntaxMode, 'plain'>
+}
+
+export type FormatSelectionState =
+  | { mode: 'auto' }
+  | {
+      mode: 'locked'
+      origin: 'detected' | 'known' | 'manual'
+      result?: FormatDetectionResult
+    }
+
+export type FormatValidationIssue = {
+  column: number
+  line: number
+  position?: number
+}
+
+export type FormatValidationResult = {
+  issue?: FormatValidationIssue
+  message: string
+  status: 'invalid' | 'unsupported' | 'valid'
+  title: string
+}
+
+export type FormatValidationContext = {
+  sqlParserDatabase?: string | null
+}
+
+export type FormatValidationCapability = {
+  loadLintSource: (
+    context: FormatValidationContext,
+  ) => Promise<LintSource | null>
+  validate: (
+    value: string,
+    context: FormatValidationContext,
+  ) => Promise<FormatValidationResult>
+}
+
 export type FormatViewId =
   | 'diff-patch'
   | 'html-preview'
@@ -92,7 +151,6 @@ export type TransformDefinition = {
   description: string
   group: TransformGroup
   id: TransformId
-  inputFormats: ReadonlyArray<SyntaxMode> | '*'
   label: string
   outputFormat?: SyntaxMode
 }
@@ -118,23 +176,22 @@ export type FormatViewDefinition = {
   id: FormatViewId
   label: string
   render: (props: FormatViewRenderProps) => ReactNode
-  supportedFormats: ReadonlyArray<SyntaxMode>
 }
 
 export type FormatCapability = {
   defaultViewId?: FormatViewId
+  detection?: FormatDetectionCapability
   description: string
+  icon: ReactNode
   // Editor extensions (CodeMirror language modes) are loaded on demand so their
   // packages stay out of the initial bundle until the format is activated.
   loadEditorExtensions: () => Promise<Array<Extension>>
   id: SyntaxMode
   label: string
-  // Lint sources are loaded lazily too; the loader pulls in any parser it needs.
-  loadLintSource?: () => Promise<LintSource | null>
   renderPolicy?: FormatRenderPolicy
   renderSecurity?: FormatRenderSecurity
   sampleIds: ReadonlyArray<string>
   transformIds: ReadonlyArray<TransformId>
-  validation: 'supported' | 'unsupported'
+  validation?: FormatValidationCapability
   viewIds: ReadonlyArray<FormatViewId>
 }

@@ -10,28 +10,27 @@ import {
 } from '@mantine/core'
 import { oneDark } from '@codemirror/theme-one-dark'
 import CodeMirror from '@uiw/react-codemirror'
-import {
-  Braces,
-  Check,
-  Code2,
-  FileJson,
-  FileText,
-  KeyRound,
-  Share2,
-} from 'lucide-react'
+import { Check } from 'lucide-react'
 import { useState } from 'react'
-import type { KeyboardEvent } from 'react'
+import type { KeyboardEvent, ReactNode } from 'react'
 
 import { FORMAT_DEFINITIONS, FORMAT_OPTIONS, FORMAT_VIEWS } from '../formats'
 import { getStatusBarPlacement } from '../editorViewLayout'
 import { TEXT_SAMPLES } from '../samples'
 import type { TextSample } from '../samples'
-import type { SyntaxMode } from '../types'
 import { ENCODING_OPTIONS } from '../useEditorSession'
 import type { EditorSession } from '../useEditorSession'
 import { FormatViewPanel } from '../views/FormatViewPanel'
 import { EditorToolbar } from './EditorToolbar'
 import { StatusBar } from './StatusBar'
+
+const REGISTERED_TEXT_SAMPLES = FORMAT_OPTIONS.flatMap((format) =>
+  format.sampleIds.flatMap((sampleId) => {
+    const sample = TEXT_SAMPLES.find((candidate) => candidate.id === sampleId)
+
+    return sample && sample.syntaxMode === format.id ? [sample] : []
+  }),
+)
 
 type EditorToolbarShortcutActions = {
   canCommit: boolean
@@ -213,7 +212,6 @@ function SourceEditor({
 }) {
   return (
     <CodeMirror
-      ref={session.editorRef}
       aria-label={
         session.id === 'main' ? 'Text editor' : 'Secondary text editor'
       }
@@ -299,12 +297,34 @@ export function EditorPaneHeader({
 
 /** Wires a session to the status bar so every placement reads the same state. */
 function SessionStatusBar({ session }: { session: EditorSession }) {
+  const detectedResult =
+    session.formatSelection.mode === 'locked' &&
+    session.formatSelection.origin === 'detected'
+      ? session.formatSelection.result
+      : undefined
+  const formatLabel =
+    session.formatSelection.mode === 'auto'
+      ? `Auto · ${session.currentFormat.label}`
+      : session.currentFormat.label
+  const formatTooltip = detectedResult
+    ? `Detected automatically. ${detectedResult.reason}`
+    : session.formatSelection.mode !== 'auto'
+      ? 'Change format and syntax highlighting'
+      : session.formatDetectionStatus === 'detecting'
+        ? 'Detecting the input format locally…'
+        : session.formatDetectionStatus === 'too-large'
+          ? 'Automatic detection is limited to inputs of 2 MiB or less'
+          : session.formatDetectionStatus === 'undetermined'
+            ? 'No high-confidence format was found yet'
+            : 'Waiting for text to detect automatically'
+
   return (
     <StatusBar
       charCount={session.charCount}
       cursor={session.cursorPosition}
       encoding={session.encoding}
-      formatLabel={session.currentFormat.label}
+      formatLabel={formatLabel}
+      formatTooltip={formatTooltip}
       lineCount={session.lineCount}
       selection={session.selectionStats}
       sqlDialectId={
@@ -319,7 +339,7 @@ function SessionStatusBar({ session }: { session: EditorSession }) {
           : undefined
       }
       validationEnabled={session.validationEnabled}
-      validationAvailable={session.currentFormat.validation === 'supported'}
+      validationAvailable={Boolean(session.currentFormat.validation)}
       validationResult={session.validationResult}
       onChooseSqlDialect={(id) => {
         const dialect = session.sqlDialectOptions.find(
@@ -349,13 +369,22 @@ export function EditorDialogs({ session }: { session: EditorSession }) {
         onClose={() => session.setSyntaxModalOpened(false)}
       >
         <Stack gap="xs">
+          <OptionButton
+            active={session.formatSelection.mode === 'auto'}
+            description="Detect the first high-confidence format, then lock it"
+            label="Auto detect"
+            onClick={session.enableAutoDetection}
+          />
           {FORMAT_OPTIONS.map((option) => (
             <SyntaxOptionButton
-              active={session.syntaxMode === option.id}
+              active={
+                session.formatSelection.mode !== 'auto' &&
+                session.syntaxMode === option.id
+              }
               description={option.description}
+              icon={option.icon}
               key={option.id}
               label={option.label}
-              value={option.id}
               onClick={() => session.chooseSyntax(option.id)}
             />
           ))}
@@ -370,7 +399,7 @@ export function EditorDialogs({ session }: { session: EditorSession }) {
         onClose={() => session.setSampleModalOpened(false)}
       >
         <Stack gap="xs">
-          {TEXT_SAMPLES.map((sample) => (
+          {REGISTERED_TEXT_SAMPLES.map((sample) => (
             <SampleOptionButton
               key={sample.id}
               sample={sample}
@@ -443,7 +472,7 @@ function SampleOptionButton({
       onClick={onClick}
     >
       <Group className="syntaxOptionMain" gap="sm" wrap="nowrap">
-        <SyntaxIcon value={sample.syntaxMode} />
+        {FORMAT_DEFINITIONS[sample.syntaxMode].icon}
         <Box className="syntaxOptionText">
           <Group gap="xs" wrap="nowrap">
             <Text fw={650} size="sm">
@@ -553,15 +582,15 @@ function OptionButton({
 function SyntaxOptionButton({
   active,
   description,
+  icon,
   label,
   onClick,
-  value,
 }: {
   active: boolean
   description: string
+  icon: ReactNode
   label: string
   onClick: () => void
-  value: SyntaxMode
 }) {
   return (
     <button
@@ -572,7 +601,7 @@ function SyntaxOptionButton({
       onClick={onClick}
     >
       <Group className="syntaxOptionMain" gap="sm" wrap="nowrap">
-        <SyntaxIcon value={value} />
+        {icon}
         <Box className="syntaxOptionText">
           <Text fw={650} size="sm">
             {label}
@@ -585,15 +614,4 @@ function SyntaxOptionButton({
       {active ? <Check size={16} /> : null}
     </button>
   )
-}
-
-function SyntaxIcon({ value }: { value: SyntaxMode }) {
-  if (value === 'json') return <Braces size={18} />
-  if (value === 'jwt') return <KeyRound size={18} />
-  if (value === 'ndjson') return <FileJson size={18} />
-  if (value === 'graphql') return <Share2 size={18} />
-  if (value === 'yaml' || value === 'xml' || value === 'sql') {
-    return <Code2 size={18} />
-  }
-  return <FileText size={18} />
 }

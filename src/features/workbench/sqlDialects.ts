@@ -1,3 +1,5 @@
+import type { SqlLanguage } from 'sql-formatter'
+
 export type SqlDialectId =
   | 'bigquery'
   | 'mariadb'
@@ -11,7 +13,7 @@ export type SqlDialectId =
 
 export type SqlDialect = {
   // Language key passed to sql-formatter
-  formatterLanguage: string
+  formatterLanguage: SqlLanguage
   id: SqlDialectId
   label: string
   // Database name passed to node-sql-parser; null = generic, no parser validation

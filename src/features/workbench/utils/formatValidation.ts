@@ -1,7 +1,9 @@
 import type { Parser } from 'node-sql-parser'
 import type { ParserError } from 'parse5'
 
-import type { SyntaxMode } from '../types'
+import type { FormatValidationIssue, FormatValidationResult } from '../types'
+
+export type { FormatValidationIssue, FormatValidationResult } from '../types'
 
 // node-sql-parser is dialect-specific; SQL valid in another dialect may be
 // flagged here. Change this single constant to switch dialects.
@@ -21,83 +23,9 @@ function loadSqlParser(): Promise<Parser> {
   return sqlParserPromise
 }
 
-export type FormatValidationIssue = {
-  column: number
-  line: number
-  position?: number
-}
-
-export type FormatValidationResult = {
-  issue?: FormatValidationIssue
-  message: string
-  status: 'invalid' | 'unsupported' | 'valid'
-  title: string
-}
-
-const UNVALIDATED_FORMAT_LABELS: Partial<Record<SyntaxMode, string>> = {
-  diff: 'Diff',
-  markdown: 'Markdown',
-  plain: 'Plain text',
-}
-
-export async function validateFormat(
+export async function validateHtml(
   value: string,
-  syntaxMode: SyntaxMode,
 ): Promise<FormatValidationResult> {
-  if (syntaxMode === 'json') {
-    return validateJson(value)
-  }
-
-  if (syntaxMode === 'html') {
-    return validateHtml(value)
-  }
-
-  if (syntaxMode === 'yaml') {
-    return validateYaml(value)
-  }
-
-  if (syntaxMode === 'toml') {
-    return validateToml(value)
-  }
-
-  if (syntaxMode === 'xml') {
-    return validateXml(value)
-  }
-
-  if (syntaxMode === 'csv') {
-    return validateCsv(value)
-  }
-
-  if (syntaxMode === 'sql') {
-    return validateSql(value)
-  }
-
-  if (syntaxMode === 'jwt') {
-    return validateJwt(value)
-  }
-
-  if (syntaxMode === 'ndjson') {
-    return validateNdjson(value)
-  }
-
-  if (syntaxMode === 'graphql') {
-    return validateGraphql(value)
-  }
-
-  return unsupportedValidationResult(
-    UNVALIDATED_FORMAT_LABELS[syntaxMode] ?? 'This format',
-  )
-}
-
-function unsupportedValidationResult(format: string): FormatValidationResult {
-  return {
-    message: `${format} has no syntax validator.`,
-    status: 'unsupported',
-    title: 'No validator',
-  }
-}
-
-async function validateHtml(value: string): Promise<FormatValidationResult> {
   const { parseFragment } = await import('parse5')
   const errors: Array<ParserError> = []
 
@@ -126,7 +54,7 @@ async function validateHtml(value: string): Promise<FormatValidationResult> {
   }
 }
 
-function validateJson(value: string): FormatValidationResult {
+export function validateJson(value: string): FormatValidationResult {
   try {
     JSON.parse(value)
 
@@ -153,7 +81,9 @@ function validateJson(value: string): FormatValidationResult {
   }
 }
 
-async function validateYaml(value: string): Promise<FormatValidationResult> {
+export async function validateYaml(
+  value: string,
+): Promise<FormatValidationResult> {
   const { load } = await import('js-yaml')
 
   try {
@@ -181,7 +111,9 @@ async function validateYaml(value: string): Promise<FormatValidationResult> {
   }
 }
 
-async function validateToml(value: string): Promise<FormatValidationResult> {
+export async function validateToml(
+  value: string,
+): Promise<FormatValidationResult> {
   const { parse: parseToml } = await import('smol-toml')
 
   try {
@@ -207,7 +139,7 @@ async function validateToml(value: string): Promise<FormatValidationResult> {
   }
 }
 
-function validateXml(value: string): FormatValidationResult {
+export function validateXml(value: string): FormatValidationResult {
   const error = getXmlError(value)
 
   if (!error) {
@@ -226,7 +158,7 @@ function validateXml(value: string): FormatValidationResult {
   }
 }
 
-function validateCsv(value: string): FormatValidationResult {
+export function validateCsv(value: string): FormatValidationResult {
   const error = getCsvError(value)
 
   if (!error) {
@@ -245,7 +177,9 @@ function validateCsv(value: string): FormatValidationResult {
   }
 }
 
-async function validateSql(value: string): Promise<FormatValidationResult> {
+export async function validateSql(
+  value: string,
+): Promise<FormatValidationResult> {
   const error = await getSqlError(value)
 
   if (!error) {
@@ -442,7 +376,8 @@ export async function validateSqlDialect(
 ): Promise<FormatValidationResult> {
   if (parserDatabase === null) {
     return {
-      message: 'Generic SQL has no dialect-specific validator. Choose a dialect to enable validation.',
+      message:
+        'Generic SQL has no dialect-specific validator. Choose a dialect to enable validation.',
       status: 'unsupported',
       title: 'No validator',
     }
@@ -622,7 +557,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
-function validateJwt(value: string): FormatValidationResult {
+export function validateJwt(value: string): FormatValidationResult {
   const error = getJwtError(value)
 
   if (!error) {
@@ -688,7 +623,7 @@ export function decodeBase64Url(segment: string): string {
   return new TextDecoder().decode(bytes)
 }
 
-function validateNdjson(value: string): FormatValidationResult {
+export function validateNdjson(value: string): FormatValidationResult {
   const error = getNdjsonError(value)
 
   if (!error) {
@@ -726,7 +661,9 @@ export function getNdjsonError(value: string): FormatSyntaxError | null {
       JSON.parse(line)
     } catch (error) {
       const inner =
-        error instanceof Error ? getJsonErrorIssue(error.message, line) : undefined
+        error instanceof Error
+          ? getJsonErrorIssue(error.message, line)
+          : undefined
 
       return {
         issue: { column: inner?.column ?? 1, line: index + 1 },
@@ -738,7 +675,9 @@ export function getNdjsonError(value: string): FormatSyntaxError | null {
   return null
 }
 
-async function validateGraphql(value: string): Promise<FormatValidationResult> {
+export async function validateGraphql(
+  value: string,
+): Promise<FormatValidationResult> {
   const error = await getGraphqlError(value)
 
   if (!error) {
@@ -778,7 +717,9 @@ export async function getGraphqlError(
   }
 }
 
-function getGraphqlErrorIssue(error: unknown): FormatValidationIssue | undefined {
+function getGraphqlErrorIssue(
+  error: unknown,
+): FormatValidationIssue | undefined {
   if (!isRecord(error) || !Array.isArray(error.locations)) {
     return undefined
   }

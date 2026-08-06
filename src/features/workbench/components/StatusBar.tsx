@@ -1,4 +1,11 @@
-import { Button, Group, Select, Text, Tooltip, UnstyledButton } from '@mantine/core'
+import {
+  Button,
+  Group,
+  Select,
+  Text,
+  Tooltip,
+  UnstyledButton,
+} from '@mantine/core'
 import {
   ChevronsUpDown,
   CircleAlert,
@@ -11,7 +18,7 @@ import {
   TextSelect,
 } from 'lucide-react'
 
-import type { FormatValidationResult } from '../utils/formatValidation'
+import type { FormatValidationResult } from '../types'
 
 const integerFormatter = new Intl.NumberFormat('en-US')
 
@@ -30,6 +37,7 @@ export function StatusBar({
   cursor,
   encoding,
   formatLabel,
+  formatTooltip,
   lineCount,
   onChooseEncoding,
   onChooseSqlDialect,
@@ -47,6 +55,7 @@ export function StatusBar({
   cursor: StatusBarCursorInfo
   encoding: string
   formatLabel: string
+  formatTooltip?: string
   lineCount: number
   onChooseEncoding: () => void
   onChooseSqlDialect?: (id: string) => void
@@ -90,7 +99,10 @@ export function StatusBar({
             {encoding}
           </Button>
         </Tooltip>
-        <Tooltip label="Change format and syntax highlighting" withArrow>
+        <Tooltip
+          label={formatTooltip ?? 'Change format and syntax highlighting'}
+          withArrow
+        >
           <Button
             variant="default"
             leftSection={<Code2 className="statusBarButtonIcon" size={14} />}
@@ -125,9 +137,7 @@ export function StatusBar({
         >
           <Group className="statusBarMetric" gap={10} wrap="nowrap">
             <span className="statusBarMetricItem">
-              <span className="statusBarMetricValue">
-                {formattedLineCount}
-              </span>
+              <span className="statusBarMetricValue">{formattedLineCount}</span>
               <span className="statusBarMetricUnit">
                 {lineCount === 1 ? 'line' : 'lines'}
               </span>
