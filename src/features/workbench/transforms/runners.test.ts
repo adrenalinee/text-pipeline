@@ -4,6 +4,32 @@ import type { TransformId, TransformRunner } from '../types'
 import { TRANSFORM_RUNNERS } from './runners'
 
 describe('transform runners', () => {
+  it('formats JavaScript with its parser loaded on demand', async () => {
+    expect(
+      await runTransform(
+        'javascript-format',
+        'export const run=async(input)=>{return await input.text()}',
+      ),
+    ).toEqual({
+      output:
+        'export const run = async (input) => {\n  return await input.text()\n}\n',
+      outputFormat: 'javascript',
+    })
+  })
+
+  it('formats TypeScript while preserving type syntax', async () => {
+    expect(
+      await runTransform(
+        'typescript-format',
+        'export const run=(input:string):Promise<string>=>Promise.resolve(input)',
+      ),
+    ).toEqual({
+      output:
+        'export const run = (input: string): Promise<string> => Promise.resolve(input)\n',
+      outputFormat: 'typescript',
+    })
+  })
+
   it('encodes and decodes URL text', async () => {
     expect(await runTransform('url-encode', 'a b&c=/')).toEqual({
       output: 'a%20b%26c%3D%2F',
@@ -191,7 +217,10 @@ describe('transform runners', () => {
     const decoded = JSON.parse(output)
 
     expect(decoded.header).toEqual({ alg: 'HS256', typ: 'JWT' })
-    expect(decoded.payload).toMatchObject({ name: 'John Doe', sub: '1234567890' })
+    expect(decoded.payload).toMatchObject({
+      name: 'John Doe',
+      sub: '1234567890',
+    })
     expect(decoded.signature).toBe(
       'SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c',
     )
@@ -224,12 +253,12 @@ describe('transform runners', () => {
   })
 
   it('formats a GraphQL document', async () => {
-    expect(await runTransform('graphql-format', 'query{user{id name}}')).toEqual(
-      {
-        output: '{\n  user {\n    id\n    name\n  }\n}',
-        outputFormat: 'graphql',
-      },
-    )
+    expect(
+      await runTransform('graphql-format', 'query{user{id name}}'),
+    ).toEqual({
+      output: '{\n  user {\n    id\n    name\n  }\n}',
+      outputFormat: 'graphql',
+    })
   })
 
   it('minifies a GraphQL document', async () => {

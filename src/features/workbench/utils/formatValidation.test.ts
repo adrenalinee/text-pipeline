@@ -24,6 +24,60 @@ async function validateFormat(
 }
 
 describe('format validation', () => {
+  it('validates JavaScript and reports parser locations', async () => {
+    await expect(
+      validateFormat('const answer = () => 42', 'javascript'),
+    ).resolves.toMatchObject({ status: 'valid', title: 'Valid JavaScript' })
+
+    const invalid = await validateFormat('const = 42', 'javascript')
+
+    expect(invalid).toMatchObject({
+      issue: { column: 7, line: 1 },
+      status: 'invalid',
+    })
+  })
+
+  it('validates TypeScript type syntax and reports parser locations', async () => {
+    await expect(
+      validateFormat('const answer: number = 42', 'typescript'),
+    ).resolves.toMatchObject({ status: 'valid', title: 'Valid TypeScript' })
+
+    const invalid = await validateFormat('const answer: = 42', 'typescript')
+
+    expect(invalid).toMatchObject({
+      issue: { column: 15, line: 1 },
+      status: 'invalid',
+    })
+  })
+
+  it('validates raw HTTP request structure', async () => {
+    await expect(
+      validateFormat(
+        'POST /v1/transforms HTTP/1.1\nContent-Type: application/json\n\n{}',
+        'http',
+      ),
+    ).resolves.toMatchObject({ status: 'valid', title: 'Valid HTTP message' })
+
+    const invalid = await validateFormat(
+      'POST /v1/transforms HTTP/1.1\nMalformed header\n\n{}',
+      'http',
+    )
+
+    expect(invalid).toMatchObject({
+      issue: { column: 1, line: 2 },
+      status: 'invalid',
+    })
+  })
+
+  it('keeps Go validation explicitly unsupported', async () => {
+    await expect(
+      validateFormat('package main\n\nfunc main() {}\n', 'go'),
+    ).resolves.toMatchObject({
+      message: 'Go has no syntax validator.',
+      status: 'unsupported',
+    })
+  })
+
   it('reports JSON syntax line and column when available', async () => {
     const result = await validateFormat(
       '{\n  "service": "text-pipeline",\n}',

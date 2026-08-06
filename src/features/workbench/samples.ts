@@ -10,6 +10,78 @@ export type TextSample = {
 
 export const TEXT_SAMPLES = [
   {
+    description: 'Browser-side transform runner with async error handling',
+    id: 'javascript-transform-runner',
+    label: 'Transform runner JavaScript',
+    syntaxMode: 'javascript',
+    value: `export async function runTransform(input, transform) {
+  const startedAt = performance.now()
+
+  try {
+    const output = await transform(input)
+    return { durationMs: performance.now() - startedAt, output }
+  } catch (error) {
+    throw new Error(\`Transform failed: \${error.message}\`)
+  }
+}
+`,
+  },
+  {
+    description: 'Typed pipeline step and transform result',
+    id: 'typescript-pipeline-step',
+    label: 'Pipeline step TypeScript',
+    syntaxMode: 'typescript',
+    value: `type SyntaxMode = 'plain' | 'json' | 'yaml'
+
+interface TransformResult {
+  output: string
+  outputFormat?: SyntaxMode
+}
+
+export async function applyStep(
+  input: string,
+  transform: (value: string) => Promise<TransformResult>,
+): Promise<TransformResult> {
+  return transform(input)
+}
+`,
+  },
+  {
+    description: 'Small Go HTTP transform handler',
+    id: 'go-transform-handler',
+    label: 'Transform handler Go',
+    syntaxMode: 'go',
+    value: `package main
+
+import (
+	"encoding/json"
+	"net/http"
+)
+
+type result struct {
+	Output string \`json:"output"\`
+}
+
+func transformHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result{Output: "local transform"})
+}
+`,
+  },
+  {
+    description: 'Raw JSON transform API request',
+    id: 'http-transform-request',
+    label: 'Transform request HTTP',
+    syntaxMode: 'http',
+    value: `POST /v1/transforms HTTP/1.1
+Host: localhost:3000
+Content-Type: application/json
+X-Request-Id: req_7f3a9d
+
+{"format":"json","transform":"json-format"}
+`,
+  },
+  {
     description: 'Nested service event with request metadata',
     id: 'json-service-event',
     label: 'Service event JSON',

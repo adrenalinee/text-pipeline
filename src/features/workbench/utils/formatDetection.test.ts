@@ -24,6 +24,15 @@ describe('format detection', () => {
     expect(attempt.result?.format).toBe('ndjson')
   })
 
+  it('distinguishes TypeScript type syntax from JavaScript', async () => {
+    await expect(
+      detectFormat('export const value: number = 42\n'),
+    ).resolves.toMatchObject({ result: { format: 'typescript' } })
+    await expect(
+      detectFormat('export const value = () => 42\n'),
+    ).resolves.toMatchObject({ result: { format: 'javascript' } })
+  })
+
   it('distinguishes known HTML elements from custom XML roots', async () => {
     await expect(
       detectFormat('<main><p>Status</p></main>'),

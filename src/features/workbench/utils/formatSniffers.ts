@@ -203,6 +203,76 @@ export function sniffGraphql({ sample }: FormatDetectionContext) {
     : null
 }
 
+export function sniffGo({ sample }: FormatDetectionContext) {
+  const hasPackage = /^\s*package\s+[A-Za-z_]\w*\s*$/m.test(sample)
+  const hasDeclaration = /^\s*(?:func|type|var|const)\s+[A-Za-z_]\w*/m.test(
+    sample,
+  )
+
+  return hasPackage && hasDeclaration
+    ? evidence(0.99, 'A Go package clause and declaration were found.')
+    : null
+}
+
+export function sniffHttp({ sample }: FormatDetectionContext) {
+  const firstLine = getNonEmptyLines(sample)[0]
+
+  if (!firstLine) return null
+
+  const isRequest =
+    /^(?:GET|HEAD|POST|PUT|PATCH|DELETE|CONNECT|OPTIONS|TRACE)\s+\S+\s+HTTP\/\d(?:\.\d)?$/i.test(
+      firstLine,
+    )
+  const isResponse = /^HTTP\/\d(?:\.\d)?\s+\d{3}(?:\s+.*)?$/i.test(firstLine)
+  const hasHeader = /^[-!#$%&'*+.^_`|~0-9A-Za-z]+\s*:\s*.*$/m.test(sample)
+
+  return (isRequest || isResponse) && hasHeader
+    ? evidence(1, 'An HTTP start line and header field were found.')
+    : null
+}
+
+export function sniffTypescript({ sample }: FormatDetectionContext) {
+  if (sniffGo({ sample, value: sample })) return null
+
+  const hasTypeSyntax =
+    /\b(?:interface|type|enum|namespace|implements|declare)\s+[A-Za-z_$]/.test(
+      sample,
+    ) ||
+    /(?:\b(?:const|let|var)\s+[A-Za-z_$][\w$]*|\([^)]*\))\s*:\s*[A-Za-z_$][\w$<>{}[\]|&?, ]*(?:=|=>)/.test(
+      sample,
+    )
+  const hasProgramStructure =
+    /\b(?:import|export|function|class|const|let|var)\b/.test(sample)
+
+  return hasTypeSyntax && hasProgramStructure
+    ? evidence(
+        0.98,
+        'TypeScript type syntax and program declarations were found.',
+      )
+    : null
+}
+
+export function sniffJavascript({ sample }: FormatDetectionContext) {
+  if (
+    sniffTypescript({ sample, value: sample }) ||
+    sniffGo({ sample, value: sample })
+  ) {
+    return null
+  }
+
+  const hasDeclaration =
+    /\b(?:const|let|var|function|class|import|export)\b/.test(sample)
+  const hasJavaScriptStructure =
+    /=>|\b(?:async|await|new|return)\b|\.[A-Za-z_$][\w$]*\s*\(/.test(sample)
+
+  return hasDeclaration && hasJavaScriptStructure
+    ? evidence(
+        0.96,
+        'JavaScript declarations and executable syntax were found.',
+      )
+    : null
+}
+
 export function sniffSql({ sample }: FormatDetectionContext) {
   const normalized = sample.replace(
     /^\s*(?:--[^\n]*\n|\/\*[\s\S]*?\*\/\s*)*/i,
