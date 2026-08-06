@@ -18,14 +18,18 @@ import type {
 import {
   sniffCsv,
   sniffDiff,
+  sniffGo,
   sniffGraphql,
   sniffHtml,
+  sniffHttp,
+  sniffJavascript,
   sniffJson,
   sniffJwt,
   sniffMarkdown,
   sniffNdjson,
   sniffSql,
   sniffToml,
+  sniffTypescript,
   sniffXml,
   sniffYaml,
 } from './utils/formatSniffers'
@@ -98,6 +102,14 @@ const HTML_TRANSFORMS = [
 const SQL_TRANSFORMS = [
   'sql-format',
   'sql-minify',
+] satisfies ReadonlyArray<TransformId>
+
+const JAVASCRIPT_TRANSFORMS = [
+  'javascript-format',
+] satisfies ReadonlyArray<TransformId>
+
+const TYPESCRIPT_TRANSFORMS = [
+  'typescript-format',
 ] satisfies ReadonlyArray<TransformId>
 
 const GENERAL_TRANSFORMS = [
@@ -199,6 +211,25 @@ export const FORMAT_DEFINITIONS = {
     transformIds: [...GENERAL_TRANSFORMS],
     viewIds: ['diff-patch'],
   },
+  go: {
+    detection: { priority: 88, sniff: sniffGo },
+    description: 'Go source files and snippets',
+    icon: <Code2 size={18} />,
+    loadEditorExtensions: async () => {
+      const [{ StreamLanguage }, { go }] = await Promise.all([
+        import('@codemirror/language'),
+        import('@codemirror/legacy-modes/mode/go'),
+      ])
+      return [StreamLanguage.define(go)]
+    },
+    id: 'go',
+    label: 'Go',
+    renderPolicy: 'explicit',
+    renderSecurity: 'source-only',
+    sampleIds: ['go-transform-handler'],
+    transformIds: [...GENERAL_TRANSFORMS],
+    viewIds: [],
+  },
   graphql: {
     detection: {
       loadConfirm: () =>
@@ -266,6 +297,64 @@ export const FORMAT_DEFINITIONS = {
         ),
     ),
     viewIds: ['html-preview'],
+  },
+  http: {
+    detection: { priority: 98, sniff: sniffHttp },
+    description: 'Raw HTTP requests and responses',
+    icon: <FileText size={18} />,
+    loadEditorExtensions: async () => {
+      const [{ StreamLanguage }, { http }] = await Promise.all([
+        import('@codemirror/language'),
+        import('@codemirror/legacy-modes/mode/http'),
+      ])
+      return [StreamLanguage.define(http)]
+    },
+    id: 'http',
+    label: 'HTTP',
+    renderPolicy: 'explicit',
+    renderSecurity: 'source-only',
+    sampleIds: ['http-transform-request'],
+    transformIds: [...GENERAL_TRANSFORMS],
+    validation: createValidationCapability(
+      (value) =>
+        import('./utils/httpFormat').then((module) =>
+          module.validateHttp(value),
+        ),
+      () =>
+        import('./utils/httpFormat').then((module) =>
+          module.loadHttpLintSource(),
+        ),
+    ),
+    viewIds: [],
+  },
+  javascript: {
+    detection: { priority: 75, sniff: sniffJavascript },
+    description: 'JavaScript source files and snippets',
+    icon: <Code2 size={18} />,
+    loadEditorExtensions: async () => {
+      const [{ StreamLanguage }, { javascript }] = await Promise.all([
+        import('@codemirror/language'),
+        import('@codemirror/legacy-modes/mode/javascript'),
+      ])
+      return [StreamLanguage.define(javascript)]
+    },
+    id: 'javascript',
+    label: 'JavaScript',
+    renderPolicy: 'explicit',
+    renderSecurity: 'source-only',
+    sampleIds: ['javascript-transform-runner'],
+    transformIds: [...JAVASCRIPT_TRANSFORMS, ...GENERAL_TRANSFORMS],
+    validation: createValidationCapability(
+      (value) =>
+        import('./utils/codeFormat').then((module) =>
+          module.validateCode(value, 'babel', 'JavaScript'),
+        ),
+      () =>
+        import('./utils/codeFormat').then((module) =>
+          module.loadCodeLintSource('babel', 'JavaScript'),
+        ),
+    ),
+    viewIds: [],
   },
   json: {
     defaultViewId: 'structured-tree',
@@ -439,6 +528,35 @@ export const FORMAT_DEFINITIONS = {
       () =>
         import('./utils/formatLinting').then((module) =>
           module.loadTomlLintSource(),
+        ),
+    ),
+    viewIds: [],
+  },
+  typescript: {
+    detection: { priority: 76, sniff: sniffTypescript },
+    description: 'Typed JavaScript source and declarations',
+    icon: <Code2 size={18} />,
+    loadEditorExtensions: async () => {
+      const [{ StreamLanguage }, { typescript }] = await Promise.all([
+        import('@codemirror/language'),
+        import('@codemirror/legacy-modes/mode/javascript'),
+      ])
+      return [StreamLanguage.define(typescript)]
+    },
+    id: 'typescript',
+    label: 'TypeScript',
+    renderPolicy: 'explicit',
+    renderSecurity: 'source-only',
+    sampleIds: ['typescript-pipeline-step'],
+    transformIds: [...TYPESCRIPT_TRANSFORMS, ...GENERAL_TRANSFORMS],
+    validation: createValidationCapability(
+      (value) =>
+        import('./utils/codeFormat').then((module) =>
+          module.validateCode(value, 'typescript', 'TypeScript'),
+        ),
+      () =>
+        import('./utils/codeFormat').then((module) =>
+          module.loadCodeLintSource('typescript', 'TypeScript'),
         ),
     ),
     viewIds: [],

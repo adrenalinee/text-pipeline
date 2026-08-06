@@ -2,6 +2,20 @@ import type { TransformDefinition } from '../types'
 
 export const TRANSFORM_DEFINITIONS = [
   {
+    description: 'Format JavaScript with the browser-loaded Prettier parser',
+    group: 'format',
+    id: 'javascript-format',
+    label: 'JavaScript format',
+    outputFormat: 'javascript',
+  },
+  {
+    description: 'Format TypeScript with the browser-loaded Prettier parser',
+    group: 'format',
+    id: 'typescript-format',
+    label: 'TypeScript format',
+    outputFormat: 'typescript',
+  },
+  {
     description: 'Remove line-break formatting without reparsing HTML',
     group: 'format',
     id: 'html-compact',

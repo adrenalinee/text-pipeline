@@ -41,6 +41,10 @@ export const TRANSFORM_RUNNERS: TransformRunnerMap = {
     output: await minifyHtml(input),
     outputFormat: 'html',
   }),
+  'javascript-format': async (input) => ({
+    output: await formatCode(input, 'babel'),
+    outputFormat: 'javascript',
+  }),
   'sql-format': async (input) => ({
     output: await formatSqlWithDialect(input, 'sql'),
     outputFormat: 'sql',
@@ -85,6 +89,10 @@ export const TRANSFORM_RUNNERS: TransformRunnerMap = {
     output: await stringifyYaml(await parseTomlInput(input)),
     outputFormat: 'yaml',
   }),
+  'typescript-format': async (input) => ({
+    output: await formatCode(input, 'typescript'),
+    outputFormat: 'typescript',
+  }),
   'url-decode': (input) => ({
     output: decodeURIComponent(input),
     outputFormat: 'plain',
@@ -101,6 +109,12 @@ export const TRANSFORM_RUNNERS: TransformRunnerMap = {
     output: await stringifyTomlDocument(await parseYamlInput(input)),
     outputFormat: 'toml',
   }),
+}
+
+async function formatCode(input: string, parser: 'babel' | 'typescript') {
+  const { formatCodeDocument } = await import('../utils/codeFormat')
+
+  return formatCodeDocument(input, parser)
 }
 
 async function parseYamlInput(input: string): Promise<unknown> {
@@ -223,9 +237,9 @@ export async function formatSqlWithDialect(
 
 function minifySql(input: string) {
   return input
-    .replace(/--[^\n]*/g, '')          // strip single-line comments
-    .replace(/\/\*[\s\S]*?\*\//g, '')  // strip block comments
-    .replace(/\s+/g, ' ')             // collapse whitespace
+    .replace(/--[^\n]*/g, '') // strip single-line comments
+    .replace(/\/\*[\s\S]*?\*\//g, '') // strip block comments
+    .replace(/\s+/g, ' ') // collapse whitespace
     .trim()
 }
 

@@ -14,8 +14,11 @@ describe('FORMAT_DEFINITIONS', () => {
     expect(FORMAT_OPTIONS.map((format) => format.id).sort()).toEqual([
       'csv',
       'diff',
+      'go',
       'graphql',
       'html',
+      'http',
+      'javascript',
       'json',
       'jwt',
       'markdown',
@@ -23,21 +26,26 @@ describe('FORMAT_DEFINITIONS', () => {
       'plain',
       'sql',
       'toml',
+      'typescript',
       'xml',
       'yaml',
     ])
     expect(FORMAT_OPTIONS.map((format) => format.label).sort()).toEqual([
       'CSV',
       'Diff',
+      'Go',
       'GraphQL',
       'HTML',
+      'HTTP',
       'JSON',
       'JWT',
+      'JavaScript',
       'Markdown',
       'NDJSON',
       'Plain text',
       'SQL',
       'TOML',
+      'TypeScript',
       'XML',
       'YAML',
     ])
@@ -82,6 +90,21 @@ describe('FORMAT_DEFINITIONS', () => {
     expect(FORMAT_DEFINITIONS.graphql.transformIds).toContain('graphql-format')
     expect(FORMAT_DEFINITIONS.graphql.transformIds).toContain('graphql-minify')
     expect(FORMAT_DEFINITIONS.graphql.validation).toBeDefined()
+  })
+
+  it('registers code and HTTP formats with format-specific capabilities', () => {
+    expect(FORMAT_DEFINITIONS.javascript.transformIds).toContain(
+      'javascript-format',
+    )
+    expect(FORMAT_DEFINITIONS.javascript.validation).toBeDefined()
+    expect(FORMAT_DEFINITIONS.typescript.transformIds).toContain(
+      'typescript-format',
+    )
+    expect(FORMAT_DEFINITIONS.typescript.validation).toBeDefined()
+    expect(FORMAT_DEFINITIONS.http.validation).toBeDefined()
+    expect(FORMAT_DEFINITIONS.go.transformIds).toEqual(
+      expect.arrayContaining(['base64-encode', 'url-encode']),
+    )
   })
 
   it('resolves editor extensions on demand for every format', async () => {

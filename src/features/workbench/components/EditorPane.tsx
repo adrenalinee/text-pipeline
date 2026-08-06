@@ -302,10 +302,10 @@ function SessionStatusBar({ session }: { session: EditorSession }) {
     session.formatSelection.origin === 'detected'
       ? session.formatSelection.result
       : undefined
-  const formatLabel =
-    session.formatSelection.mode === 'auto'
-      ? `Auto · ${session.currentFormat.label}`
-      : session.currentFormat.label
+  const formatLabel = session.currentFormat.label;
+    // session.formatSelection.mode === 'auto'
+    //   ? `Auto · ${session.currentFormat.label}`
+    //   : session.currentFormat.label
   const formatTooltip = detectedResult
     ? `Detected automatically. ${detectedResult.reason}`
     : session.formatSelection.mode !== 'auto'
