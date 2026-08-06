@@ -96,7 +96,7 @@ export const Route = createFileRoute('/')({
 
 const INITIAL_EDITOR_VALUE = ''
 const INITIAL_TEXT_REVISION = {
-  syntaxMode: 'json',
+  syntaxMode: 'plain',
   text: INITIAL_EDITOR_VALUE,
 } satisfies { syntaxMode: SyntaxMode; text: string }
 
@@ -199,7 +199,7 @@ function Workbench() {
   })
   const subSession = useEditorSession({
     id: 'sub',
-    initialSyntaxMode: 'json',
+    initialSyntaxMode: 'plain',
     initialValue: '',
   })
   const activeSession =
@@ -405,7 +405,7 @@ function Workbench() {
     }
 
     targetSession.setValue(afterText)
-    targetSession.setSyntaxMode(afterSyntaxMode)
+    targetSession.setKnownSyntaxMode(afterSyntaxMode)
     notifications.show({
       color: 'green',
       message: `${title} updated the sub editor without creating history.`,
@@ -454,7 +454,7 @@ function Workbench() {
     })
 
     mainSession.setValue(afterText)
-    mainSession.setSyntaxMode(afterSyntaxMode)
+    mainSession.setKnownSyntaxMode(afterSyntaxMode)
     setSelectedRevisionId(id)
     setWorkingBaseRevisionId(id)
     setCommits((currentCommits) => appendCommit(currentCommits, commit))
@@ -510,7 +510,7 @@ function Workbench() {
     mainSession.setValue(commit.afterText)
     setSelectedRevisionId(commit.id)
     setWorkingBaseRevisionId(commit.id)
-    mainSession.setSyntaxMode(commit.afterSyntaxMode)
+    mainSession.setKnownSyntaxMode(commit.afterSyntaxMode)
     notifications.show({
       color: 'blue',
       message: `${commit.id} is now loaded in the editor.`,
@@ -522,7 +522,7 @@ function Workbench() {
     mainSession.setValue(rootText)
     setSelectedRevisionId(ROOT_REVISION_ID)
     setWorkingBaseRevisionId(ROOT_REVISION_ID)
-    mainSession.setSyntaxMode(rootSyntaxMode)
+    mainSession.setKnownSyntaxMode(rootSyntaxMode)
     notifications.show({
       color: 'blue',
       message: 'Root input is now loaded in the editor.',
@@ -616,10 +616,8 @@ function Workbench() {
   }, [isCompact])
 
   const transformSections: Array<TransformActionSection> = getTransformSections(
-    TRANSFORM_DEFINITIONS.filter((definition) =>
-      activeSession.currentFormat.transformIds.includes(definition.id),
-    ),
-    activeSession.syntaxMode,
+    TRANSFORM_DEFINITIONS,
+    activeSession.currentFormat,
   )
     .map((section) => {
       const actions = section.transforms.flatMap(

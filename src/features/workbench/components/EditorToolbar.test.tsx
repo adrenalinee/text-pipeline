@@ -158,7 +158,7 @@ describe('EditorToolbar capabilities', () => {
     )
 
     const toggle = screen.getByLabelText('Show view')
-    expect(toggle.disabled).toBe(true)
+    expect((toggle as HTMLButtonElement).disabled).toBe(true)
     expect(toggle.getAttribute('aria-pressed')).toBe('false')
   })
 

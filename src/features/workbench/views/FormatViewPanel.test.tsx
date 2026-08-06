@@ -28,12 +28,12 @@ afterEach(cleanup)
 const format = {
   defaultViewId: 'structured-tree',
   description: 'JSON data',
+  icon: <span />,
   id: 'json',
   label: 'JSON',
   loadEditorExtensions: async () => [],
   sampleIds: [],
   transformIds: [],
-  validation: 'supported',
   viewIds: ['structured-tree'],
 } satisfies FormatCapability
 
@@ -43,7 +43,6 @@ const views: ReadonlyArray<FormatViewDefinition> = [
     id: 'structured-tree',
     label: 'Tree view',
     render: () => <div>Rendered tree</div>,
-    supportedFormats: ['json'],
   },
 ]
 

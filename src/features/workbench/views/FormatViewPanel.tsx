@@ -1,5 +1,5 @@
 import { ActionIcon, Box, Group, Loader, Text, Tooltip } from '@mantine/core'
-import { Columns2, EyeOff, Maximize, Minimize, PanelLeftClose } from 'lucide-react'
+import { EyeOff, Maximize, Minimize } from 'lucide-react'
 import { Suspense } from 'react'
 
 import type {

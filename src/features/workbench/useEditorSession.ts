@@ -12,10 +12,16 @@ import type { ReplaceSession } from './search/useSearchReplace'
 import type { TextSample } from './samples'
 import { DEFAULT_SQL_DIALECT, SQL_DIALECT_OPTIONS } from './sqlDialects'
 import type { SqlDialect } from './sqlDialects'
-import type { SyntaxMode, WorkbenchViewMode } from './types'
-import { createSqlLintSource } from './utils/formatLinting'
-import { validateFormat, validateSqlDialect } from './utils/formatValidation'
-import type { FormatValidationResult } from './utils/formatValidation'
+import type {
+  FormatSelectionState,
+  FormatValidationResult,
+  SyntaxMode,
+  WorkbenchViewMode,
+} from './types'
+import {
+  detectFormat,
+  FORMAT_DETECTION_DEBOUNCE_MS,
+} from './utils/formatDetection'
 import {
   createClipboardPasteEdit,
   getTextForClipboard,
@@ -30,6 +36,13 @@ import {
 export type EditorId = 'main' | 'sub'
 
 export const DEFAULT_ENCODING_LABEL = 'UTF-8'
+
+export type FormatDetectionStatus =
+  | 'detected'
+  | 'detecting'
+  | 'idle'
+  | 'too-large'
+  | 'undetermined'
 
 export const ENCODING_OPTIONS: Array<{
   description: string
@@ -58,6 +71,11 @@ export function useEditorSession({
 }) {
   const [value, setValue] = useState(initialValue)
   const [syntaxMode, setSyntaxMode] = useState<SyntaxMode>(initialSyntaxMode)
+  const [formatSelection, setFormatSelection] = useState<FormatSelectionState>({
+    mode: 'auto',
+  })
+  const [formatDetectionStatus, setFormatDetectionStatus] =
+    useState<FormatDetectionStatus>('idle')
   const [syntaxModalOpened, setSyntaxModalOpened] = useState(false)
   const [sampleModalOpened, setSampleModalOpened] = useState(false)
   const [encoding, setEncoding] = useState(DEFAULT_ENCODING_LABEL)
@@ -76,6 +94,7 @@ export function useEditorSession({
     useState<FormatValidationResult | null>(null)
   const editorViewRef = useRef<EditorView | null>(null)
   const onManualChangeRef = useRef(onManualChange)
+  const detectionRequestRef = useRef(0)
 
   onManualChangeRef.current = onManualChange
 
@@ -98,14 +117,11 @@ export function useEditorSession({
       const syntaxExtensions = await currentFormat.loadEditorExtensions()
       let lintSource: LintSource | null = null
 
-      if (validationEnabled) {
-        if (syntaxMode === 'sql') {
-          lintSource = sqlDialect.parserDatabase
-            ? createSqlLintSource(sqlDialect.parserDatabase)
-            : null
-        } else if (currentFormat.loadLintSource) {
-          lintSource = await currentFormat.loadLintSource()
-        }
+      if (validationEnabled && currentFormat.validation) {
+        lintSource = await currentFormat.validation.loadLintSource({
+          sqlParserDatabase:
+            syntaxMode === 'sql' ? sqlDialect.parserDatabase : undefined,
+        })
       }
 
       if (cancelled) return
@@ -137,16 +153,16 @@ export function useEditorSession({
   ])
 
   useEffect(() => {
-    if (!(validationEnabled && currentFormat.validation === 'supported')) {
+    if (!(validationEnabled && currentFormat.validation)) {
       setValidationResult(null)
       return
     }
 
     let cancelled = false
-    const validation =
-      syntaxMode === 'sql'
-        ? validateSqlDialect(value, sqlDialect.parserDatabase)
-        : validateFormat(value, syntaxMode)
+    const validation = currentFormat.validation.validate(value, {
+      sqlParserDatabase:
+        syntaxMode === 'sql' ? sqlDialect.parserDatabase : undefined,
+    })
 
     void validation.then((result) => {
       if (!cancelled) setValidationResult(result)
@@ -155,13 +171,50 @@ export function useEditorSession({
     return () => {
       cancelled = true
     }
-  }, [
-    currentFormat.validation,
-    sqlDialect,
-    syntaxMode,
-    validationEnabled,
-    value,
-  ])
+  }, [currentFormat, sqlDialect, syntaxMode, validationEnabled, value])
+
+  useEffect(() => {
+    if (formatSelection.mode !== 'auto') return
+
+    const requestId = detectionRequestRef.current + 1
+    detectionRequestRef.current = requestId
+
+    if (value.trim().length === 0) {
+      setSyntaxMode('plain')
+      setFormatDetectionStatus('idle')
+      return
+    }
+
+    setFormatDetectionStatus('detecting')
+    const timeout = window.setTimeout(() => {
+      void detectFormat(value).then((attempt) => {
+        if (detectionRequestRef.current !== requestId) return
+
+        if (attempt.status === 'detected') {
+          setSyntaxMode(attempt.result.format)
+          setFormatSelection({
+            mode: 'locked',
+            origin: 'detected',
+            result: attempt.result,
+          })
+          setFormatDetectionStatus('detected')
+          return
+        }
+
+        setSyntaxMode('plain')
+        setFormatDetectionStatus(
+          attempt.status === 'too-large' ? 'too-large' : 'undetermined',
+        )
+      })
+    }, FORMAT_DETECTION_DEBOUNCE_MS)
+
+    return () => {
+      window.clearTimeout(timeout)
+      if (detectionRequestRef.current === requestId) {
+        detectionRequestRef.current += 1
+      }
+    }
+  }, [formatSelection, value])
 
   function updateValue(nextValue: string) {
     setValue(nextValue)
@@ -269,18 +322,36 @@ export function useEditorSession({
   }
 
   function chooseSyntax(nextSyntaxMode: SyntaxMode) {
-    if (nextSyntaxMode !== syntaxMode) onManualChangeRef.current?.()
     setSyntaxMode(nextSyntaxMode)
+    setFormatSelection({ mode: 'locked', origin: 'manual' })
+    setFormatDetectionStatus('idle')
     if (getFormatDefinition(nextSyntaxMode).viewIds.length === 0) {
       setViewModeState('source')
     }
     setSyntaxModalOpened(false)
   }
 
+  function enableAutoDetection() {
+    setSyntaxMode('plain')
+    setFormatSelection({ mode: 'auto' })
+    setFormatDetectionStatus('idle')
+    setViewModeState('source')
+    setSyntaxModalOpened(false)
+  }
+
+  function setKnownSyntaxMode(nextSyntaxMode: SyntaxMode) {
+    setSyntaxMode(nextSyntaxMode)
+    setFormatSelection({ mode: 'locked', origin: 'known' })
+    setFormatDetectionStatus('idle')
+    if (getFormatDefinition(nextSyntaxMode).viewIds.length === 0) {
+      setViewModeState('source')
+    }
+  }
+
   function loadSample(sample: TextSample) {
     onManualChangeRef.current?.()
     setValue(sample.value)
-    setSyntaxMode(sample.syntaxMode)
+    setKnownSyntaxMode(sample.syntaxMode)
     setSampleModalOpened(false)
     setViewModeState('source')
     notifications.show({
@@ -312,10 +383,13 @@ export function useEditorSession({
     copyText,
     currentFormat,
     cursorPosition,
+    enableAutoDetection,
     editorExtensions,
     editorViewRef,
     encoding,
     encodingModalOpened,
+    formatDetectionStatus,
+    formatSelection,
     goToLineColumn,
     goToLineModalOpened,
     hasEditorSelection,
@@ -335,7 +409,7 @@ export function useEditorSession({
     setSourceViewEnabled,
     setSqlDialect,
     setSyntaxModalOpened,
-    setSyntaxMode,
+    setKnownSyntaxMode,
     setValidationEnabled,
     setValue,
     setViewMode,

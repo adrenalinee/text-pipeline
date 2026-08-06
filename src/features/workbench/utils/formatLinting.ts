@@ -3,7 +3,6 @@ import type { Text } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 import type { ParserError } from 'parse5'
 
-import type { SyntaxMode } from '../types'
 import {
   formatHtmlParseError,
   getCsvError,
@@ -18,50 +17,12 @@ import {
 } from './formatValidation'
 import type { FormatSyntaxError } from './formatValidation'
 
-// Lint sources are resolved on demand so their parser packages (js-yaml,
-// parse5, smol-toml, graphql, the JSON language) stay out of the initial
-// bundle until a format that needs them is linted.
-export async function loadFormatLintSource(
-  syntaxMode: SyntaxMode,
-): Promise<LintSource | null> {
-  if (syntaxMode === 'json') {
-    const { jsonParseLinter } = await import('@codemirror/lang-json')
-    return jsonParseLinter()
-  }
+// Lint sources are resolved by each format capability so adding a format does
+// not require another central syntax-mode switch.
+export async function loadJsonLintSource(): Promise<LintSource> {
+  const { jsonParseLinter } = await import('@codemirror/lang-json')
 
-  if (syntaxMode === 'html') {
-    return loadHtmlLintSource()
-  }
-
-  if (syntaxMode === 'yaml') {
-    return loadYamlLintSource()
-  }
-
-  if (syntaxMode === 'toml') {
-    return loadTomlLintSource()
-  }
-
-  if (syntaxMode === 'xml') {
-    return xmlLintSource
-  }
-
-  if (syntaxMode === 'csv') {
-    return csvLintSource
-  }
-
-  if (syntaxMode === 'graphql') {
-    return graphqlLintSource
-  }
-
-  if (syntaxMode === 'ndjson') {
-    return ndjsonLintSource
-  }
-
-  if (syntaxMode === 'jwt') {
-    return jwtLintSource
-  }
-
-  return null
+  return jsonParseLinter()
 }
 
 const xmlLintSource: LintSource = (view) =>
@@ -92,7 +53,7 @@ export function createSqlLintSource(database: string): LintSource {
     )
 }
 
-async function loadYamlLintSource(): Promise<LintSource> {
+export async function loadYamlLintSource(): Promise<LintSource> {
   const { load } = await import('js-yaml')
 
   return (view) => {
@@ -113,7 +74,7 @@ async function loadYamlLintSource(): Promise<LintSource> {
   }
 }
 
-async function loadTomlLintSource(): Promise<LintSource> {
+export async function loadTomlLintSource(): Promise<LintSource> {
   const { parse: parseToml } = await import('smol-toml')
 
   return (view) => {
@@ -134,7 +95,7 @@ async function loadTomlLintSource(): Promise<LintSource> {
   }
 }
 
-async function loadHtmlLintSource(): Promise<LintSource> {
+export async function loadHtmlLintSource(): Promise<LintSource> {
   const { parseFragment } = await import('parse5')
 
   return (view) => {
@@ -154,6 +115,26 @@ async function loadHtmlLintSource(): Promise<LintSource> {
       }),
     )
   }
+}
+
+export async function loadXmlLintSource(): Promise<LintSource> {
+  return xmlLintSource
+}
+
+export async function loadCsvLintSource(): Promise<LintSource> {
+  return csvLintSource
+}
+
+export async function loadGraphqlLintSource(): Promise<LintSource> {
+  return graphqlLintSource
+}
+
+export async function loadNdjsonLintSource(): Promise<LintSource> {
+  return ndjsonLintSource
+}
+
+export async function loadJwtLintSource(): Promise<LintSource> {
+  return jwtLintSource
 }
 
 function toSyntaxDiagnostics(

@@ -1,4 +1,8 @@
-import type { SyntaxMode, TransformDefinition, TransformGroup } from '../types'
+import type {
+  FormatCapability,
+  TransformDefinition,
+  TransformGroup,
+} from '../types'
 
 export type TransformDefinitionSection = {
   id: TransformGroup
@@ -6,50 +10,31 @@ export type TransformDefinitionSection = {
   transforms: Array<TransformDefinition>
 }
 
-const FORMAT_SECTION_TITLES: Record<SyntaxMode, string> = {
-  csv: 'CSV transforms',
-  diff: 'Diff transforms',
-  graphql: 'GraphQL transforms',
-  html: 'HTML transforms',
-  json: 'JSON transforms',
-  jwt: 'JWT transforms',
-  markdown: 'Markdown transforms',
-  ndjson: 'NDJSON transforms',
-  plain: 'Text transforms',
-  sql: 'SQL transforms',
-  toml: 'TOML transforms',
-  xml: 'XML transforms',
-  yaml: 'YAML transforms',
-}
-
 export function isTransformAvailable(
   transform: TransformDefinition,
-  selectedFormat: SyntaxMode,
+  format: FormatCapability,
 ) {
-  return (
-    transform.inputFormats === '*' ||
-    transform.inputFormats.includes(selectedFormat)
-  )
+  return format.transformIds.includes(transform.id)
 }
 
 export function getAvailableTransforms(
   transforms: ReadonlyArray<TransformDefinition>,
-  selectedFormat: SyntaxMode,
+  format: FormatCapability,
 ) {
   return transforms.filter((transform) =>
-    isTransformAvailable(transform, selectedFormat),
+    isTransformAvailable(transform, format),
   )
 }
 
 export function getTransformSections(
   transforms: ReadonlyArray<TransformDefinition>,
-  selectedFormat: SyntaxMode,
+  format: FormatCapability,
 ): Array<TransformDefinitionSection> {
-  const availableTransforms = getAvailableTransforms(transforms, selectedFormat)
+  const availableTransforms = getAvailableTransforms(transforms, format)
   const sections: Array<TransformDefinitionSection> = [
     {
       id: 'format',
-      title: FORMAT_SECTION_TITLES[selectedFormat],
+      title: `${format.label} transforms`,
       transforms: availableTransforms.filter(
         (transform) => transform.group === 'format',
       ),

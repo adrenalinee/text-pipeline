@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { TEXT_SAMPLES } from './samples'
+import { TRANSFORM_DEFINITIONS } from './transforms/definitions'
 import {
   FORMAT_DEFINITIONS,
   FORMAT_OPTIONS,
@@ -54,7 +56,7 @@ describe('FORMAT_DEFINITIONS', () => {
   it('keeps plain and TOML source-first until visual views are added', () => {
     expect(FORMAT_DEFINITIONS.plain.viewIds).toEqual([])
     expect(FORMAT_DEFINITIONS.toml.viewIds).toEqual([])
-    expect(FORMAT_DEFINITIONS.toml.validation).toBe('supported')
+    expect(FORMAT_DEFINITIONS.toml.validation).toBeDefined()
   })
 
   it('keeps transform availability in the registry', () => {
@@ -74,12 +76,12 @@ describe('FORMAT_DEFINITIONS', () => {
 
   it('registers the lazily loaded JWT, NDJSON, and GraphQL formats', () => {
     expect(FORMAT_DEFINITIONS.jwt.transformIds).toContain('jwt-decode')
-    expect(FORMAT_DEFINITIONS.jwt.validation).toBe('supported')
+    expect(FORMAT_DEFINITIONS.jwt.validation).toBeDefined()
     expect(FORMAT_DEFINITIONS.ndjson.transformIds).toContain('ndjson-to-json')
     expect(FORMAT_DEFINITIONS.json.transformIds).toContain('json-to-ndjson')
     expect(FORMAT_DEFINITIONS.graphql.transformIds).toContain('graphql-format')
     expect(FORMAT_DEFINITIONS.graphql.transformIds).toContain('graphql-minify')
-    expect(FORMAT_DEFINITIONS.graphql.validation).toBe('supported')
+    expect(FORMAT_DEFINITIONS.graphql.validation).toBeDefined()
   })
 
   it('resolves editor extensions on demand for every format', async () => {
@@ -92,20 +94,46 @@ describe('FORMAT_DEFINITIONS', () => {
 })
 
 describe('FORMAT_VIEWS', () => {
-  it('declares supported formats for each visual view', () => {
-    expect(
-      FORMAT_VIEWS.find((view) => view.id === 'diff-patch')?.supportedFormats,
-    ).toEqual(['diff'])
-    expect(
-      FORMAT_VIEWS.find((view) => view.id === 'html-preview')?.supportedFormats,
-    ).toEqual(['html'])
-    expect(
-      FORMAT_VIEWS.find((view) => view.id === 'structured-tree')
-        ?.supportedFormats,
-    ).toEqual(['json', 'yaml'])
-    expect(
-      FORMAT_VIEWS.find((view) => view.id === 'markdown-document')
-        ?.supportedFormats,
-    ).toEqual(['markdown'])
+  it('resolves every registered view from format capabilities', () => {
+    const viewIds = new Set(FORMAT_VIEWS.map((view) => view.id))
+
+    for (const format of FORMAT_OPTIONS) {
+      expect(format.viewIds.every((viewId) => viewIds.has(viewId))).toBe(true)
+      if ('defaultViewId' in format) {
+        expect(format.viewIds).toContain(format.defaultViewId)
+      }
+    }
+  })
+
+  it('keeps samples, transforms, and detection wired through capabilities', () => {
+    const sampleIds = FORMAT_OPTIONS.flatMap((format) =>
+      format.sampleIds.map((sampleId) => ({ format: format.id, sampleId })),
+    )
+    const transformIds = new Set(
+      TRANSFORM_DEFINITIONS.map((transform) => transform.id),
+    )
+
+    expect(sampleIds.map(({ sampleId }) => sampleId).sort()).toEqual(
+      TEXT_SAMPLES.map((sample) => sample.id).sort(),
+    )
+
+    for (const { format, sampleId } of sampleIds) {
+      expect(
+        TEXT_SAMPLES.find((sample) => sample.id === sampleId)?.syntaxMode,
+      ).toBe(format)
+    }
+
+    for (const format of FORMAT_OPTIONS) {
+      expect(
+        format.transformIds.every((transformId) =>
+          transformIds.has(transformId),
+        ),
+      ).toBe(true)
+      if (format.id === 'plain') {
+        expect('detection' in format).toBe(false)
+      } else {
+        expect(format.detection).toBeDefined()
+      }
+    }
   })
 })

@@ -1,7 +1,27 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 
-import { validateFormat } from './formatValidation'
+import { getFormatDefinition } from '../formats'
+import type { FormatValidationResult, SyntaxMode } from '../types'
+
+async function validateFormat(
+  value: string,
+  syntaxMode: SyntaxMode,
+): Promise<FormatValidationResult> {
+  const format = getFormatDefinition(syntaxMode)
+
+  if (!format.validation) {
+    return {
+      message: `${format.label} has no syntax validator.`,
+      status: 'unsupported',
+      title: 'No validator',
+    }
+  }
+
+  return format.validation.validate(value, {
+    sqlParserDatabase: syntaxMode === 'sql' ? 'PostgreSQL' : undefined,
+  })
+}
 
 describe('format validation', () => {
   it('reports JSON syntax line and column when available', async () => {
