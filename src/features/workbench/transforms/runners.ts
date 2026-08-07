@@ -89,6 +89,11 @@ export const TRANSFORM_RUNNERS: TransformRunnerMap = {
     output: await stringifyYaml(await parseTomlInput(input)),
     outputFormat: 'yaml',
   }),
+  // Keeps the current syntax mode: trimming the document edges never changes
+  // which format the text is, so no outputFormat is reported.
+  trim: (input) => ({
+    output: input.trim(),
+  }),
   'typescript-format': async (input) => ({
     output: await formatCode(input, 'typescript'),
     outputFormat: 'typescript',

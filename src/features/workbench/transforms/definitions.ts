@@ -149,6 +149,12 @@ export const TRANSFORM_DEFINITIONS = [
     label: 'Crop to selection',
   },
   {
+    description: 'Remove whitespace from the start and end of the whole text',
+    group: 'general',
+    id: 'trim',
+    label: 'Trim',
+  },
+  {
     description: 'Encode text for use in URLs',
     group: 'general',
     id: 'url-encode',
