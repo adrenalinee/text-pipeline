@@ -80,6 +80,8 @@ describe('FORMAT_DEFINITIONS', () => {
       'json-format',
     )
     expect(FORMAT_DEFINITIONS.markdown.transformIds).toContain('url-encode')
+    expect(FORMAT_DEFINITIONS.plain.transformIds).toContain('trim')
+    expect(FORMAT_DEFINITIONS.json.transformIds).toContain('trim')
   })
 
   it('registers the lazily loaded JWT, NDJSON, and GraphQL formats', () => {

@@ -114,6 +114,7 @@ const TYPESCRIPT_TRANSFORMS = [
 
 const GENERAL_TRANSFORMS = [
   'crop-selection',
+  'trim',
   'url-encode',
   'url-decode',
   'base64-encode',

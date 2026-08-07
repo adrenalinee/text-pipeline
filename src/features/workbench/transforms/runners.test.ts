@@ -54,6 +54,21 @@ describe('transform runners', () => {
     })
   })
 
+  it('trims whitespace from the start and end of the whole text', async () => {
+    expect(
+      await runTransform('trim', '\n \t  first\n  middle  \n\n  last \t\n \n'),
+    ).toEqual({
+      output: 'first\n  middle  \n\n  last',
+    })
+  })
+
+  it('keeps already trimmed text and inner whitespace unchanged', async () => {
+    expect(await runTransform('trim', '{\n  "a": 1\n}')).toEqual({
+      output: '{\n  "a": 1\n}',
+    })
+    expect(await runTransform('trim', '   \n\t ')).toEqual({ output: '' })
+  })
+
   it('formats HTML with Prettier', async () => {
     expect(
       await runTransform('html-format', '<main><h1>Hi</h1><p>x</p></main>'),

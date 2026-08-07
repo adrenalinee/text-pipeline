@@ -118,6 +118,7 @@ export type TransformId =
   | 'sql-minify'
   | 'toml-to-json'
   | 'toml-to-yaml'
+  | 'trim'
   | 'typescript-format'
   | 'url-decode'
   | 'url-encode'

@@ -136,6 +136,7 @@ describe('transform filtering', () => {
       {
         ids: [
           'crop-selection',
+          'trim',
           'url-encode',
           'url-decode',
           'base64-encode',
@@ -163,6 +164,7 @@ describe('transform filtering', () => {
       {
         ids: [
           'crop-selection',
+          'trim',
           'url-encode',
           'url-decode',
           'base64-encode',
@@ -190,6 +192,7 @@ describe('transform filtering', () => {
       {
         ids: [
           'crop-selection',
+          'trim',
           'url-encode',
           'url-decode',
           'base64-encode',
@@ -208,6 +211,7 @@ describe('transform filtering', () => {
       ).map(({ id }) => id),
     ).toEqual([
       'crop-selection',
+      'trim',
       'url-encode',
       'url-decode',
       'base64-encode',
@@ -223,6 +227,7 @@ describe('transform filtering', () => {
       ).map(({ id }) => id),
     ).toEqual([
       'crop-selection',
+      'trim',
       'url-encode',
       'url-decode',
       'base64-encode',
