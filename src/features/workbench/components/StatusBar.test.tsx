@@ -113,11 +113,11 @@ describe('StatusBar', () => {
     expect(screen.getByText('5 chars')).toBeTruthy()
   })
 
-  it('formats line counts with thousands separators', () => {
+  it('formats numeric values with thousands separators', () => {
     renderWith(
       <StatusBar
-        charCount={12345}
-        cursor={{ column: 1, line: 1234 }}
+        charCount={67890}
+        cursor={{ column: 5678, line: 1234 }}
         encoding="UTF-8"
         formatLabel="Plain text"
         lineCount={12345}
@@ -130,8 +130,9 @@ describe('StatusBar', () => {
     )
 
     expect(screen.getByText('12,345')).toBeTruthy()
-    expect(screen.getByText('5000 chars, 1,234 lines')).toBeTruthy()
-    expect(screen.getByText('1234:1')).toBeTruthy()
+    expect(screen.getByText('67,890')).toBeTruthy()
+    expect(screen.getByText('5,000 chars, 1,234 lines')).toBeTruthy()
+    expect(screen.getByText('1,234:5,678')).toBeTruthy()
   })
 
   it('leaves visibility to the pane instead of hiding itself', () => {

@@ -70,6 +70,12 @@ export function StatusBar({
   validationResult: FormatValidationResult | null
 }) {
   const formattedLineCount = integerFormatter.format(lineCount)
+  const formattedCharCount = integerFormatter.format(charCount)
+  const formattedCursorLine = integerFormatter.format(cursor.line)
+  const formattedCursorColumn = integerFormatter.format(cursor.column)
+  const formattedSelectionCharCount = selection
+    ? integerFormatter.format(selection.charCount)
+    : null
   const formattedSelectionLineCount = selection
     ? integerFormatter.format(selection.lineCount)
     : null
@@ -132,7 +138,7 @@ export function StatusBar({
 
       <Group className="statusBarGroup statusBarGroupRight" gap={4}>
         <Tooltip
-          label={`${formattedLineCount} line${lineCount === 1 ? '' : 's'}, ${charCount} character${charCount === 1 ? '' : 's'} total`}
+          label={`${formattedLineCount} line${lineCount === 1 ? '' : 's'}, ${formattedCharCount} character${charCount === 1 ? '' : 's'} total`}
           withArrow
         >
           <Group className="statusBarMetric" gap={10} wrap="nowrap">
@@ -143,7 +149,9 @@ export function StatusBar({
               </span>
             </span>
             <span className="statusBarMetricItem">
-              <span className="statusBarMetricValue">{charCount}</span>
+              <span className="statusBarMetricValue">
+                {formattedCharCount}
+              </span>
               <span className="statusBarMetricUnit">
                 {charCount === 1 ? 'char' : 'chars'}
               </span>
@@ -153,7 +161,7 @@ export function StatusBar({
 
         {selection && (
           <Tooltip
-            label={`Selected ${selection.charCount} character${
+            label={`Selected ${formattedSelectionCharCount} character${
               selection.charCount === 1 ? '' : 's'
             } across ${formattedSelectionLineCount} line${
               selection.lineCount === 1 ? '' : 's'
@@ -163,7 +171,7 @@ export function StatusBar({
             <Group className="statusBarSelection" gap={6} wrap="nowrap">
               <TextSelect size={13} />
               <span>
-                {selection.charCount} chars
+                {formattedSelectionCharCount} chars
                 {selection.lineCount > 1
                   ? `, ${formattedSelectionLineCount} lines`
                   : ''}
@@ -181,7 +189,7 @@ export function StatusBar({
             aria-label="Go to line and column"
             onClick={onGoToLine}
           >
-            {cursor.line}:{cursor.column}
+            {formattedCursorLine}:{formattedCursorColumn}
           </Button>
         </Tooltip>
       </Group>
