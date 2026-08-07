@@ -29,6 +29,7 @@ import {
   ListTree,
   Moon,
   Replace,
+  Scissors,
   Sun,
 } from 'lucide-react'
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
@@ -933,6 +934,10 @@ function Workbench() {
 function getTransformIcon(id: TransformDefinition['id']) {
   if (id === 'crop-selection') {
     return <Crop size={16} />
+  }
+
+  if (id === 'trim') {
+    return <Scissors size={16} />
   }
 
   if (id === 'json-format') {
