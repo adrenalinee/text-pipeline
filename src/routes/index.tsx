@@ -6,6 +6,7 @@ import {
   Button,
   Group,
   Loader,
+  Menu,
   MantineProvider,
   Modal,
   Stack,
@@ -25,6 +26,13 @@ import {
   Crop,
   FileJson,
   GitCompareArrows,
+  Database,
+  CircleCheck,
+  TriangleAlert,
+  RefreshCw,
+  Trash2,
+  Download,
+  Upload,
   Link,
   ListTree,
   Moon,
@@ -59,6 +67,16 @@ import {
   WORKING_REVISION_ID,
 } from '#/features/workbench/history'
 import type { ReplaceSession } from '#/features/workbench/search/useSearchReplace'
+import {
+  clearWorkspaceStorage,
+  createDefaultWorkspaceState,
+  loadWorkspace,
+  readLayoutBootstrap,
+} from '#/features/workbench/persistence'
+import type {
+  LoadedWorkspace,
+  WorkbenchPersistedState,
+} from '#/features/workbench/persistence'
 import { cropToSelection } from '#/features/workbench/transforms/cropSelection'
 import { TRANSFORM_DEFINITIONS } from '#/features/workbench/transforms/definitions'
 import { getTransformSections } from '#/features/workbench/transforms/filterTransforms'
@@ -81,8 +99,11 @@ import type {
 import type {
   EditorId,
   EditorSession,
+  EditorSessionInitialState,
 } from '#/features/workbench/useEditorSession'
 import { useEditorSession } from '#/features/workbench/useEditorSession'
+import { useWorkspacePersistence } from '#/features/workbench/useWorkspacePersistence'
+import type { WorkspaceSaveStatus } from '#/features/workbench/useWorkspacePersistence'
 import { theme } from '#/theme.ts'
 
 const CompareWorkspace = lazy(() =>
@@ -106,99 +127,185 @@ const LEFT_SIDEBAR_WIDTH = 264
 const RIGHT_SIDEBAR_WIDTH = 296
 const RAIL_WIDTH = 48
 
-const LEFT_PANEL_STORAGE_KEY = 'text-pipeline:leftSidebarOpened'
-const RIGHT_PANEL_STORAGE_KEY = 'text-pipeline:rightSidebarOpened'
-const SPLIT_RATIO_STORAGE_KEY = 'text-pipeline:editorSplitRatio'
-
-function readStoredPanelOpened(key: string, fallback: boolean) {
-  if (typeof window === 'undefined') {
-    return fallback
-  }
-
-  try {
-    const stored = window.localStorage.getItem(key)
-    return stored === null ? fallback : stored === 'true'
-  } catch {
-    return fallback
-  }
-}
-
-function writeStoredPanelOpened(key: string, value: boolean) {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  try {
-    window.localStorage.setItem(key, String(value))
-  } catch {
-    // Ignore storage failures (private mode, quota, disabled storage).
-  }
-}
-
-function readStoredSplitRatio() {
-  if (typeof window === 'undefined') return 50
-
-  try {
-    const stored = Number(window.localStorage.getItem(SPLIT_RATIO_STORAGE_KEY))
-    return Number.isFinite(stored) && stored >= 20 && stored <= 80 ? stored : 50
-  } catch {
-    return 50
-  }
-}
-
-function writeStoredSplitRatio(value: number) {
-  try {
-    window.localStorage.setItem(SPLIT_RATIO_STORAGE_KEY, String(value))
-  } catch {
-    // Ignore storage failures (private mode, quota, disabled storage).
-  }
-}
-
 function Home() {
   return (
-    <MantineProvider theme={theme}>
+    <MantineProvider defaultColorScheme="dark" theme={theme}>
       <Notifications position="bottom-center" />
-      <Workbench />
+      <WorkspaceBootstrap />
     </MantineProvider>
   )
 }
 
-function Workbench() {
-  const [leftOpened, setLeftOpened] = useState(() =>
-    readStoredPanelOpened(LEFT_PANEL_STORAGE_KEY, false),
+function WorkspaceBootstrap() {
+  const { clearColorScheme } = useMantineColorScheme()
+  const [loadSequence, setLoadSequence] = useState(0)
+  const [loaded, setLoaded] = useState<LoadedWorkspace | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [clearRequested, setClearRequested] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    const fallback = createDefaultWorkspaceState()
+    fallback.layout = readLayoutBootstrap(fallback.layout)
+    setLoaded(null)
+    setLoadError(null)
+
+    void loadWorkspace(fallback)
+      .then((workspace) => {
+        if (!cancelled) setLoaded(workspace)
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setLoadError(
+            error instanceof Error
+              ? error.message
+              : 'The saved workspace could not be loaded.',
+          )
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [loadSequence])
+
+  if (loadError) {
+    return (
+      <Box className="workspaceBootstrapState">
+        <Stack align="center" gap="sm">
+          <TriangleAlert color="var(--mantine-color-red-6)" size={24} />
+          <Text fw={700}>Local workspace unavailable</Text>
+          <Text c="dimmed" maw={460} size="sm" ta="center">
+            {loadError} The saved data was left untouched.
+          </Text>
+          <Group gap="xs">
+            <Button
+              leftSection={<RefreshCw size={14} />}
+              variant="default"
+              onClick={() => setLoadSequence((value) => value + 1)}
+            >
+              Retry
+            </Button>
+            <Button
+              color="red"
+              leftSection={<Trash2 size={14} />}
+              onClick={() => setClearRequested(true)}
+            >
+              Clear saved workspace
+            </Button>
+          </Group>
+          <Modal
+            centered
+            opened={clearRequested}
+            title="Clear saved workspace?"
+            onClose={() => setClearRequested(false)}
+          >
+            <Stack gap="md">
+              <Text size="sm">
+                This permanently removes the locally saved text, history, and
+                workspace settings from this browser profile.
+              </Text>
+              <Group justify="flex-end" gap="xs">
+                <Button
+                  variant="default"
+                  onClick={() => setClearRequested(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  color="red"
+                  onClick={() => {
+                    void clearWorkspaceStorage().then(() => {
+                      clearColorScheme()
+                      setClearRequested(false)
+                      setLoadSequence((value) => value + 1)
+                    })
+                  }}
+                >
+                  Clear and reset
+                </Button>
+              </Group>
+            </Stack>
+          </Modal>
+        </Stack>
+      </Box>
+    )
+  }
+
+  if (!loaded) {
+    return <WorkspaceLoadingState fullHeight label="Loading local workspace" />
+  }
+
+  return (
+    <Workbench
+      key={`${loadSequence}-${loaded.revision}`}
+      initialWorkspace={loaded}
+      onReload={() => setLoadSequence((value) => value + 1)}
+    />
   )
-  const [rightOpened, setRightOpened] = useState(() =>
-    readStoredPanelOpened(RIGHT_PANEL_STORAGE_KEY, true),
+}
+
+function Workbench({
+  initialWorkspace,
+  onReload,
+}: {
+  initialWorkspace: LoadedWorkspace
+  onReload: () => void
+}) {
+  const initial = initialWorkspace.state
+  const [sidebarLayouts, setSidebarLayouts] = useState({
+    compact: initial.layout.compact,
+    wide: initial.layout.wide,
+  })
+  const [commits, setCommits] = useState<Array<TextCommit>>(
+    initial.history.commits,
   )
-  const [commits, setCommits] = useState<Array<TextCommit>>([])
   const [initialRevision, setInitialRevision] = useState<{
     syntaxMode: SyntaxMode
     text: string
-  }>(INITIAL_TEXT_REVISION)
-  const [rootCaptured, setRootCaptured] = useState(false)
-  const [selectedRevisionId, setSelectedRevisionId] =
-    useState(WORKING_REVISION_ID)
-  const [workingBaseRevisionId, setWorkingBaseRevisionId] =
-    useState(ROOT_REVISION_ID)
-  const [activeEditorId, setActiveEditorId] = useState<EditorId>('main')
-  const [splitEnabled, setSplitEnabled] = useState(false)
-  const [compareEnabled, setCompareEnabled] = useState(false)
-  const [splitRatio, setSplitRatio] = useState(readStoredSplitRatio)
+  }>(initial.history.initialRevision)
+  const [rootCaptured, setRootCaptured] = useState(initial.history.rootCaptured)
+  const [selectedRevisionId, setSelectedRevisionId] = useState(
+    initial.history.selectedRevisionId,
+  )
+  const [workingBaseRevisionId, setWorkingBaseRevisionId] = useState(
+    initial.history.workingBaseRevisionId,
+  )
+  const [activeEditorId, setActiveEditorId] = useState<EditorId>(
+    initial.layout.activeEditorId,
+  )
+  const [splitEnabled, setSplitEnabled] = useState(initial.layout.splitEnabled)
+  const [compareEnabled, setCompareEnabled] = useState(
+    initial.layout.compareEnabled,
+  )
+  const [splitRatio, setSplitRatio] = useState(initial.layout.splitRatio)
   const [runningTransformLabel, setRunningTransformLabel] = useState<
     string | null
   >(null)
   const [pendingCheckout, setPendingCheckout] = useState<
     TextCommit | typeof ROOT_REVISION_ID | null
   >(null)
-  const commitSeqRef = useRef(0)
-  const { setColorScheme } = useMantineColorScheme()
-  const isCompact = useMediaQuery('(max-width: 48em)')
+  const [storageAction, setStorageAction] = useState<
+    'clear' | 'load' | 'overwrite' | null
+  >(null)
+  const [commitSequence, setCommitSequence] = useState(
+    initial.history.commitSequence,
+  )
+  const commitSeqRef = useRef(initial.history.commitSequence)
+  const { clearColorScheme, setColorScheme } = useMantineColorScheme()
+  const initialCompact = useRef(
+    window.matchMedia('(max-width: 48em)').matches,
+  ).current
+  const isCompact = useMediaQuery('(max-width: 48em)', initialCompact, {
+    getInitialValueInEffect: false,
+  })
   const computedColorScheme = useComputedColorScheme('dark', {
     getInitialValueInEffect: true,
   })
   const isDark = computedColorScheme === 'dark'
   const mainSession = useEditorSession({
     id: 'main',
+    initialState: initial.editors.main,
     initialSyntaxMode: INITIAL_TEXT_REVISION.syntaxMode,
     initialValue: INITIAL_TEXT_REVISION.text,
     onBeforeSampleLoad: commitWorkingText,
@@ -207,6 +314,7 @@ function Workbench() {
   })
   const subSession = useEditorSession({
     id: 'sub',
+    initialState: initial.editors.sub,
     initialSyntaxMode: 'plain',
     initialValue: '',
   })
@@ -229,9 +337,114 @@ function Workbench() {
     workingBaseRevision,
     mainSession.value,
   )
+  const sidebarLayout = isCompact ? sidebarLayouts.compact : sidebarLayouts.wide
+  const { leftOpened, rightOpened } = sidebarLayout
+  const persistedWorkspace = useMemo<WorkbenchPersistedState>(
+    () => ({
+      editors: {
+        main: getPersistedEditorState(mainSession),
+        sub: getPersistedEditorState(subSession),
+      },
+      history: {
+        commits,
+        commitSequence,
+        initialRevision,
+        rootCaptured,
+        selectedRevisionId,
+        workingBaseRevisionId,
+      },
+      layout: {
+        activeEditorId,
+        compareEnabled,
+        compact: sidebarLayouts.compact,
+        splitEnabled,
+        splitRatio,
+        wide: sidebarLayouts.wide,
+      },
+    }),
+    [
+      activeEditorId,
+      commits,
+      commitSequence,
+      compareEnabled,
+      initialRevision,
+      mainSession.encoding,
+      mainSession.formatSelection,
+      mainSession.scrollPosition.left,
+      mainSession.scrollPosition.top,
+      mainSession.selection.anchor,
+      mainSession.selection.head,
+      mainSession.softWrapEnabled,
+      mainSession.sourceViewEnabled,
+      mainSession.sqlDialect.id,
+      mainSession.syntaxMode,
+      mainSession.validationEnabled,
+      mainSession.value,
+      mainSession.viewMode,
+      mainSession.whitespaceVisible,
+      rootCaptured,
+      selectedRevisionId,
+      sidebarLayouts.compact,
+      sidebarLayouts.wide,
+      splitEnabled,
+      splitRatio,
+      subSession.encoding,
+      subSession.formatSelection,
+      subSession.scrollPosition.left,
+      subSession.scrollPosition.top,
+      subSession.selection.anchor,
+      subSession.selection.head,
+      subSession.softWrapEnabled,
+      subSession.sourceViewEnabled,
+      subSession.sqlDialect.id,
+      subSession.syntaxMode,
+      subSession.validationEnabled,
+      subSession.value,
+      subSession.viewMode,
+      subSession.whitespaceVisible,
+      workingBaseRevisionId,
+    ],
+  )
+  const workspacePersistence = useWorkspacePersistence({
+    initialRevision: initialWorkspace.revision,
+    initialSavedAt: initialWorkspace.savedAt,
+  })
+  const persistenceMountedRef = useRef(false)
+  const notifiedStorageStatusRef = useRef<WorkspaceSaveStatus | null>(null)
+
+  useEffect(() => {
+    if (!persistenceMountedRef.current) {
+      persistenceMountedRef.current = true
+      return
+    }
+    workspacePersistence.scheduleSave(persistedWorkspace)
+  }, [persistedWorkspace, workspacePersistence.scheduleSave])
+
+  useEffect(() => {
+    const { status } = workspacePersistence
+    if (status !== 'conflict' && status !== 'error') {
+      notifiedStorageStatusRef.current = null
+      return
+    }
+    if (notifiedStorageStatusRef.current === status) {
+      return
+    }
+    notifiedStorageStatusRef.current = status
+    notifications.show({
+      color: 'red',
+      message:
+        workspacePersistence.error ??
+        'Open the local workspace menu to resolve the save issue.',
+      title:
+        status === 'conflict'
+          ? 'Local workspace conflict'
+          : 'Local save failed',
+    })
+  }, [workspacePersistence.error, workspacePersistence.status])
 
   function allocateCommitId() {
     commitSeqRef.current += 1
+    setCommitSequence(commitSeqRef.current)
     return getNextCommitId(commitSeqRef.current)
   }
 
@@ -634,18 +847,23 @@ function Workbench() {
   }
 
   function setLeftOpenedPersisted(value: boolean) {
-    setLeftOpened(value)
-    writeStoredPanelOpened(LEFT_PANEL_STORAGE_KEY, value)
+    const mode = isCompact ? 'compact' : 'wide'
+    setSidebarLayouts((current) => ({
+      ...current,
+      [mode]: { ...current[mode], leftOpened: value },
+    }))
   }
 
   function setRightOpenedPersisted(value: boolean) {
-    setRightOpened(value)
-    writeStoredPanelOpened(RIGHT_PANEL_STORAGE_KEY, value)
+    const mode = isCompact ? 'compact' : 'wide'
+    setSidebarLayouts((current) => ({
+      ...current,
+      [mode]: { ...current[mode], rightOpened: value },
+    }))
   }
 
   function setSplitRatioPersisted(value: number) {
     setSplitRatio(value)
-    writeStoredSplitRatio(value)
   }
 
   function toggleSplitEditor() {
@@ -669,12 +887,36 @@ function Workbench() {
     setSplitEnabled(next.splitEnabled)
   }
 
-  useEffect(() => {
-    if (isCompact) {
-      setLeftOpened(false)
-      setRightOpened(false)
+  async function confirmStorageAction() {
+    const action = storageAction
+    setStorageAction(null)
+
+    if (action === 'load') {
+      onReload()
+      return
     }
-  }, [isCompact])
+    if (action === 'overwrite') {
+      workspacePersistence.overwrite(persistedWorkspace)
+      return
+    }
+    if (action !== 'clear') return
+
+    try {
+      await clearWorkspaceStorage()
+      workspacePersistence.announceClear()
+      clearColorScheme()
+      onReload()
+    } catch (error) {
+      notifications.show({
+        color: 'red',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'The local workspace could not be cleared.',
+        title: 'Clear failed',
+      })
+    }
+  }
 
   const transformSections: Array<TransformActionSection> = getTransformSections(
     TRANSFORM_DEFINITIONS,
@@ -834,6 +1076,32 @@ function Workbench() {
           </Group>
         </Stack>
       </Modal>
+      <Modal
+        centered
+        opened={storageAction !== null}
+        size="sm"
+        title={getStorageActionTitle(storageAction)}
+        onClose={() => setStorageAction(null)}
+      >
+        <Stack gap="md">
+          <Text size="sm">{getStorageActionDescription(storageAction)}</Text>
+          <Group justify="flex-end" gap="xs" wrap="nowrap">
+            <Button variant="default" onClick={() => setStorageAction(null)}>
+              Cancel
+            </Button>
+            <Button
+              color={storageAction === 'load' ? 'blue' : 'red'}
+              onClick={() => void confirmStorageAction()}
+            >
+              {storageAction === 'load'
+                ? 'Load saved state'
+                : storageAction === 'overwrite'
+                  ? 'Overwrite saved state'
+                  : 'Clear and reset'}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
       <AppShell.Header className="workbenchHeader">
         <Group h="100%" px="sm" justify="space-between" wrap="nowrap">
           <Group gap="xs" wrap="nowrap">
@@ -859,6 +1127,15 @@ function Workbench() {
           </Group>
 
           <Group gap={6} wrap="nowrap">
+            <WorkspaceStorageMenu
+              error={workspacePersistence.error}
+              savedAt={workspacePersistence.savedAt}
+              status={workspacePersistence.status}
+              onClear={() => setStorageAction('clear')}
+              onLoad={() => setStorageAction('load')}
+              onOverwrite={() => setStorageAction('overwrite')}
+              onRetry={() => workspacePersistence.retry(persistedWorkspace)}
+            />
             <HeaderIconButton
               label={splitEnabled ? 'Close split editor' : 'Split editor'}
               pressed={splitEnabled}
@@ -1084,6 +1361,154 @@ function getTransformProgressTimestamp() {
   return performance.now()
 }
 
+function getPersistedEditorState(
+  session: EditorSession,
+): EditorSessionInitialState {
+  return {
+    encoding: session.encoding,
+    formatSelection: session.formatSelection,
+    scroll: session.scrollPosition,
+    selection: session.selection,
+    softWrapEnabled: session.softWrapEnabled,
+    sourceViewEnabled: session.sourceViewEnabled,
+    sqlDialectId: session.sqlDialect.id,
+    syntaxMode: session.syntaxMode,
+    validationEnabled: session.validationEnabled,
+    value: session.value,
+    viewMode: session.viewMode,
+    whitespaceVisible: session.whitespaceVisible,
+  }
+}
+
+function WorkspaceStorageMenu({
+  error,
+  onClear,
+  onLoad,
+  onOverwrite,
+  onRetry,
+  savedAt,
+  status,
+}: {
+  error: string | null
+  onClear: () => void
+  onLoad: () => void
+  onOverwrite: () => void
+  onRetry: () => void
+  savedAt: string | null
+  status: WorkspaceSaveStatus
+}) {
+  const statusLabel =
+    status === 'saving'
+      ? 'Saving locally'
+      : status === 'conflict'
+        ? 'Local save conflict'
+        : status === 'error'
+          ? 'Local save failed'
+          : 'Saved locally'
+  const statusColor =
+    status === 'conflict' || status === 'error'
+      ? 'red'
+      : status === 'saving'
+        ? 'blue'
+        : 'green'
+  const statusIcon =
+    status === 'saving' ? (
+      <Loader size={17} />
+    ) : status === 'conflict' || status === 'error' ? (
+      <TriangleAlert size={17} />
+    ) : (
+      <Database size={17} />
+    )
+
+  return (
+    <Menu position="bottom-end" shadow="md" width={280} withinPortal>
+      <Menu.Target>
+        <ActionIcon
+          aria-label={statusLabel}
+          color={statusColor}
+          size="lg"
+          title={statusLabel}
+          variant={status === 'saved' ? 'subtle' : 'light'}
+        >
+          {statusIcon}
+        </ActionIcon>
+      </Menu.Target>
+      <Menu.Dropdown>
+        <Menu.Label>Local workspace</Menu.Label>
+        <Box px="sm" py={6}>
+          <Group gap="xs" wrap="nowrap">
+            {status === 'saved' ? (
+              <CircleCheck color="var(--mantine-color-green-6)" size={16} />
+            ) : null}
+            <Box>
+              <Text fw={650} size="sm">
+                {statusLabel}
+              </Text>
+              <Text c="dimmed" size="xs">
+                {error ?? formatSavedAt(savedAt)}
+              </Text>
+            </Box>
+          </Group>
+        </Box>
+        {status === 'conflict' ? (
+          <>
+            <Menu.Divider />
+            <Menu.Item leftSection={<Download size={15} />} onClick={onLoad}>
+              Load newer saved state
+            </Menu.Item>
+            <Menu.Item
+              color="red"
+              leftSection={<Upload size={15} />}
+              onClick={onOverwrite}
+            >
+              Overwrite with this tab
+            </Menu.Item>
+          </>
+        ) : null}
+        {status === 'error' ? (
+          <Menu.Item leftSection={<RefreshCw size={15} />} onClick={onRetry}>
+            Retry local save
+          </Menu.Item>
+        ) : null}
+        <Menu.Divider />
+        <Menu.Item
+          color="red"
+          leftSection={<Trash2 size={15} />}
+          onClick={onClear}
+        >
+          Clear saved workspace
+        </Menu.Item>
+      </Menu.Dropdown>
+    </Menu>
+  )
+}
+
+function formatSavedAt(value: string | null) {
+  if (!value) return 'Local autosave is ready.'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime())
+    ? 'Saved in this browser.'
+    : `Last saved ${date.toLocaleTimeString()}`
+}
+
+function getStorageActionTitle(action: 'clear' | 'load' | 'overwrite' | null) {
+  if (action === 'load') return 'Load newer saved state?'
+  if (action === 'overwrite') return 'Overwrite the saved workspace?'
+  return 'Clear saved workspace?'
+}
+
+function getStorageActionDescription(
+  action: 'clear' | 'load' | 'overwrite' | null,
+) {
+  if (action === 'load') {
+    return 'The current tab state will be discarded and replaced with the newer workspace saved by another tab.'
+  }
+  if (action === 'overwrite') {
+    return 'The newer workspace saved by another tab will be replaced with the current tab state.'
+  }
+  return 'This permanently removes the locally saved text, history, editor positions, and workspace settings, then resets the app.'
+}
+
 function HeaderIconButton({
   children,
   label,
@@ -1111,9 +1536,23 @@ function HeaderIconButton({
   )
 }
 
-function WorkspaceLoadingState({ label }: { label: string }) {
+function WorkspaceLoadingState({
+  fullHeight = false,
+  label,
+}: {
+  fullHeight?: boolean
+  label: string
+}) {
   return (
-    <Group className="workspaceLoadingState" gap="xs" justify="center">
+    <Group
+      className={
+        fullHeight
+          ? 'workspaceLoadingState workspaceBootstrapState'
+          : 'workspaceLoadingState'
+      }
+      gap="xs"
+      justify="center"
+    >
       <Loader size="sm" />
       <Text c="dimmed" size="sm">
         {label}…
