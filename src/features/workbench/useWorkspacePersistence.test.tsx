@@ -38,13 +38,19 @@ describe('useWorkspacePersistence', () => {
     const state = createDefaultWorkspaceState()
     state.editors.main.value = 'autosaved text'
     const { result } = renderHook(() =>
-      useWorkspacePersistence({ initialRevision: 0, initialSavedAt: null }),
+      useWorkspacePersistence({
+        initialRevision: 0,
+        initialSavedAt: null,
+        onRemoteChange: () => undefined,
+        state,
+      }),
     )
 
-    act(() => result.current.scheduleSave(state))
-    expect(result.current.status).toBe('saving')
-    await waitFor(() => expect(result.current.status).toBe('saved'), {
-      timeout: 1500,
+    act(() => result.current.scheduleSave('editors'))
+    expect(result.current.status).toBe('saved')
+    await waitFor(async () => {
+      const loaded = await loadWorkspace(createDefaultWorkspaceState())
+      expect(loaded.state.editors.main.value).toBe('autosaved text')
     })
 
     const loaded = await loadWorkspace(createDefaultWorkspaceState())
@@ -58,13 +64,18 @@ describe('useWorkspacePersistence', () => {
     const stale = createDefaultWorkspaceState()
     stale.editors.main.value = 'stale tab edit'
     const { result } = renderHook(() =>
-      useWorkspacePersistence({ initialRevision: 0, initialSavedAt: null }),
+      useWorkspacePersistence({
+        initialRevision: 0,
+        initialSavedAt: null,
+        onRemoteChange: () => undefined,
+        state: stale,
+      }),
     )
 
-    act(() => result.current.scheduleSave(stale))
+    act(() => result.current.scheduleSave('editors'))
     await waitFor(() => expect(result.current.status).toBe('conflict'), {
       timeout: 1500,
     })
-    expect(result.current.error).toContain('another tab')
+    expect(result.current.error?.toLowerCase()).toContain('another tab')
   })
 })

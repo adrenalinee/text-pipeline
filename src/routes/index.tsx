@@ -31,8 +31,6 @@ import {
   TriangleAlert,
   RefreshCw,
   Trash2,
-  Download,
-  Upload,
   Link,
   ListTree,
   Moon,
@@ -285,9 +283,7 @@ function Workbench({
   const [pendingCheckout, setPendingCheckout] = useState<
     TextCommit | typeof ROOT_REVISION_ID | null
   >(null)
-  const [storageAction, setStorageAction] = useState<
-    'clear' | 'load' | 'overwrite' | null
-  >(null)
+  const [storageAction, setStorageAction] = useState<'clear' | null>(null)
   const [commitSequence, setCommitSequence] = useState(
     initial.history.commitSequence,
   )
@@ -408,17 +404,96 @@ function Workbench({
   const workspacePersistence = useWorkspacePersistence({
     initialRevision: initialWorkspace.revision,
     initialSavedAt: initialWorkspace.savedAt,
+    onRemoteChange: onReload,
+    state: persistedWorkspace,
   })
-  const persistenceMountedRef = useRef(false)
+  const persistenceMountedRef = useRef({
+    editors: false,
+    history: false,
+    layout: false,
+    positions: false,
+  })
   const notifiedStorageStatusRef = useRef<WorkspaceSaveStatus | null>(null)
 
   useEffect(() => {
-    if (!persistenceMountedRef.current) {
-      persistenceMountedRef.current = true
+    if (!persistenceMountedRef.current.editors) {
+      persistenceMountedRef.current.editors = true
       return
     }
-    workspacePersistence.scheduleSave(persistedWorkspace)
-  }, [persistedWorkspace, workspacePersistence.scheduleSave])
+    workspacePersistence.scheduleSave('editors')
+  }, [
+    mainSession.encoding,
+    mainSession.formatSelection,
+    mainSession.softWrapEnabled,
+    mainSession.sourceViewEnabled,
+    mainSession.sqlDialect.id,
+    mainSession.syntaxMode,
+    mainSession.validationEnabled,
+    mainSession.value,
+    mainSession.viewMode,
+    mainSession.whitespaceVisible,
+    subSession.encoding,
+    subSession.formatSelection,
+    subSession.softWrapEnabled,
+    subSession.sourceViewEnabled,
+    subSession.sqlDialect.id,
+    subSession.syntaxMode,
+    subSession.validationEnabled,
+    subSession.value,
+    subSession.viewMode,
+    subSession.whitespaceVisible,
+    workspacePersistence.scheduleSave,
+  ])
+
+  useEffect(() => {
+    if (!persistenceMountedRef.current.positions) {
+      persistenceMountedRef.current.positions = true
+      return
+    }
+    workspacePersistence.scheduleSave('positions')
+  }, [
+    mainSession.scrollPosition.left,
+    mainSession.scrollPosition.top,
+    mainSession.selection.anchor,
+    mainSession.selection.head,
+    subSession.scrollPosition.left,
+    subSession.scrollPosition.top,
+    subSession.selection.anchor,
+    subSession.selection.head,
+    workspacePersistence.scheduleSave,
+  ])
+
+  useEffect(() => {
+    if (!persistenceMountedRef.current.history) {
+      persistenceMountedRef.current.history = true
+      return
+    }
+    workspacePersistence.scheduleSave('history')
+  }, [
+    commits,
+    commitSequence,
+    initialRevision,
+    rootCaptured,
+    selectedRevisionId,
+    workingBaseRevisionId,
+    workspacePersistence.scheduleSave,
+  ])
+
+  useEffect(() => {
+    if (!persistenceMountedRef.current.layout) {
+      persistenceMountedRef.current.layout = true
+      return
+    }
+    workspacePersistence.scheduleSave('layout')
+  }, [
+    activeEditorId,
+    compareEnabled,
+    sidebarLayouts.compact,
+    sidebarLayouts.wide,
+    splitEnabled,
+    splitRatio,
+    workspacePersistence.scheduleSave,
+  ])
 
   useEffect(() => {
     const { status } = workspacePersistence
@@ -431,14 +506,12 @@ function Workbench({
     }
     notifiedStorageStatusRef.current = status
     notifications.show({
-      color: 'red',
+      color: status === 'conflict' ? 'yellow' : 'red',
       message:
         workspacePersistence.error ??
         'Open the local workspace menu to resolve the save issue.',
       title:
-        status === 'conflict'
-          ? 'Local workspace conflict'
-          : 'Local save failed',
+        status === 'conflict' ? 'Changes in another tab' : 'Local save failed',
     })
   }, [workspacePersistence.error, workspacePersistence.status])
 
@@ -888,18 +961,7 @@ function Workbench({
   }
 
   async function confirmStorageAction() {
-    const action = storageAction
     setStorageAction(null)
-
-    if (action === 'load') {
-      onReload()
-      return
-    }
-    if (action === 'overwrite') {
-      workspacePersistence.overwrite(persistedWorkspace)
-      return
-    }
-    if (action !== 'clear') return
 
     try {
       await clearWorkspaceStorage()
@@ -1080,24 +1142,20 @@ function Workbench({
         centered
         opened={storageAction !== null}
         size="sm"
-        title={getStorageActionTitle(storageAction)}
+        title="Clear saved workspace?"
         onClose={() => setStorageAction(null)}
       >
         <Stack gap="md">
-          <Text size="sm">{getStorageActionDescription(storageAction)}</Text>
+          <Text size="sm">
+            This permanently removes the locally saved text, history, editor
+            positions, and workspace settings, then resets the app.
+          </Text>
           <Group justify="flex-end" gap="xs" wrap="nowrap">
             <Button variant="default" onClick={() => setStorageAction(null)}>
               Cancel
             </Button>
-            <Button
-              color={storageAction === 'load' ? 'blue' : 'red'}
-              onClick={() => void confirmStorageAction()}
-            >
-              {storageAction === 'load'
-                ? 'Load saved state'
-                : storageAction === 'overwrite'
-                  ? 'Overwrite saved state'
-                  : 'Clear and reset'}
+            <Button color="red" onClick={() => void confirmStorageAction()}>
+              Clear and reset
             </Button>
           </Group>
         </Stack>
@@ -1117,6 +1175,15 @@ function Workbench({
             <Badge className="workbenchBadge" variant="light" size="xs">
               Alpha
             </Badge>
+            <WorkspaceStorageMenu
+              error={workspacePersistence.error}
+              savedAt={workspacePersistence.savedAt}
+              status={workspacePersistence.status}
+              onClear={() => setStorageAction('clear')}
+              onKeepThisTab={workspacePersistence.keepThisTab}
+              onLoadLatest={onReload}
+              onRetry={workspacePersistence.retry}
+            />
             {/* <HeaderIconButton
               label={splitEnabled ? 'Close split editor' : 'Split editor'}
               pressed={splitEnabled}
@@ -1127,15 +1194,6 @@ function Workbench({
           </Group>
 
           <Group gap={6} wrap="nowrap">
-            <WorkspaceStorageMenu
-              error={workspacePersistence.error}
-              savedAt={workspacePersistence.savedAt}
-              status={workspacePersistence.status}
-              onClear={() => setStorageAction('clear')}
-              onLoad={() => setStorageAction('load')}
-              onOverwrite={() => setStorageAction('overwrite')}
-              onRetry={() => workspacePersistence.retry(persistedWorkspace)}
-            />
             <HeaderIconButton
               label={splitEnabled ? 'Close split editor' : 'Split editor'}
               pressed={splitEnabled}
@@ -1383,16 +1441,16 @@ function getPersistedEditorState(
 function WorkspaceStorageMenu({
   error,
   onClear,
-  onLoad,
-  onOverwrite,
+  onKeepThisTab,
+  onLoadLatest,
   onRetry,
   savedAt,
   status,
 }: {
   error: string | null
   onClear: () => void
-  onLoad: () => void
-  onOverwrite: () => void
+  onKeepThisTab: () => void
+  onLoadLatest: () => void
   onRetry: () => void
   savedAt: string | null
   status: WorkspaceSaveStatus
@@ -1401,16 +1459,12 @@ function WorkspaceStorageMenu({
     status === 'saving'
       ? 'Saving locally'
       : status === 'conflict'
-        ? 'Local save conflict'
+        ? 'Changes in another tab'
         : status === 'error'
           ? 'Local save failed'
           : 'Saved locally'
   const statusColor =
-    status === 'conflict' || status === 'error'
-      ? 'red'
-      : status === 'saving'
-        ? 'blue'
-        : 'green'
+    status === 'conflict' || status === 'error' ? 'red' : 'blue'
   const statusIcon =
     status === 'saving' ? (
       <Loader size={17} />
@@ -1423,22 +1477,23 @@ function WorkspaceStorageMenu({
   return (
     <Menu position="bottom-end" shadow="md" width={280} withinPortal>
       <Menu.Target>
-        <ActionIcon
-          aria-label={statusLabel}
-          color={statusColor}
-          size="lg"
-          title={statusLabel}
-          variant={status === 'saved' ? 'subtle' : 'light'}
-        >
-          {statusIcon}
-        </ActionIcon>
+        <Tooltip label={getStorageTooltip(status)} withArrow>
+          <ActionIcon
+            aria-label={statusLabel}
+            color={statusColor}
+            size="lg"
+            variant={status === 'saved' ? 'subtle' : 'light'}
+          >
+            {statusIcon}
+          </ActionIcon>
+        </Tooltip>
       </Menu.Target>
       <Menu.Dropdown>
         <Menu.Label>Local workspace</Menu.Label>
         <Box px="sm" py={6}>
           <Group gap="xs" wrap="nowrap">
             {status === 'saved' ? (
-              <CircleCheck color="var(--mantine-color-green-6)" size={16} />
+              <CircleCheck color="var(--mantine-color-blue-6)" size={16} />
             ) : null}
             <Box>
               <Text fw={650} size="sm">
@@ -1453,15 +1508,9 @@ function WorkspaceStorageMenu({
         {status === 'conflict' ? (
           <>
             <Menu.Divider />
-            <Menu.Item leftSection={<Download size={15} />} onClick={onLoad}>
-              Load newer saved state
-            </Menu.Item>
-            <Menu.Item
-              color="red"
-              leftSection={<Upload size={15} />}
-              onClick={onOverwrite}
-            >
-              Overwrite with this tab
+            <Menu.Item onClick={onLoadLatest}>Load latest changes</Menu.Item>
+            <Menu.Item color="blue" onClick={onKeepThisTab}>
+              Keep working in this tab
             </Menu.Item>
           </>
         ) : null}
@@ -1483,30 +1532,19 @@ function WorkspaceStorageMenu({
   )
 }
 
+function getStorageTooltip(status: WorkspaceSaveStatus) {
+  if (status === 'saving') return 'Saving workspace in this browser'
+  if (status === 'conflict') return 'Changes from another tab need attention'
+  if (status === 'error') return 'Local autosave needs attention'
+  return 'Workspace is automatically saved in this browser'
+}
+
 function formatSavedAt(value: string | null) {
   if (!value) return 'Local autosave is ready.'
   const date = new Date(value)
   return Number.isNaN(date.getTime())
     ? 'Saved in this browser.'
     : `Last saved ${date.toLocaleTimeString()}`
-}
-
-function getStorageActionTitle(action: 'clear' | 'load' | 'overwrite' | null) {
-  if (action === 'load') return 'Load newer saved state?'
-  if (action === 'overwrite') return 'Overwrite the saved workspace?'
-  return 'Clear saved workspace?'
-}
-
-function getStorageActionDescription(
-  action: 'clear' | 'load' | 'overwrite' | null,
-) {
-  if (action === 'load') {
-    return 'The current tab state will be discarded and replaced with the newer workspace saved by another tab.'
-  }
-  if (action === 'overwrite') {
-    return 'The newer workspace saved by another tab will be replaced with the current tab state.'
-  }
-  return 'This permanently removes the locally saved text, history, editor positions, and workspace settings, then resets the app.'
 }
 
 function HeaderIconButton({

@@ -13,12 +13,29 @@ import type {
   WorkbenchViewMode,
 } from './types'
 
-export const WORKSPACE_SCHEMA_VERSION = 1
+export const WORKSPACE_SCHEMA_VERSION = 2
 export const WORKSPACE_DB_NAME = 'text-pipeline'
 export const WORKSPACE_DB_STORE = 'workspace'
 export const WORKSPACE_DB_KEY = 'current'
+export const WORKSPACE_META_DB_KEY = 'meta'
 export const WORKSPACE_LAYOUT_STORAGE_KEY = 'text-pipeline:layout:v1'
 export const WORKSPACE_CHANNEL_NAME = 'text-pipeline:workspace'
+
+const WORKSPACE_EDITOR_MAIN_DB_KEY = 'editor:main'
+const WORKSPACE_EDITOR_SUB_DB_KEY = 'editor:sub'
+const WORKSPACE_POSITION_MAIN_DB_KEY = 'position:main'
+const WORKSPACE_POSITION_SUB_DB_KEY = 'position:sub'
+const WORKSPACE_HISTORY_DB_KEY = 'history'
+const WORKSPACE_LAYOUT_DB_KEY = 'layout'
+
+export const WORKSPACE_SAVE_AREAS = [
+  'editors',
+  'history',
+  'layout',
+  'positions',
+] as const
+
+export type WorkspaceSaveArea = (typeof WORKSPACE_SAVE_AREAS)[number]
 
 export const LEGACY_STORAGE_KEYS = {
   leftOpened: 'text-pipeline:leftSidebarOpened',
@@ -108,6 +125,19 @@ type PersistedWorkspaceV1 = {
   savedAt: string
   schemaVersion: 1
 }
+
+type PersistedWorkspaceMetaV2 = {
+  revision: number
+  savedAt: string
+  schemaVersion: 2
+}
+
+type PersistedEditorV2 = Omit<EditorSessionInitialState, 'scroll' | 'selection'>
+
+type PersistedEditorPositionV2 = Pick<
+  EditorSessionInitialState,
+  'scroll' | 'selection'
+>
 
 export type LoadedWorkspace = {
   revision: number
@@ -222,18 +252,47 @@ export async function loadWorkspace(
   const database = await openWorkspaceDatabase()
 
   try {
-    const stored = await requestToPromise<unknown>(
-      database
-        .transaction(WORKSPACE_DB_STORE, 'readonly')
-        .objectStore(WORKSPACE_DB_STORE)
-        .get(WORKSPACE_DB_KEY),
-    )
+    const transaction = database.transaction(WORKSPACE_DB_STORE, 'readonly')
+    const store = transaction.objectStore(WORKSPACE_DB_STORE)
+    const [
+      meta,
+      legacy,
+      mainEditor,
+      subEditor,
+      mainPosition,
+      subPosition,
+      history,
+      layout,
+    ] = await Promise.all([
+      requestToPromise<unknown>(store.get(WORKSPACE_META_DB_KEY)),
+      requestToPromise<unknown>(store.get(WORKSPACE_DB_KEY)),
+      requestToPromise<unknown>(store.get(WORKSPACE_EDITOR_MAIN_DB_KEY)),
+      requestToPromise<unknown>(store.get(WORKSPACE_EDITOR_SUB_DB_KEY)),
+      requestToPromise<unknown>(store.get(WORKSPACE_POSITION_MAIN_DB_KEY)),
+      requestToPromise<unknown>(store.get(WORKSPACE_POSITION_SUB_DB_KEY)),
+      requestToPromise<unknown>(store.get(WORKSPACE_HISTORY_DB_KEY)),
+      requestToPromise<unknown>(store.get(WORKSPACE_LAYOUT_DB_KEY)),
+    ])
 
-    if (stored === undefined) {
+    if (meta !== undefined) {
+      const parsed = parseWorkspaceV2(
+        { history, layout, mainEditor, mainPosition, subEditor, subPosition },
+        meta,
+        fallback,
+      )
+      if (!parsed) {
+        throw new Error(
+          'The saved workspace is invalid or uses a newer schema.',
+        )
+      }
+      return parsed
+    }
+
+    if (legacy === undefined) {
       return { revision: 0, savedAt: null, state: fallback }
     }
 
-    const parsed = parseWorkspace(stored, fallback)
+    const parsed = parseWorkspaceV1(legacy, fallback)
     if (!parsed) {
       throw new Error('The saved workspace is invalid or uses a newer schema.')
     }
@@ -245,10 +304,12 @@ export async function loadWorkspace(
 }
 
 export async function saveWorkspace({
+  areas = WORKSPACE_SAVE_AREAS,
   expectedRevision,
   force = false,
   state,
 }: {
+  areas?: ReadonlyArray<WorkspaceSaveArea>
   expectedRevision: number
   force?: boolean
   state: WorkbenchPersistedState
@@ -258,8 +319,12 @@ export async function saveWorkspace({
   const store = transaction.objectStore(WORKSPACE_DB_STORE)
 
   try {
-    const current = await requestToPromise<unknown>(store.get(WORKSPACE_DB_KEY))
-    const currentRevision = getStoredRevision(current)
+    const [meta, legacy] = await Promise.all([
+      requestToPromise<unknown>(store.get(WORKSPACE_META_DB_KEY)),
+      requestToPromise<unknown>(store.get(WORKSPACE_DB_KEY)),
+    ])
+    const isMigrating = meta === undefined
+    const currentRevision = getStoredRevision(meta ?? legacy)
 
     if (!force && currentRevision !== expectedRevision) {
       transaction.abort()
@@ -268,7 +333,40 @@ export async function saveWorkspace({
 
     const revision = currentRevision + 1
     const savedAt = new Date().toISOString()
-    store.put(serializeWorkspace(state, revision, savedAt), WORKSPACE_DB_KEY)
+    const areasToSave = isMigrating ? WORKSPACE_SAVE_AREAS : areas
+
+    if (areasToSave.includes('editors')) {
+      store.put(
+        serializeEditor(state.editors.main),
+        WORKSPACE_EDITOR_MAIN_DB_KEY,
+      )
+      store.put(serializeEditor(state.editors.sub), WORKSPACE_EDITOR_SUB_DB_KEY)
+    }
+    if (areasToSave.includes('positions')) {
+      store.put(
+        serializeEditorPosition(state.editors.main),
+        WORKSPACE_POSITION_MAIN_DB_KEY,
+      )
+      store.put(
+        serializeEditorPosition(state.editors.sub),
+        WORKSPACE_POSITION_SUB_DB_KEY,
+      )
+    }
+    if (areasToSave.includes('history')) {
+      store.put(serializeHistory(state.history), WORKSPACE_HISTORY_DB_KEY)
+    }
+    if (areasToSave.includes('layout')) {
+      store.put(state.layout, WORKSPACE_LAYOUT_DB_KEY)
+    }
+    store.put(
+      {
+        revision,
+        savedAt,
+        schemaVersion: WORKSPACE_SCHEMA_VERSION,
+      } satisfies PersistedWorkspaceMetaV2,
+      WORKSPACE_META_DB_KEY,
+    )
+    if (legacy !== undefined) store.delete(WORKSPACE_DB_KEY)
     await transactionToPromise(transaction)
     return { revision, savedAt }
   } finally {
@@ -290,47 +388,99 @@ export async function clearWorkspaceStorage() {
   clearWorkspaceLocalStorage()
 }
 
-function serializeWorkspace(
-  state: WorkbenchPersistedState,
-  revision: number,
-  savedAt: string,
-): PersistedWorkspaceV1 {
+function serializeHistory(
+  history: WorkbenchHistoryState,
+): PersistedWorkspaceV1['history'] {
   return {
-    editors: state.editors,
-    history: {
-      ...state.history,
-      commits: state.history.commits.map(
-        ({
-          afterSyntaxMode,
-          afterText,
-          description,
-          id,
-          parentId,
-          timestamp,
-          title,
-        }) => ({
-          afterSyntaxMode,
-          afterText,
-          description,
-          id,
-          parentId,
-          timestamp,
-          title,
-        }),
-      ),
-    },
-    layout: state.layout,
-    revision,
-    savedAt,
-    schemaVersion: WORKSPACE_SCHEMA_VERSION,
+    ...history,
+    commits: history.commits.map(
+      ({
+        afterSyntaxMode,
+        afterText,
+        description,
+        id,
+        parentId,
+        timestamp,
+        title,
+      }) => ({
+        afterSyntaxMode,
+        afterText,
+        description,
+        id,
+        parentId,
+        timestamp,
+        title,
+      }),
+    ),
   }
 }
 
-function parseWorkspace(
+function serializeEditor(editor: EditorSessionInitialState): PersistedEditorV2 {
+  const { scroll: _scroll, selection: _selection, ...persisted } = editor
+  return persisted
+}
+
+function serializeEditorPosition(
+  editor: EditorSessionInitialState,
+): PersistedEditorPositionV2 {
+  return { scroll: editor.scroll, selection: editor.selection }
+}
+
+function parseWorkspaceV2(
+  records: {
+    history: unknown
+    layout: unknown
+    mainEditor: unknown
+    mainPosition: unknown
+    subEditor: unknown
+    subPosition: unknown
+  },
+  meta: unknown,
+  fallback: WorkbenchPersistedState,
+): LoadedWorkspace | null {
+  if (
+    !isRecord(meta) ||
+    meta.schemaVersion !== WORKSPACE_SCHEMA_VERSION ||
+    !isFiniteNonNegative(meta.revision) ||
+    typeof meta.savedAt !== 'string'
+  ) {
+    return null
+  }
+
+  const editors = {
+    main: parseEditor(
+      mergeEditorRecords(records.mainEditor, records.mainPosition),
+      fallback.editors.main,
+    ),
+    sub: parseEditor(
+      mergeEditorRecords(records.subEditor, records.subPosition),
+      fallback.editors.sub,
+    ),
+  }
+  const history = parseHistory(records.history, fallback.history)
+  const layout = parseLayout(records.layout, fallback.layout)
+  if (!history || !layout) return null
+
+  normalizeLayout(layout)
+  return {
+    revision: meta.revision,
+    savedAt: meta.savedAt,
+    state: { editors, history, layout },
+  }
+}
+
+function mergeEditorRecords(editor: unknown, position: unknown) {
+  return {
+    ...(isRecord(editor) ? editor : {}),
+    ...(isRecord(position) ? position : {}),
+  }
+}
+
+function parseWorkspaceV1(
   value: unknown,
   fallback: WorkbenchPersistedState,
 ): LoadedWorkspace | null {
-  if (!isRecord(value) || value.schemaVersion !== WORKSPACE_SCHEMA_VERSION) {
+  if (!isRecord(value) || value.schemaVersion !== 1) {
     return null
   }
   if (
@@ -351,17 +501,21 @@ function parseWorkspace(
 
   if (!editors || !history || !layout) return null
 
-  if (!layout.splitEnabled) {
-    layout.compareEnabled = false
-    layout.activeEditorId = 'main'
-  } else if (layout.compareEnabled) {
-    layout.splitEnabled = true
-  }
+  normalizeLayout(layout)
 
   return {
     revision: value.revision,
     savedAt: value.savedAt,
     state: { editors, history, layout },
+  }
+}
+
+function normalizeLayout(layout: WorkbenchLayoutState) {
+  if (!layout.splitEnabled) {
+    layout.compareEnabled = false
+    layout.activeEditorId = 'main'
+  } else if (layout.compareEnabled) {
+    layout.splitEnabled = true
   }
 }
 

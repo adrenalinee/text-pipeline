@@ -10,6 +10,9 @@ import {
   createDefaultWorkspaceState,
   loadWorkspace,
   saveWorkspace,
+  WORKSPACE_DB_KEY,
+  WORKSPACE_DB_NAME,
+  WORKSPACE_DB_STORE,
   WorkspaceConflictError,
 } from './persistence'
 
@@ -102,6 +105,65 @@ describe('workspace persistence', () => {
     expect(loaded.state.editors.main.scroll).toEqual({ left: 0, top: 20 })
   })
 
+  it('writes only the requested workspace area after initialization', async () => {
+    const original = createDefaultWorkspaceState()
+    original.editors.main.value = 'first editor value'
+    original.history.initialRevision = {
+      syntaxMode: 'plain',
+      text: 'preserved history root',
+    }
+    original.layout.splitEnabled = true
+    const firstSave = await saveWorkspace({
+      expectedRevision: 0,
+      state: original,
+    })
+
+    const changed = structuredClone(original)
+    changed.editors.main.value = 'second editor value'
+    changed.history.initialRevision.text = 'should not be written'
+    changed.layout.splitEnabled = false
+    await saveWorkspace({
+      areas: ['editors'],
+      expectedRevision: firstSave.revision,
+      state: changed,
+    })
+
+    const loaded = await loadWorkspace(createDefaultWorkspaceState())
+    expect(loaded.state.editors.main.value).toBe('second editor value')
+    expect(loaded.state.history.initialRevision.text).toBe(
+      'preserved history root',
+    )
+    expect(loaded.state.layout.splitEnabled).toBe(true)
+  })
+
+  it('loads the previous single-record schema and migrates it on save', async () => {
+    const legacy = createDefaultWorkspaceState()
+    legacy.editors.main.value = 'legacy editor text'
+    legacy.layout.wide.rightOpened = false
+    await writeLegacyWorkspace({
+      ...legacy,
+      revision: 4,
+      savedAt: '2026-08-09T00:00:00.000Z',
+      schemaVersion: 1,
+    })
+
+    const loadedLegacy = await loadWorkspace(createDefaultWorkspaceState())
+    expect(loadedLegacy.revision).toBe(4)
+    expect(loadedLegacy.state.editors.main.value).toBe('legacy editor text')
+
+    loadedLegacy.state.editors.main.value = 'migrated editor text'
+    const migrated = await saveWorkspace({
+      areas: ['editors'],
+      expectedRevision: loadedLegacy.revision,
+      state: loadedLegacy.state,
+    })
+    const loadedMigrated = await loadWorkspace(createDefaultWorkspaceState())
+
+    expect(migrated.revision).toBe(5)
+    expect(loadedMigrated.state.editors.main.value).toBe('migrated editor text')
+    expect(loadedMigrated.state.layout.wide.rightOpened).toBe(false)
+  })
+
   it('rejects stale writes instead of overwriting another tab', async () => {
     const state = createDefaultWorkspaceState()
     await saveWorkspace({ expectedRevision: 0, state })
@@ -123,3 +185,23 @@ describe('workspace persistence', () => {
     expect(loaded.state.editors.main.value).toBe('')
   })
 })
+
+function writeLegacyWorkspace(value: unknown) {
+  return new Promise<void>((resolve, reject) => {
+    const request = window.indexedDB.open(WORKSPACE_DB_NAME, 1)
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => {
+      const database = request.result
+      const transaction = database.transaction(WORKSPACE_DB_STORE, 'readwrite')
+      transaction.objectStore(WORKSPACE_DB_STORE).put(value, WORKSPACE_DB_KEY)
+      transaction.oncomplete = () => {
+        database.close()
+        resolve()
+      }
+      transaction.onerror = () => {
+        database.close()
+        reject(transaction.error)
+      }
+    }
+  })
+}
