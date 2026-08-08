@@ -61,6 +61,33 @@ export function hasRevisionTextChanged(
   return baseRevision.text !== text
 }
 
+export function prepareHistoryBaseRevision({
+  baseRevision,
+  rootCaptured,
+  syntaxMode,
+  text,
+}: {
+  baseRevision: TextRevisionSnapshot
+  rootCaptured: boolean
+  syntaxMode: SyntaxMode
+  text: string
+}): {
+  baseRevision: TextRevisionSnapshot
+  capturedRoot: TextRevisionSnapshot | null
+} {
+  if (!rootCaptured && baseRevision.id === ROOT_REVISION_ID) {
+    const capturedRoot = {
+      id: ROOT_REVISION_ID,
+      syntaxMode,
+      text,
+    }
+
+    return { baseRevision: capturedRoot, capturedRoot }
+  }
+
+  return { baseRevision, capturedRoot: null }
+}
+
 export function createWorkingSnapshotCommit({
   baseRevision,
   currentSyntaxMode,

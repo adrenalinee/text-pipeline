@@ -60,12 +60,14 @@ export function useEditorSession({
   id,
   initialSyntaxMode,
   initialValue,
+  onBeforeSampleLoad,
   onManualChange,
   onReplaceCommit,
 }: {
   id: EditorId
   initialSyntaxMode: SyntaxMode
   initialValue: string
+  onBeforeSampleLoad?: (sample: TextSample) => void
   onManualChange?: () => void
   onReplaceCommit?: (session: ReplaceSession) => void
 }) {
@@ -93,9 +95,11 @@ export function useEditorSession({
   const [validationResult, setValidationResult] =
     useState<FormatValidationResult | null>(null)
   const editorViewRef = useRef<EditorView | null>(null)
+  const onBeforeSampleLoadRef = useRef(onBeforeSampleLoad)
   const onManualChangeRef = useRef(onManualChange)
   const detectionRequestRef = useRef(0)
 
+  onBeforeSampleLoadRef.current = onBeforeSampleLoad
   onManualChangeRef.current = onManualChange
 
   const searchReplace = useSearchReplace({ editorViewRef, onReplaceCommit })
@@ -349,6 +353,7 @@ export function useEditorSession({
   }
 
   function loadSample(sample: TextSample) {
+    onBeforeSampleLoadRef.current?.(sample)
     onManualChangeRef.current?.()
     setValue(sample.value)
     setKnownSyntaxMode(sample.syntaxMode)

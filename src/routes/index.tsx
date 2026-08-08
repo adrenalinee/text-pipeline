@@ -54,6 +54,7 @@ import {
   getRevisionSnapshot,
   getRootRevisionSnapshot,
   hasRevisionTextChanged,
+  prepareHistoryBaseRevision,
   ROOT_REVISION_ID,
   WORKING_REVISION_ID,
 } from '#/features/workbench/history'
@@ -170,6 +171,11 @@ function Workbench() {
     readStoredPanelOpened(RIGHT_PANEL_STORAGE_KEY, true),
   )
   const [commits, setCommits] = useState<Array<TextCommit>>([])
+  const [initialRevision, setInitialRevision] = useState<{
+    syntaxMode: SyntaxMode
+    text: string
+  }>(INITIAL_TEXT_REVISION)
+  const [rootCaptured, setRootCaptured] = useState(false)
   const [selectedRevisionId, setSelectedRevisionId] =
     useState(WORKING_REVISION_ID)
   const [workingBaseRevisionId, setWorkingBaseRevisionId] =
@@ -195,6 +201,7 @@ function Workbench() {
     id: 'main',
     initialSyntaxMode: INITIAL_TEXT_REVISION.syntaxMode,
     initialValue: INITIAL_TEXT_REVISION.text,
+    onBeforeSampleLoad: commitWorkingText,
     onManualChange: markWorkingTextChanged,
     onReplaceCommit: commitReplace,
   })
@@ -206,17 +213,17 @@ function Workbench() {
   const activeSession =
     activeEditorId === 'sub' && splitEnabled ? subSession : mainSession
   const compactCompareReadOnly = compareEnabled && isCompact === true
-  const rootRevision = getRootRevisionSnapshot(commits, INITIAL_TEXT_REVISION)
+  const rootRevision = getRootRevisionSnapshot(commits, initialRevision)
   const rootText = rootRevision.text
   const rootSyntaxMode = rootRevision.syntaxMode
   const workingBaseRevision = useMemo(
     () =>
       getRevisionSnapshot({
         commits,
-        initialRevision: INITIAL_TEXT_REVISION,
+        initialRevision,
         revisionId: workingBaseRevisionId,
       }),
-    [commits, workingBaseRevisionId],
+    [commits, initialRevision, workingBaseRevisionId],
   )
   const canCommitWorkingText = hasRevisionTextChanged(
     workingBaseRevision,
@@ -228,14 +235,32 @@ function Workbench() {
     return getNextCommitId(commitSeqRef.current)
   }
 
+  function prepareHistoryBase(
+    baseRevision: TextRevisionSnapshot,
+    text: string,
+    syntaxMode: SyntaxMode,
+  ) {
+    return prepareHistoryBaseRevision({
+      baseRevision,
+      rootCaptured,
+      syntaxMode,
+      text,
+    })
+  }
+
   function commitReplace(session: ReplaceSession): TextRevisionSnapshot {
     const { afterText, beforeText, occurrences, replace, search } = session
-    const workingSnapshotCommit = hasRevisionTextChanged(
+    const preparedBase = prepareHistoryBase(
       workingBaseRevision,
+      beforeText,
+      mainSession.syntaxMode,
+    )
+    const workingSnapshotCommit = hasRevisionTextChanged(
+      preparedBase.baseRevision,
       beforeText,
     )
       ? createWorkingSnapshotCommit({
-          baseRevision: workingBaseRevision,
+          baseRevision: preparedBase.baseRevision,
           currentSyntaxMode: mainSession.syntaxMode,
           currentText: beforeText,
           description: 'Saved working text before replace.',
@@ -254,7 +279,7 @@ function Workbench() {
         occurrences === 1 ? '' : 's'
       } of "${search}" with "${replace}".`,
       id: commitId,
-      parentId: workingSnapshotCommit?.id ?? workingBaseRevision.id,
+      parentId: workingSnapshotCommit?.id ?? preparedBase.baseRevision.id,
       timestamp: formatCommitTimestamp(new Date()),
       title: 'Replace',
     })
@@ -266,6 +291,10 @@ function Workbench() {
 
       return appendCommit(withSnapshot, replaceCommit)
     })
+    if (preparedBase.capturedRoot) {
+      setInitialRevision(preparedBase.capturedRoot)
+      setRootCaptured(true)
+    }
     setWorkingBaseRevisionId(commitId)
     // The editor may already hold newer manual edits when the session is
     // flushed by a non-replace change; keep those as working text.
@@ -303,9 +332,13 @@ function Workbench() {
     const isMain = targetSession.id === 'main'
     const beforeText = targetSession.value
     const beforeSyntaxMode = targetSession.syntaxMode
-    const baseRevision = isMain
+    const pendingBaseRevision = isMain
       ? flushPendingReplaceCommits().baseRevision
       : null
+    const preparedBase = pendingBaseRevision
+      ? prepareHistoryBase(pendingBaseRevision, beforeText, beforeSyntaxMode)
+      : null
+    const baseRevision = preparedBase?.baseRevision ?? null
     const workingSnapshotCommit =
       baseRevision && hasRevisionTextChanged(baseRevision, beforeText)
         ? createWorkingSnapshotCommit({
@@ -356,6 +389,7 @@ function Workbench() {
           id: transformCommitId,
           parentId: transformParentId,
           title: definition.label,
+          capturedRoot: preparedBase?.capturedRoot ?? null,
         })
       } else {
         applyUncommittedTransform({
@@ -423,6 +457,7 @@ function Workbench() {
     id,
     parentId,
     title,
+    capturedRoot,
   }: {
     afterText: string
     afterSyntaxMode: SyntaxMode
@@ -432,6 +467,7 @@ function Workbench() {
     id: string
     parentId: string
     title: string
+    capturedRoot: TextRevisionSnapshot | null
   }) {
     if (afterText === beforeText) {
       notifications.show({
@@ -456,6 +492,10 @@ function Workbench() {
 
     mainSession.setValue(afterText)
     mainSession.setKnownSyntaxMode(afterSyntaxMode)
+    if (capturedRoot) {
+      setInitialRevision(capturedRoot)
+      setRootCaptured(true)
+    }
     setSelectedRevisionId(id)
     setWorkingBaseRevisionId(id)
     setCommits((currentCommits) => appendCommit(currentCommits, commit))
@@ -468,9 +508,29 @@ function Workbench() {
   }
 
   function commitWorkingText() {
-    const { baseRevision, didCommit } = flushPendingReplaceCommits()
+    const { baseRevision: pendingBaseRevision, didCommit } =
+      flushPendingReplaceCommits()
+    const preparedBase = prepareHistoryBase(
+      pendingBaseRevision,
+      mainSession.value,
+      mainSession.syntaxMode,
+    )
+    const { baseRevision } = preparedBase
 
     if (!hasRevisionTextChanged(baseRevision, mainSession.value)) {
+      if (preparedBase.capturedRoot) {
+        setInitialRevision(preparedBase.capturedRoot)
+        setRootCaptured(true)
+        setSelectedRevisionId(ROOT_REVISION_ID)
+        setWorkingBaseRevisionId(ROOT_REVISION_ID)
+        notifications.show({
+          color: 'green',
+          message: 'The current editor text is now the root input.',
+          title: 'Root input captured',
+        })
+        return
+      }
+
       // A flushed replace session already produced its own commit toast.
       if (!didCommit) {
         notifications.show({

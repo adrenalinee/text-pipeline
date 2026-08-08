@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
 import { MantineProvider } from '@mantine/core'
-import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { createTextCommit } from '../history'
 import type { TextCommit } from '../types'
@@ -30,6 +30,8 @@ beforeAll(() => {
   }
 })
 
+afterEach(cleanup)
+
 function commit(id: string, parentId: string, title: string): TextCommit {
   return createTextCommit({
     afterSyntaxMode: 'json',
@@ -56,6 +58,28 @@ function renderWith(ui: React.ReactNode) {
 }
 
 describe('HistorySidebar', () => {
+  it('renders working text outside the history timeline', () => {
+    const { container } = renderWith(
+      <HistorySidebar
+        commits={commits}
+        currentText="hello"
+        selectedRevisionId="working"
+        workingBaseRevisionId="c003"
+        onCollapse={vi.fn()}
+        onRestoreCommit={vi.fn()}
+        onRestoreRoot={vi.fn()}
+      />,
+    )
+
+    expect(container.querySelector('.workingTextCard')).not.toBeNull()
+    expect(
+      container.querySelector('.historyTimeline')?.textContent,
+    ).not.toContain('Working text')
+    expect(
+      screen.getByText('Editable workspace · not a history revision'),
+    ).toBeTruthy()
+  })
+
   it('dims future commits relative to the checked-out base and checks out on click', () => {
     const onRestoreCommit = vi.fn()
     renderWith(
