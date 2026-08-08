@@ -4,6 +4,7 @@ import { act, cleanup, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { useEditorSession } from './useEditorSession'
+import { TEXT_SAMPLES } from './samples'
 import { FORMAT_DETECTION_DEBOUNCE_MS } from './utils/formatDetection'
 
 afterEach(() => {
@@ -75,5 +76,30 @@ describe('editor session format detection', () => {
       mode: 'locked',
       origin: 'known',
     })
+  })
+})
+
+describe('editor session sample loading', () => {
+  it('runs the pre-load callback before replacing working text', () => {
+    const events: Array<string> = []
+    const sample = TEXT_SAMPLES[0]
+    const { result } = renderHook(() =>
+      useEditorSession({
+        id: 'main',
+        initialSyntaxMode: 'plain',
+        initialValue: 'unsaved working text',
+        onBeforeSampleLoad: () => {
+          events.push('before')
+        },
+        onManualChange: () => {
+          events.push('change')
+        },
+      }),
+    )
+
+    act(() => result.current.loadSample(sample))
+
+    expect(events).toEqual(['before', 'change'])
+    expect(result.current.value).toBe(sample.value)
   })
 })

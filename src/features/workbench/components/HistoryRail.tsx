@@ -7,7 +7,7 @@ import {
   Text,
   Tooltip,
 } from '@mantine/core'
-import { PanelLeftOpen } from 'lucide-react'
+import { FilePenLine, PanelLeftOpen } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { getLinearAncestorIds, WORKING_REVISION_ID } from '../history'
@@ -63,10 +63,24 @@ export function HistoryRail({
         </Tooltip>
       ) : null}
 
-      <Box className="railDivider" />
-
-      <Stack className="historyRailTrack" gap={2}>
-        <RailDot active={workingActive} ariaLabel="Working text">
+      <HoverCard
+        closeDelay={80}
+        openDelay={150}
+        position="right"
+        shadow="md"
+        width={250}
+        withArrow
+      >
+        <HoverCard.Target>
+          <Box
+            aria-label="Working text"
+            className="workingRailIndicator"
+            data-active={workingActive || undefined}
+          >
+            <FilePenLine size={15} />
+          </Box>
+        </HoverCard.Target>
+        <HoverCard.Dropdown className="historyRailDropdown">
           <Box className="historyRailCard">
             <Text size="sm" fw={650}>
               Working text
@@ -74,9 +88,16 @@ export function HistoryRail({
             <Text size="xs" c="dimmed">
               {countLines(currentText)} lines | {currentText.length} chars
             </Text>
+            <Text size="xs" c="dimmed">
+              Editable workspace · not a history revision
+            </Text>
           </Box>
-        </RailDot>
+        </HoverCard.Dropdown>
+      </HoverCard>
 
+      <Box className="railDivider" />
+
+      <Stack className="historyRailTrack" gap={2}>
         {commits.map((commit) => {
           const isAncestor = ancestorIds.has(commit.id)
 
@@ -99,7 +120,7 @@ export function HistoryRail({
               Root input
             </Text>
             <Text size="xs" c="dimmed">
-              Baseline text
+              Original input before the first transform
             </Text>
           </Box>
         </RailDot>

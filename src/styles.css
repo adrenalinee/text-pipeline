@@ -1099,6 +1099,28 @@ button {
   background: light-dark(var(--mantine-color-blue-0), rgba(34, 139, 230, 0.12));
 }
 
+.workingTextCard {
+  padding: 9px 10px;
+  border: 1px solid
+    light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+  border-radius: 6px;
+  background: light-dark(
+    var(--mantine-color-white),
+    var(--mantine-color-dark-7)
+  );
+}
+
+.workingTextCard[data-active] {
+  border-color: light-dark(
+    var(--mantine-color-teal-4),
+    var(--mantine-color-teal-7)
+  );
+}
+
+.workingTextHint {
+  margin-top: 5px;
+}
+
 .historyItemButton {
   cursor: pointer;
 }
@@ -1319,6 +1341,30 @@ button {
   min-width: 22px;
   padding: 0 5px;
   cursor: default;
+}
+
+.workingRailIndicator {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid
+    light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-5));
+  border-radius: 6px;
+  color: light-dark(var(--mantine-color-gray-6), var(--mantine-color-dark-2));
+  background: light-dark(
+    var(--mantine-color-white),
+    var(--mantine-color-dark-7)
+  );
+}
+
+.workingRailIndicator[data-active] {
+  border-color: light-dark(
+    var(--mantine-color-teal-4),
+    var(--mantine-color-teal-7)
+  );
+  color: light-dark(var(--mantine-color-teal-7), var(--mantine-color-teal-3));
 }
 
 .historyRailTrack {

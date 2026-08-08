@@ -56,19 +56,19 @@ export function HistorySidebar({
       actionAlign="left"
       title="History"
     >
-      <Box className="historyTimeline">
-        <Box className="historyRow">
-          <TimelineDot active={workingActive} />
-          <Box className="historyItem" data-active={workingActive || undefined}>
-            <Text size="sm" fw={650}>
-              Working text
-            </Text>
-            <Text size="xs" c="dimmed">
-              {countLines(currentText)} lines | {currentText.length} chars
-            </Text>
-          </Box>
-        </Box>
+      <Box className="workingTextCard" data-active={workingActive || undefined}>
+        <Text size="sm" fw={650}>
+          Working text
+        </Text>
+        <Text size="xs" c="dimmed">
+          {countLines(currentText)} lines | {currentText.length} chars
+        </Text>
+        <Text className="workingTextHint" size="xs" c="dimmed">
+          Editable workspace · not a history revision
+        </Text>
+      </Box>
 
+      <Box className="historyTimeline">
         {commits.map((commit) => {
           const isAncestor = ancestorIds.has(commit.id)
           const active = selectedRevisionId === commit.id
@@ -109,7 +109,7 @@ export function HistorySidebar({
               </Text>
             </Group>
             <Text size="xs" c="dimmed">
-              Baseline text
+              Original input before the first transform
             </Text>
           </button>
         </Box>

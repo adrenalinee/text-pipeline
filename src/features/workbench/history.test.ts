@@ -8,6 +8,7 @@ import {
   getNextCommitId,
   getRevisionSnapshot,
   getRootRevisionSnapshot,
+  prepareHistoryBaseRevision,
   ROOT_REVISION_ID,
 } from './history'
 import type { TextCommit } from './types'
@@ -32,6 +33,51 @@ function makeCommit(id: string, parentId: string): TextCommit {
 }
 
 describe('workbench history', () => {
+  it('captures the first pre-transform text as the root revision', () => {
+    const baseRevision = getRevisionSnapshot({
+      commits: [],
+      initialRevision: { syntaxMode: 'plain', text: '' },
+      revisionId: ROOT_REVISION_ID,
+    })
+
+    expect(
+      prepareHistoryBaseRevision({
+        baseRevision,
+        rootCaptured: false,
+        syntaxMode: 'json',
+        text: '{"status":"ready"}',
+      }),
+    ).toEqual({
+      baseRevision: {
+        id: 'root',
+        syntaxMode: 'json',
+        text: '{"status":"ready"}',
+      },
+      capturedRoot: {
+        id: 'root',
+        syntaxMode: 'json',
+        text: '{"status":"ready"}',
+      },
+    })
+  })
+
+  it('does not replace a root revision after it has been captured', () => {
+    const baseRevision = {
+      id: ROOT_REVISION_ID,
+      syntaxMode: 'json',
+      text: '{"status":"ready"}',
+    } as const
+
+    expect(
+      prepareHistoryBaseRevision({
+        baseRevision,
+        rootCaptured: true,
+        syntaxMode: 'json',
+        text: '{"status":"changed"}',
+      }),
+    ).toEqual({ baseRevision, capturedRoot: null })
+  })
+
   it('creates a working snapshot commit before a transform when text changed from root', () => {
     const baseRevision = getRevisionSnapshot({
       commits: [],
