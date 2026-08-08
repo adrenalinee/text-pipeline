@@ -24,6 +24,10 @@ beforeAll(() => {
       setItem: (key: string, value: string) => values.set(key, String(value)),
     },
   })
+  Object.defineProperty(globalThis, 'BroadcastChannel', {
+    configurable: true,
+    value: FakeBroadcastChannel,
+  })
 })
 
 beforeEach(async () => {
@@ -41,17 +45,18 @@ describe('useWorkspacePersistence', () => {
       useWorkspacePersistence({
         initialRevision: 0,
         initialSavedAt: null,
-        onRemoteChange: () => undefined,
         state,
       }),
     )
 
     act(() => result.current.scheduleSave('editors'))
     expect(result.current.status).toBe('saved')
+    expect(result.current.isSaved).toBe(false)
     await waitFor(async () => {
       const loaded = await loadWorkspace(createDefaultWorkspaceState())
       expect(loaded.state.editors.main.value).toBe('autosaved text')
     })
+    await waitFor(() => expect(result.current.isSaved).toBe(true))
 
     const loaded = await loadWorkspace(createDefaultWorkspaceState())
     expect(loaded.state.editors.main.value).toBe('autosaved text')
@@ -67,7 +72,6 @@ describe('useWorkspacePersistence', () => {
       useWorkspacePersistence({
         initialRevision: 0,
         initialSavedAt: null,
-        onRemoteChange: () => undefined,
         state: stale,
       }),
     )
@@ -78,4 +82,61 @@ describe('useWorkspacePersistence', () => {
     })
     expect(result.current.error?.toLowerCase()).toContain('another tab')
   })
+
+  it('does not reload or claim a remote workspace is saved in this tab', async () => {
+    const firstState = createDefaultWorkspaceState()
+    firstState.editors.main.value = 'saved by the first tab'
+    const secondState = createDefaultWorkspaceState()
+    secondState.editors.main.value = 'visible in the second tab'
+    const first = renderHook(() =>
+      useWorkspacePersistence({
+        initialRevision: 0,
+        initialSavedAt: null,
+        state: firstState,
+      }),
+    )
+    const second = renderHook(() =>
+      useWorkspacePersistence({
+        initialRevision: 0,
+        initialSavedAt: null,
+        state: secondState,
+      }),
+    )
+
+    act(() => first.result.current.scheduleSave('editors'))
+    await waitFor(() =>
+      expect(second.result.current.hasRemoteChanges).toBe(true),
+    )
+    expect(second.result.current.isSaved).toBe(false)
+
+    act(() => second.result.current.scheduleSave('positions'))
+    expect(second.result.current.status).toBe('saved')
+    expect(second.result.current.hasRemoteChanges).toBe(true)
+
+    act(() => second.result.current.scheduleSave('editors'))
+    expect(second.result.current.status).toBe('conflict')
+  })
 })
+
+class FakeBroadcastChannel {
+  static instances = new Set<FakeBroadcastChannel>()
+
+  name: string
+  onmessage: ((event: MessageEvent) => void) | null = null
+
+  constructor(name: string) {
+    this.name = name
+    FakeBroadcastChannel.instances.add(this)
+  }
+
+  close() {
+    FakeBroadcastChannel.instances.delete(this)
+  }
+
+  postMessage(data: unknown) {
+    for (const instance of FakeBroadcastChannel.instances) {
+      if (instance === this || instance.name !== this.name) continue
+      queueMicrotask(() => instance.onmessage?.({ data } as MessageEvent))
+    }
+  }
+}

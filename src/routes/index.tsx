@@ -307,12 +307,16 @@ function Workbench({
     onBeforeSampleLoad: commitWorkingText,
     onManualChange: markWorkingTextChanged,
     onReplaceCommit: commitReplace,
+    restoreInitialFocus:
+      initial.layout.activeEditorId === 'main' || !initial.layout.splitEnabled,
   })
   const subSession = useEditorSession({
     id: 'sub',
     initialState: initial.editors.sub,
     initialSyntaxMode: 'plain',
     initialValue: '',
+    restoreInitialFocus:
+      initial.layout.activeEditorId === 'sub' && initial.layout.splitEnabled,
   })
   const activeSession =
     activeEditorId === 'sub' && splitEnabled ? subSession : mainSession
@@ -404,7 +408,6 @@ function Workbench({
   const workspacePersistence = useWorkspacePersistence({
     initialRevision: initialWorkspace.revision,
     initialSavedAt: initialWorkspace.savedAt,
-    onRemoteChange: onReload,
     state: persistedWorkspace,
   })
   const persistenceMountedRef = useRef({
@@ -1177,6 +1180,8 @@ function Workbench({
             </Badge>
             <WorkspaceStorageMenu
               error={workspacePersistence.error}
+              hasRemoteChanges={workspacePersistence.hasRemoteChanges}
+              isSaved={workspacePersistence.isSaved}
               savedAt={workspacePersistence.savedAt}
               status={workspacePersistence.status}
               onClear={() => setStorageAction('clear')}
@@ -1184,6 +1189,17 @@ function Workbench({
               onLoadLatest={onReload}
               onRetry={workspacePersistence.retry}
             />
+            {workspacePersistence.isSaved ? (
+              <Text
+                aria-live="polite"
+                className="workspaceSavedLabel"
+                // c="blue.4"
+                // fw={650}
+                size="xs"
+              >
+                Saved
+              </Text>
+            ) : null}
             {/* <HeaderIconButton
               label={splitEnabled ? 'Close split editor' : 'Split editor'}
               pressed={splitEnabled}
@@ -1440,6 +1456,8 @@ function getPersistedEditorState(
 
 function WorkspaceStorageMenu({
   error,
+  hasRemoteChanges,
+  isSaved,
   onClear,
   onKeepThisTab,
   onLoadLatest,
@@ -1448,6 +1466,8 @@ function WorkspaceStorageMenu({
   status,
 }: {
   error: string | null
+  hasRemoteChanges: boolean
+  isSaved: boolean
   onClear: () => void
   onKeepThisTab: () => void
   onLoadLatest: () => void
@@ -1462,13 +1482,15 @@ function WorkspaceStorageMenu({
         ? 'Changes in another tab'
         : status === 'error'
           ? 'Local save failed'
-          : 'Saved locally'
+          : hasRemoteChanges
+            ? 'Newer changes in another tab'
+            : isSaved
+              ? 'Saved locally'
+              : 'Changes not saved yet'
   const statusColor =
     status === 'conflict' || status === 'error' ? 'red' : 'blue'
   const statusIcon =
-    status === 'saving' ? (
-      <Loader size={17} />
-    ) : status === 'conflict' || status === 'error' ? (
+    status === 'conflict' || status === 'error' ? (
       <TriangleAlert size={17} />
     ) : (
       <Database size={17} />
@@ -1477,7 +1499,10 @@ function WorkspaceStorageMenu({
   return (
     <Menu position="bottom-end" shadow="md" width={280} withinPortal>
       <Menu.Target>
-        <Tooltip label={getStorageTooltip(status)} withArrow>
+        <Tooltip
+          label={getStorageTooltip(status, isSaved, hasRemoteChanges)}
+          withArrow
+        >
           <ActionIcon
             aria-label={statusLabel}
             color={statusColor}
@@ -1492,7 +1517,7 @@ function WorkspaceStorageMenu({
         <Menu.Label>Local workspace</Menu.Label>
         <Box px="sm" py={6}>
           <Group gap="xs" wrap="nowrap">
-            {status === 'saved' ? (
+            {isSaved ? (
               <CircleCheck color="var(--mantine-color-blue-6)" size={16} />
             ) : null}
             <Box>
@@ -1500,7 +1525,12 @@ function WorkspaceStorageMenu({
                 {statusLabel}
               </Text>
               <Text c="dimmed" size="xs">
-                {error ?? formatSavedAt(savedAt)}
+                {error ??
+                  (hasRemoteChanges
+                    ? 'Load the latest state when you are ready.'
+                    : isSaved
+                      ? formatSavedAt(savedAt)
+                      : 'Changes are saved automatically.')}
               </Text>
             </Box>
           </Group>
@@ -1513,6 +1543,9 @@ function WorkspaceStorageMenu({
               Keep working in this tab
             </Menu.Item>
           </>
+        ) : null}
+        {hasRemoteChanges && status !== 'conflict' ? (
+          <Menu.Item onClick={onLoadLatest}>Load latest changes</Menu.Item>
         ) : null}
         {status === 'error' ? (
           <Menu.Item leftSection={<RefreshCw size={15} />} onClick={onRetry}>
@@ -1532,10 +1565,16 @@ function WorkspaceStorageMenu({
   )
 }
 
-function getStorageTooltip(status: WorkspaceSaveStatus) {
+function getStorageTooltip(
+  status: WorkspaceSaveStatus,
+  isSaved: boolean,
+  hasRemoteChanges: boolean,
+) {
   if (status === 'saving') return 'Saving workspace in this browser'
   if (status === 'conflict') return 'Changes from another tab need attention'
   if (status === 'error') return 'Local autosave needs attention'
+  if (hasRemoteChanges) return 'Another tab has newer saved changes'
+  if (!isSaved) return 'Changes will be saved automatically'
   return 'Workspace is automatically saved in this browser'
 }
 

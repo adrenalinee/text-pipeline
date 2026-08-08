@@ -84,6 +84,7 @@ export function useEditorSession({
   onBeforeSampleLoad,
   onManualChange,
   onReplaceCommit,
+  restoreInitialFocus = false,
 }: {
   id: EditorId
   initialState?: EditorSessionInitialState
@@ -92,6 +93,7 @@ export function useEditorSession({
   onBeforeSampleLoad?: (sample: TextSample) => void
   onManualChange?: () => void
   onReplaceCommit?: (session: ReplaceSession) => void
+  restoreInitialFocus?: boolean
 }) {
   const startingValue = initialState?.value ?? initialValue
   const startingSelection = clampSelection(
@@ -162,6 +164,7 @@ export function useEditorSession({
   const scrollFrameRef = useRef<number | null>(null)
   const selectionRef = useRef(startingSelection)
   const scrollPositionRef = useRef(scrollPosition)
+  const restoreInitialFocusRef = useRef(restoreInitialFocus)
 
   onBeforeSampleLoadRef.current = onBeforeSampleLoad
   onManualChangeRef.current = onManualChange
@@ -335,6 +338,10 @@ export function useEditorSession({
         view.scrollDOM.scrollLeft = scrollPositionRef.current.left
         view.scrollDOM.scrollTop = scrollPositionRef.current.top
         view.requestMeasure()
+        if (restoreInitialFocusRef.current) {
+          restoreInitialFocusRef.current = false
+          view.focus()
+        }
       })
     }
   }
@@ -345,10 +352,15 @@ export function useEditorSession({
       scrollFrameRef.current = window.requestAnimationFrame(() => {
         scrollFrameRef.current = null
         if (editorViewRef.current !== view) return
-        setScrollPosition({
+        const next = {
           left: view.scrollDOM.scrollLeft,
           top: view.scrollDOM.scrollTop,
-        })
+        }
+        setScrollPosition((current) =>
+          current.left === next.left && current.top === next.top
+            ? current
+            : next,
+        )
       })
     }
 

@@ -16,7 +16,7 @@ export const WORKSPACE_SAVE_DELAYS = {
   editors: 750,
   history: 100,
   layout: 100,
-  positions: 1500,
+  positions: 300,
 } satisfies Record<WorkspaceSaveArea, number>
 
 export type WorkspaceSaveStatus = 'conflict' | 'error' | 'saved' | 'saving'
@@ -31,33 +31,31 @@ type WorkspaceChannelMessage = {
 export function useWorkspacePersistence({
   initialRevision,
   initialSavedAt,
-  onRemoteChange,
   state,
 }: {
   initialRevision: number
   initialSavedAt: string | null
-  onRemoteChange: () => void
   state: WorkbenchPersistedState
 }) {
   const [status, setStatus] = useState<WorkspaceSaveStatus>('saved')
   const [savedAt, setSavedAt] = useState<string | null>(initialSavedAt)
+  const [isSaved, setIsSaved] = useState(initialSavedAt !== null)
+  const [hasRemoteChanges, setHasRemoteChanges] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const stateRef = useRef(state)
-  const onRemoteChangeRef = useRef(onRemoteChange)
+  const hasRemoteChangesRef = useRef(false)
   const revisionRef = useRef(initialRevision)
   const pendingAreasRef = useRef(new Set<WorkspaceSaveArea>())
   const timersRef = useRef(new Map<WorkspaceSaveArea, number>())
   const slowSaveTimerRef = useRef<number | null>(null)
   const savingRef = useRef(false)
   const pausedRef = useRef(false)
-  const remoteChangePendingRef = useRef(false)
   const channelRef = useRef<BroadcastChannel | null>(null)
   const sourceRef = useRef(createTabId())
 
   useEffect(() => {
     stateRef.current = state
-    onRemoteChangeRef.current = onRemoteChange
-  }, [onRemoteChange, state])
+  }, [state])
 
   const broadcast = useCallback(
     (message: Omit<WorkspaceChannelMessage, 'source'>) => {
@@ -99,6 +97,9 @@ export function useWorkspacePersistence({
         revisionRef.current = result.revision
         setSavedAt(result.savedAt)
         setStatus('saved')
+        setIsSaved(pendingAreasRef.current.size === 0)
+        setHasRemoteChanges(false)
+        hasRemoteChangesRef.current = false
         try {
           if (areas.includes('layout')) {
             writeLayoutBootstrap(currentState.layout)
@@ -115,6 +116,7 @@ export function useWorkspacePersistence({
       } catch (reason) {
         for (const area of areas) pendingAreasRef.current.add(area)
         pausedRef.current = true
+        setIsSaved(false)
         if (reason instanceof WorkspaceConflictError) {
           setStatus('conflict')
           setError('Another tab saved changes while this tab had unsaved work.')
@@ -144,6 +146,19 @@ export function useWorkspacePersistence({
 
   const scheduleSave = useCallback(
     (area: WorkspaceSaveArea) => {
+      setIsSaved(false)
+      if (hasRemoteChangesRef.current) {
+        if (area === 'positions') return
+        pendingAreasRef.current.add(area)
+        clearScheduledTimers()
+        pausedRef.current = true
+        setStatus('conflict')
+        setError(
+          'Another tab has newer changes. Load them or keep working in this tab.',
+        )
+        return
+      }
+
       pendingAreasRef.current.add(area)
       if (pausedRef.current) return
 
@@ -155,16 +170,20 @@ export function useWorkspacePersistence({
       }, WORKSPACE_SAVE_DELAYS[area])
       timersRef.current.set(area, timer)
     },
-    [flush],
+    [clearScheduledTimers, flush],
   )
 
   const retry = useCallback(() => {
     pausedRef.current = false
+    setIsSaved(false)
     void flush()
   }, [flush])
 
   const keepThisTab = useCallback(() => {
     pausedRef.current = false
+    setIsSaved(false)
+    setHasRemoteChanges(false)
+    hasRemoteChangesRef.current = false
     for (const area of WORKSPACE_SAVE_AREAS) {
       pendingAreasRef.current.add(area)
     }
@@ -176,17 +195,11 @@ export function useWorkspacePersistence({
     pendingAreasRef.current.clear()
     clearScheduledTimers()
     pausedRef.current = false
+    setIsSaved(false)
+    setHasRemoteChanges(false)
+    hasRemoteChangesRef.current = false
     broadcast({ revision: 0, savedAt: null, type: 'cleared' })
   }, [broadcast, clearScheduledTimers])
-
-  const applyRemoteChangeWhenInactive = useCallback(() => {
-    if (!remoteChangePendingRef.current) return
-    const isInactive =
-      document.visibilityState === 'hidden' || !document.hasFocus()
-    if (!isInactive) return
-    remoteChangePendingRef.current = false
-    onRemoteChangeRef.current()
-  }, [])
 
   useEffect(() => {
     if (typeof BroadcastChannel === 'undefined') return
@@ -201,6 +214,7 @@ export function useWorkspacePersistence({
       if (hasLocalChanges) {
         clearScheduledTimers()
         pausedRef.current = true
+        setIsSaved(false)
         setStatus('conflict')
         setError(
           message.type === 'cleared'
@@ -214,38 +228,26 @@ export function useWorkspacePersistence({
       setSavedAt(message.savedAt)
       setStatus('saved')
       setError(null)
-      remoteChangePendingRef.current = true
-      applyRemoteChangeWhenInactive()
+      setIsSaved(false)
+      setHasRemoteChanges(true)
+      hasRemoteChangesRef.current = true
     }
 
     return () => {
       channel.close()
       channelRef.current = null
     }
-  }, [applyRemoteChangeWhenInactive, clearScheduledTimers])
+  }, [clearScheduledTimers])
 
   useEffect(() => {
     const flushOnHide = () => {
-      if (document.visibilityState !== 'hidden') return
-      if (remoteChangePendingRef.current) {
-        remoteChangePendingRef.current = false
-        onRemoteChangeRef.current()
-        return
-      }
-      void flush()
-    }
-    const refreshOnFocus = () => {
-      if (!remoteChangePendingRef.current) return
-      remoteChangePendingRef.current = false
-      onRemoteChangeRef.current()
+      if (document.visibilityState === 'hidden') void flush()
     }
     const flushOnPageHide = () => void flush()
     document.addEventListener('visibilitychange', flushOnHide)
-    window.addEventListener('focus', refreshOnFocus)
     window.addEventListener('pagehide', flushOnPageHide)
     return () => {
       document.removeEventListener('visibilitychange', flushOnHide)
-      window.removeEventListener('focus', refreshOnFocus)
       window.removeEventListener('pagehide', flushOnPageHide)
       clearScheduledTimers()
       if (slowSaveTimerRef.current !== null) {
@@ -257,6 +259,8 @@ export function useWorkspacePersistence({
   return {
     announceClear,
     error,
+    hasRemoteChanges,
+    isSaved,
     keepThisTab,
     retry,
     savedAt,

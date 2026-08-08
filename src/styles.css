@@ -46,6 +46,10 @@ button {
   flex: 0 0 auto;
 }
 
+.workspaceSavedLabel {
+  white-space: nowrap;
+}
+
 .workbenchSidebar {
   background: light-dark(
     var(--mantine-color-gray-0),
@@ -1450,8 +1454,14 @@ button {
   max-width: 220px;
 }
 
-@media (max-width: 360px) {
+@media (max-width: 440px) {
   .workbenchBadge {
+    display: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .workspaceSavedLabel {
     display: none;
   }
 }
