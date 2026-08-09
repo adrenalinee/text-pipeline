@@ -103,3 +103,38 @@ describe('editor session sample loading', () => {
     expect(result.current.value).toBe(sample.value)
   })
 })
+
+describe('editor session restoration', () => {
+  it('initializes durable editor preferences and positions from a snapshot', () => {
+    const { result } = renderHook(() =>
+      useEditorSession({
+        id: 'main',
+        initialState: {
+          encoding: 'UTF-16 LE',
+          formatSelection: { mode: 'locked', origin: 'manual' },
+          scroll: { left: 14, top: 120 },
+          selection: { anchor: 7, head: 2 },
+          softWrapEnabled: false,
+          sourceViewEnabled: false,
+          sqlDialectId: 'postgresql',
+          syntaxMode: 'sql',
+          validationEnabled: true,
+          value: 'select 1',
+          viewMode: 'source',
+          whitespaceVisible: true,
+        },
+        initialSyntaxMode: 'plain',
+        initialValue: '',
+      }),
+    )
+
+    expect(result.current.value).toBe('select 1')
+    expect(result.current.syntaxMode).toBe('sql')
+    expect(result.current.sqlDialect.id).toBe('postgresql')
+    expect(result.current.selection).toEqual({ anchor: 7, head: 2 })
+    expect(result.current.scrollPosition).toEqual({ left: 14, top: 120 })
+    expect(result.current.softWrapEnabled).toBe(false)
+    expect(result.current.validationEnabled).toBe(true)
+    expect(result.current.whitespaceVisible).toBe(true)
+  })
+})

@@ -1,5 +1,6 @@
 import { linter, lintGutter } from '@codemirror/lint'
 import type { LintSource } from '@codemirror/lint'
+import { Transaction } from '@codemirror/state'
 import type { Extension } from '@codemirror/state'
 import { EditorView, highlightWhitespace } from '@codemirror/view'
 import type { ViewUpdate } from '@codemirror/view'
@@ -10,8 +11,12 @@ import { getFormatDefinition } from './formats'
 import { useSearchReplace } from './search/useSearchReplace'
 import type { ReplaceSession } from './search/useSearchReplace'
 import type { TextSample } from './samples'
-import { DEFAULT_SQL_DIALECT, SQL_DIALECT_OPTIONS } from './sqlDialects'
-import type { SqlDialect } from './sqlDialects'
+import {
+  DEFAULT_SQL_DIALECT,
+  getSqlDialect,
+  SQL_DIALECT_OPTIONS,
+} from './sqlDialects'
+import type { SqlDialect, SqlDialectId } from './sqlDialects'
 import type {
   FormatSelectionState,
   FormatValidationResult,
@@ -44,6 +49,21 @@ export type FormatDetectionStatus =
   | 'too-large'
   | 'undetermined'
 
+export type EditorSessionInitialState = {
+  encoding: string
+  formatSelection: FormatSelectionState
+  scroll: { left: number; top: number }
+  selection: { anchor: number; head: number }
+  softWrapEnabled: boolean
+  sourceViewEnabled: boolean
+  sqlDialectId: SqlDialectId
+  syntaxMode: SyntaxMode
+  validationEnabled: boolean
+  value: string
+  viewMode: WorkbenchViewMode
+  whitespaceVisible: boolean
+}
+
 export const ENCODING_OPTIONS: Array<{
   description: string
   label: string
@@ -58,39 +78,80 @@ export const ENCODING_OPTIONS: Array<{
 
 export function useEditorSession({
   id,
+  initialState,
   initialSyntaxMode,
   initialValue,
   onBeforeSampleLoad,
   onManualChange,
   onReplaceCommit,
+  restoreInitialFocus = false,
 }: {
   id: EditorId
+  initialState?: EditorSessionInitialState
   initialSyntaxMode: SyntaxMode
   initialValue: string
   onBeforeSampleLoad?: (sample: TextSample) => void
   onManualChange?: () => void
   onReplaceCommit?: (session: ReplaceSession) => void
+  restoreInitialFocus?: boolean
 }) {
-  const [value, setValue] = useState(initialValue)
-  const [syntaxMode, setSyntaxMode] = useState<SyntaxMode>(initialSyntaxMode)
-  const [formatSelection, setFormatSelection] = useState<FormatSelectionState>({
-    mode: 'auto',
-  })
+  const startingValue = initialState?.value ?? initialValue
+  const startingSelection = clampSelection(
+    initialState?.selection ?? { anchor: 0, head: 0 },
+    startingValue.length,
+  )
+  const [value, setValue] = useState(startingValue)
+  const [syntaxMode, setSyntaxMode] = useState<SyntaxMode>(
+    initialState?.syntaxMode ?? initialSyntaxMode,
+  )
+  const [formatSelection, setFormatSelection] = useState<FormatSelectionState>(
+    initialState?.formatSelection ?? { mode: 'auto' },
+  )
   const [formatDetectionStatus, setFormatDetectionStatus] =
-    useState<FormatDetectionStatus>('idle')
+    useState<FormatDetectionStatus>(
+      initialState?.formatSelection.mode === 'locked' &&
+        initialState.formatSelection.origin === 'detected'
+        ? 'detected'
+        : 'idle',
+    )
   const [syntaxModalOpened, setSyntaxModalOpened] = useState(false)
   const [sampleModalOpened, setSampleModalOpened] = useState(false)
-  const [encoding, setEncoding] = useState(DEFAULT_ENCODING_LABEL)
+  const [encoding, setEncoding] = useState(
+    initialState?.encoding ?? DEFAULT_ENCODING_LABEL,
+  )
   const [encodingModalOpened, setEncodingModalOpened] = useState(false)
   const [goToLineModalOpened, setGoToLineModalOpened] = useState(false)
-  const [softWrapEnabled, setSoftWrapEnabled] = useState(true)
-  const [whitespaceVisible, setWhitespaceVisible] = useState(false)
-  const [validationEnabled, setValidationEnabled] = useState(false)
-  const [sqlDialect, setSqlDialect] = useState<SqlDialect>(DEFAULT_SQL_DIALECT)
-  const [viewMode, setViewModeState] = useState<WorkbenchViewMode>('source')
-  const [sourceViewEnabled, setSourceViewEnabled] = useState(true)
-  const [selectionRange, setSelectionRange] = useState({ from: 0, to: 0 })
-  const [cursorOffset, setCursorOffset] = useState(0)
+  const [softWrapEnabled, setSoftWrapEnabled] = useState(
+    initialState?.softWrapEnabled ?? true,
+  )
+  const [whitespaceVisible, setWhitespaceVisible] = useState(
+    initialState?.whitespaceVisible ?? false,
+  )
+  const [validationEnabled, setValidationEnabled] = useState(
+    initialState?.validationEnabled ?? false,
+  )
+  const [sqlDialect, setSqlDialect] = useState<SqlDialect>(() =>
+    initialState
+      ? getSqlDialect(initialState.sqlDialectId)
+      : DEFAULT_SQL_DIALECT,
+  )
+  const [viewMode, setViewModeState] = useState<WorkbenchViewMode>(
+    initialState?.viewMode ?? 'source',
+  )
+  const [sourceViewEnabled, setSourceViewEnabled] = useState(
+    initialState?.sourceViewEnabled ?? true,
+  )
+  const [selectionRange, setSelectionRange] = useState({
+    from: Math.min(startingSelection.anchor, startingSelection.head),
+    to: Math.max(startingSelection.anchor, startingSelection.head),
+  })
+  const [selectionAnchor, setSelectionAnchor] = useState(
+    startingSelection.anchor,
+  )
+  const [cursorOffset, setCursorOffset] = useState(startingSelection.head)
+  const [scrollPosition, setScrollPosition] = useState(
+    initialState?.scroll ?? { left: 0, top: 0 },
+  )
   const [editorExtensions, setEditorExtensions] = useState<Array<Extension>>([])
   const [validationResult, setValidationResult] =
     useState<FormatValidationResult | null>(null)
@@ -98,9 +159,17 @@ export function useEditorSession({
   const onBeforeSampleLoadRef = useRef(onBeforeSampleLoad)
   const onManualChangeRef = useRef(onManualChange)
   const detectionRequestRef = useRef(0)
+  const scrollListenerRef = useRef<(() => void) | null>(null)
+  const scrollViewRef = useRef<EditorView | null>(null)
+  const scrollFrameRef = useRef<number | null>(null)
+  const selectionRef = useRef(startingSelection)
+  const scrollPositionRef = useRef(scrollPosition)
+  const restoreInitialFocusRef = useRef(restoreInitialFocus)
 
   onBeforeSampleLoadRef.current = onBeforeSampleLoad
   onManualChangeRef.current = onManualChange
+  selectionRef.current = { anchor: selectionAnchor, head: cursorOffset }
+  scrollPositionRef.current = scrollPosition
 
   const searchReplace = useSearchReplace({ editorViewRef, onReplaceCommit })
   const currentFormat = getFormatDefinition(syntaxMode)
@@ -113,6 +182,13 @@ export function useEditorSession({
   const selectionStats = hasEditorSelection
     ? getSelectionStats(value, selectionRange.from, selectionRange.to)
     : null
+
+  useEffect(
+    () => () => {
+      detachScrollListener()
+    },
+    [],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -229,16 +305,83 @@ export function useEditorSession({
     selectionAsSingle: { from: number; head: number; to: number }
   }) {
     const { from, head, to } = statistics.selectionAsSingle
+    const anchor = head === from ? to : from
     setSelectionRange((current) =>
       current.from === from && current.to === to ? current : { from, to },
     )
     setCursorOffset((current) => (current === head ? current : head))
+    setSelectionAnchor((current) => (current === anchor ? current : anchor))
   }
 
   function bindEditorView(view: EditorView | null) {
+    detachScrollListener()
     editorViewRef.current = view
 
-    if (view) updateStatisticsFromView(view)
+    if (view) {
+      const selection = clampSelection(
+        selectionRef.current,
+        view.state.doc.length,
+      )
+      if (
+        view.state.selection.main.anchor !== selection.anchor ||
+        view.state.selection.main.head !== selection.head
+      ) {
+        view.dispatch({
+          annotations: Transaction.addToHistory.of(false),
+          selection,
+        })
+      }
+      updateStatisticsFromView(view)
+      attachScrollListener(view)
+      window.requestAnimationFrame(() => {
+        if (editorViewRef.current !== view) return
+        view.scrollDOM.scrollLeft = scrollPositionRef.current.left
+        view.scrollDOM.scrollTop = scrollPositionRef.current.top
+        view.requestMeasure()
+        if (restoreInitialFocusRef.current) {
+          restoreInitialFocusRef.current = false
+          view.focus()
+        }
+      })
+    }
+  }
+
+  function attachScrollListener(view: EditorView) {
+    const listener = () => {
+      if (scrollFrameRef.current !== null) return
+      scrollFrameRef.current = window.requestAnimationFrame(() => {
+        scrollFrameRef.current = null
+        if (editorViewRef.current !== view) return
+        const next = {
+          left: view.scrollDOM.scrollLeft,
+          top: view.scrollDOM.scrollTop,
+        }
+        setScrollPosition((current) =>
+          current.left === next.left && current.top === next.top
+            ? current
+            : next,
+        )
+      })
+    }
+
+    scrollViewRef.current = view
+    scrollListenerRef.current = listener
+    view.scrollDOM.addEventListener('scroll', listener, { passive: true })
+  }
+
+  function detachScrollListener() {
+    if (scrollViewRef.current && scrollListenerRef.current) {
+      scrollViewRef.current.scrollDOM.removeEventListener(
+        'scroll',
+        scrollListenerRef.current,
+      )
+    }
+    scrollViewRef.current = null
+    scrollListenerRef.current = null
+    if (scrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(scrollFrameRef.current)
+      scrollFrameRef.current = null
+    }
   }
 
   function updateEditorView(update: ViewUpdate) {
@@ -377,6 +520,7 @@ export function useEditorSession({
     }
 
     setCursorOffset(offset)
+    setSelectionAnchor(offset)
     setSelectionRange({ from: offset, to: offset })
     setGoToLineModalOpened(false)
   }
@@ -405,6 +549,7 @@ export function useEditorSession({
     sampleModalOpened,
     searchReplace,
     selectionRange,
+    selection: { anchor: selectionAnchor, head: cursorOffset },
     selectionStats,
     setEncoding,
     setEncodingModalOpened,
@@ -420,6 +565,7 @@ export function useEditorSession({
     setViewMode,
     setWhitespaceVisible,
     softWrapEnabled,
+    scrollPosition,
     sourceViewEnabled,
     sqlDialect,
     sqlDialectOptions: SQL_DIALECT_OPTIONS,
@@ -438,3 +584,13 @@ export function useEditorSession({
 }
 
 export type EditorSession = ReturnType<typeof useEditorSession>
+
+function clampSelection(
+  selection: { anchor: number; head: number },
+  length: number,
+) {
+  return {
+    anchor: Math.min(length, Math.max(0, selection.anchor)),
+    head: Math.min(length, Math.max(0, selection.head)),
+  }
+}
