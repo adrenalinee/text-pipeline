@@ -32,6 +32,25 @@ const REGISTERED_TEXT_SAMPLES = FORMAT_OPTIONS.flatMap((format) =>
   }),
 )
 
+const SOURCE_EDITOR_PLACEHOLDER = `Paste text. Transform it. Keep every step.
+
+Work with many formats using syntax highlighting,
+transformations, validation, and rich previews.
+Edit input and output side by side,
+then compare changes instantly with Diff.
+
+Every transformation stays in your flow,
+while your original text remains untouched.
+
+Processed locally in your browser.
+Your text stays with you.`
+
+const SECONDARY_EDITOR_PLACEHOLDER = `A fully independent second editor.
+
+Paste or edit any text here, use every available tool,
+then compare both editors with Diff.
+Changes here are not saved to your flow history.`
+
 type EditorToolbarShortcutActions = {
   canCommit: boolean
   canToggleView: boolean
@@ -232,7 +251,11 @@ function SourceEditor({
       }}
       extensions={session.editorExtensions}
       height="100%"
-      placeholder="any text here"
+      placeholder={
+        session.id === 'main'
+          ? SOURCE_EDITOR_PLACEHOLDER
+          : SECONDARY_EDITOR_PLACEHOLDER
+      }
       theme={isDark ? oneDark : 'light'}
       value={session.value}
       onCreateEditor={session.bindEditorView}

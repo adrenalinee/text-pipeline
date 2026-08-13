@@ -411,7 +411,8 @@ function Workbench({
     state: persistedWorkspace,
   })
   const persistenceMountedRef = useRef({
-    editors: false,
+    editorContent: false,
+    editorSettings: false,
     history: false,
     layout: false,
     positions: false,
@@ -419,8 +420,16 @@ function Workbench({
   const notifiedStorageStatusRef = useRef<WorkspaceSaveStatus | null>(null)
 
   useEffect(() => {
-    if (!persistenceMountedRef.current.editors) {
-      persistenceMountedRef.current.editors = true
+    if (!persistenceMountedRef.current.editorContent) {
+      persistenceMountedRef.current.editorContent = true
+      return
+    }
+    workspacePersistence.scheduleSave('editors', { affectsContent: true })
+  }, [mainSession.value, subSession.value, workspacePersistence.scheduleSave])
+
+  useEffect(() => {
+    if (!persistenceMountedRef.current.editorSettings) {
+      persistenceMountedRef.current.editorSettings = true
       return
     }
     workspacePersistence.scheduleSave('editors')
@@ -432,7 +441,6 @@ function Workbench({
     mainSession.sqlDialect.id,
     mainSession.syntaxMode,
     mainSession.validationEnabled,
-    mainSession.value,
     mainSession.viewMode,
     mainSession.whitespaceVisible,
     subSession.encoding,
@@ -442,7 +450,6 @@ function Workbench({
     subSession.sqlDialect.id,
     subSession.syntaxMode,
     subSession.validationEnabled,
-    subSession.value,
     subSession.viewMode,
     subSession.whitespaceVisible,
     workspacePersistence.scheduleSave,
@@ -471,7 +478,7 @@ function Workbench({
       persistenceMountedRef.current.history = true
       return
     }
-    workspacePersistence.scheduleSave('history')
+    workspacePersistence.scheduleSave('history', { affectsContent: true })
   }, [
     commits,
     commitSequence,
