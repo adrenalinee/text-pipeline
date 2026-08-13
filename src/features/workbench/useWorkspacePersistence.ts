@@ -22,6 +22,7 @@ export const WORKSPACE_SAVE_DELAYS = {
 export type WorkspaceSaveStatus = 'conflict' | 'error' | 'saved' | 'saving'
 
 type WorkspaceChannelMessage = {
+  contentChanged: boolean
   revision: number
   savedAt: string | null
   source: string
@@ -46,6 +47,8 @@ export function useWorkspacePersistence({
   const hasRemoteChangesRef = useRef(false)
   const revisionRef = useRef(initialRevision)
   const pendingAreasRef = useRef(new Set<WorkspaceSaveArea>())
+  const pendingContentRef = useRef(false)
+  const savingContentRef = useRef(false)
   const timersRef = useRef(new Map<WorkspaceSaveArea, number>())
   const slowSaveTimerRef = useRef<number | null>(null)
   const savingRef = useRef(false)
@@ -76,15 +79,20 @@ export function useWorkspacePersistence({
       if (savingRef.current || (pausedRef.current && !force)) return
       const areas = Array.from(pendingAreasRef.current)
       if (areas.length === 0) return
+      const contentChanged = pendingContentRef.current
 
       pendingAreasRef.current.clear()
+      pendingContentRef.current = false
       clearScheduledTimers()
       savingRef.current = true
+      savingContentRef.current = contentChanged
       setError(null)
-      slowSaveTimerRef.current = window.setTimeout(() => {
-        slowSaveTimerRef.current = null
-        setStatus('saving')
-      }, SLOW_SAVE_INDICATOR_MS)
+      if (contentChanged) {
+        slowSaveTimerRef.current = window.setTimeout(() => {
+          slowSaveTimerRef.current = null
+          setStatus('saving')
+        }, SLOW_SAVE_INDICATOR_MS)
+      }
 
       try {
         const currentState = stateRef.current
@@ -95,11 +103,13 @@ export function useWorkspacePersistence({
           state: currentState,
         })
         revisionRef.current = result.revision
-        setSavedAt(result.savedAt)
         setStatus('saved')
-        setIsSaved(pendingAreasRef.current.size === 0)
-        setHasRemoteChanges(false)
-        hasRemoteChangesRef.current = false
+        if (contentChanged) {
+          setSavedAt(result.savedAt)
+          setIsSaved(!pendingContentRef.current)
+          setHasRemoteChanges(false)
+          hasRemoteChangesRef.current = false
+        }
         try {
           if (areas.includes('layout')) {
             writeLayoutBootstrap(currentState.layout)
@@ -109,18 +119,25 @@ export function useWorkspacePersistence({
           // IndexedDB remains canonical if the small bootstrap mirror is blocked.
         }
         broadcast({
+          contentChanged,
           revision: result.revision,
           savedAt: result.savedAt,
           type: 'saved',
         })
       } catch (reason) {
-        for (const area of areas) pendingAreasRef.current.add(area)
-        pausedRef.current = true
-        setIsSaved(false)
-        if (reason instanceof WorkspaceConflictError) {
+        if (!contentChanged && reason instanceof WorkspaceConflictError) {
+          setStatus('saved')
+          setError(null)
+        } else {
+          for (const area of areas) pendingAreasRef.current.add(area)
+          pendingContentRef.current ||= contentChanged
+          pausedRef.current = true
+          if (contentChanged) setIsSaved(false)
+        }
+        if (contentChanged && reason instanceof WorkspaceConflictError) {
           setStatus('conflict')
           setError('Another tab saved changes while this tab had unsaved work.')
-        } else {
+        } else if (!(reason instanceof WorkspaceConflictError)) {
           setStatus('error')
           setError(
             reason instanceof Error
@@ -132,6 +149,7 @@ export function useWorkspacePersistence({
         window.clearTimeout(slowSaveTimerRef.current)
         slowSaveTimerRef.current = null
         savingRef.current = false
+        savingContentRef.current = false
         if (
           pendingAreasRef.current.size > 0 &&
           timersRef.current.size === 0 &&
@@ -145,11 +163,14 @@ export function useWorkspacePersistence({
   )
 
   const scheduleSave = useCallback(
-    (area: WorkspaceSaveArea) => {
-      setIsSaved(false)
-      if (hasRemoteChangesRef.current) {
-        if (area === 'positions') return
+    (
+      area: WorkspaceSaveArea,
+      { affectsContent = false }: { affectsContent?: boolean } = {},
+    ) => {
+      if (affectsContent) setIsSaved(false)
+      if (hasRemoteChangesRef.current && affectsContent) {
         pendingAreasRef.current.add(area)
+        pendingContentRef.current = true
         clearScheduledTimers()
         pausedRef.current = true
         setStatus('conflict')
@@ -158,8 +179,10 @@ export function useWorkspacePersistence({
         )
         return
       }
+      if (hasRemoteChangesRef.current && area === 'editors') return
 
       pendingAreasRef.current.add(area)
+      pendingContentRef.current ||= affectsContent
       if (pausedRef.current) return
 
       const existingTimer = timersRef.current.get(area)
@@ -175,7 +198,7 @@ export function useWorkspacePersistence({
 
   const retry = useCallback(() => {
     pausedRef.current = false
-    setIsSaved(false)
+    if (pendingContentRef.current) setIsSaved(false)
     void flush()
   }, [flush])
 
@@ -184,6 +207,7 @@ export function useWorkspacePersistence({
     setIsSaved(false)
     setHasRemoteChanges(false)
     hasRemoteChangesRef.current = false
+    pendingContentRef.current = true
     for (const area of WORKSPACE_SAVE_AREAS) {
       pendingAreasRef.current.add(area)
     }
@@ -193,12 +217,18 @@ export function useWorkspacePersistence({
   const announceClear = useCallback(() => {
     revisionRef.current = 0
     pendingAreasRef.current.clear()
+    pendingContentRef.current = false
     clearScheduledTimers()
     pausedRef.current = false
     setIsSaved(false)
     setHasRemoteChanges(false)
     hasRemoteChangesRef.current = false
-    broadcast({ revision: 0, savedAt: null, type: 'cleared' })
+    broadcast({
+      contentChanged: true,
+      revision: 0,
+      savedAt: null,
+      type: 'cleared',
+    })
   }, [broadcast, clearScheduledTimers])
 
   useEffect(() => {
@@ -209,9 +239,13 @@ export function useWorkspacePersistence({
       const message = event.data
       if (message.source === sourceRef.current) return
 
-      const hasLocalChanges =
-        savingRef.current || pendingAreasRef.current.size > 0
-      if (hasLocalChanges) {
+      revisionRef.current = message.revision
+      const contentChanged = message.contentChanged !== false
+      if (!contentChanged) return
+
+      const hasLocalContentChanges =
+        savingContentRef.current || pendingContentRef.current
+      if (hasLocalContentChanges) {
         clearScheduledTimers()
         pausedRef.current = true
         setIsSaved(false)
@@ -224,7 +258,9 @@ export function useWorkspacePersistence({
         return
       }
 
-      revisionRef.current = message.revision
+      pendingAreasRef.current.clear()
+      pendingContentRef.current = false
+      clearScheduledTimers()
       setSavedAt(message.savedAt)
       setStatus('saved')
       setError(null)

@@ -49,7 +49,7 @@ describe('useWorkspacePersistence', () => {
       }),
     )
 
-    act(() => result.current.scheduleSave('editors'))
+    act(() => result.current.scheduleSave('editors', { affectsContent: true }))
     expect(result.current.status).toBe('saved')
     expect(result.current.isSaved).toBe(false)
     await waitFor(async () => {
@@ -61,6 +61,40 @@ describe('useWorkspacePersistence', () => {
     const loaded = await loadWorkspace(createDefaultWorkspaceState())
     expect(loaded.state.editors.main.value).toBe('autosaved text')
     expect(loaded.revision).toBe(1)
+  })
+
+  it('keeps the document saved indicator stable for UI-only changes', async () => {
+    const state = createDefaultWorkspaceState()
+    const { result } = renderHook(() =>
+      useWorkspacePersistence({
+        initialRevision: 0,
+        initialSavedAt: '2026-08-09T00:00:00.000Z',
+        state,
+      }),
+    )
+
+    act(() => result.current.scheduleSave('layout'))
+    expect(result.current.isSaved).toBe(true)
+    await waitFor(async () => {
+      const loaded = await loadWorkspace(createDefaultWorkspaceState())
+      expect(loaded.revision).toBe(1)
+    })
+    expect(result.current.isSaved).toBe(true)
+  })
+
+  it('tracks history writes as document content saves', async () => {
+    const state = createDefaultWorkspaceState()
+    const { result } = renderHook(() =>
+      useWorkspacePersistence({
+        initialRevision: 0,
+        initialSavedAt: '2026-08-09T00:00:00.000Z',
+        state,
+      }),
+    )
+
+    act(() => result.current.scheduleSave('history', { affectsContent: true }))
+    expect(result.current.isSaved).toBe(false)
+    await waitFor(() => expect(result.current.isSaved).toBe(true))
   })
 
   it('pauses with a conflict when its expected revision is stale', async () => {
@@ -76,7 +110,7 @@ describe('useWorkspacePersistence', () => {
       }),
     )
 
-    act(() => result.current.scheduleSave('editors'))
+    act(() => result.current.scheduleSave('editors', { affectsContent: true }))
     await waitFor(() => expect(result.current.status).toBe('conflict'), {
       timeout: 1500,
     })
@@ -103,7 +137,9 @@ describe('useWorkspacePersistence', () => {
       }),
     )
 
-    act(() => first.result.current.scheduleSave('editors'))
+    act(() =>
+      first.result.current.scheduleSave('editors', { affectsContent: true }),
+    )
     await waitFor(() =>
       expect(second.result.current.hasRemoteChanges).toBe(true),
     )
@@ -113,8 +149,37 @@ describe('useWorkspacePersistence', () => {
     expect(second.result.current.status).toBe('saved')
     expect(second.result.current.hasRemoteChanges).toBe(true)
 
-    act(() => second.result.current.scheduleSave('editors'))
+    act(() =>
+      second.result.current.scheduleSave('editors', { affectsContent: true }),
+    )
     expect(second.result.current.status).toBe('conflict')
+  })
+
+  it('ignores UI-only saves broadcast by another tab', async () => {
+    const state = createDefaultWorkspaceState()
+    const initial = await saveWorkspace({ expectedRevision: 0, state })
+    const first = renderHook(() =>
+      useWorkspacePersistence({
+        initialRevision: initial.revision,
+        initialSavedAt: initial.savedAt,
+        state,
+      }),
+    )
+    const second = renderHook(() =>
+      useWorkspacePersistence({
+        initialRevision: initial.revision,
+        initialSavedAt: initial.savedAt,
+        state,
+      }),
+    )
+
+    act(() => first.result.current.scheduleSave('layout'))
+    await waitFor(async () => {
+      const loaded = await loadWorkspace(createDefaultWorkspaceState())
+      expect(loaded.revision).toBe(2)
+    })
+    await waitFor(() => expect(second.result.current.isSaved).toBe(true))
+    expect(second.result.current.hasRemoteChanges).toBe(false)
   })
 })
 
