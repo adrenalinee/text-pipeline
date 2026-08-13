@@ -45,6 +45,12 @@ while your original text remains untouched.
 Processed locally in your browser.
 Your text stays with you.`
 
+const SECONDARY_EDITOR_PLACEHOLDER = `A fully independent second editor.
+
+Paste or edit any text here, use every available tool,
+then compare both editors with Diff.
+Changes here are not saved to your flow history.`
+
 type EditorToolbarShortcutActions = {
   canCommit: boolean
   canToggleView: boolean
@@ -245,7 +251,11 @@ function SourceEditor({
       }}
       extensions={session.editorExtensions}
       height="100%"
-      placeholder={SOURCE_EDITOR_PLACEHOLDER}
+      placeholder={
+        session.id === 'main'
+          ? SOURCE_EDITOR_PLACEHOLDER
+          : SECONDARY_EDITOR_PLACEHOLDER
+      }
       theme={isDark ? oneDark : 'light'}
       value={session.value}
       onCreateEditor={session.bindEditorView}
